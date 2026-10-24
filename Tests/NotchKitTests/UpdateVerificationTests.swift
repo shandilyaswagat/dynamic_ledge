@@ -75,3 +75,13 @@ struct UpdateVerificationTests {
         }
     }
 }
+
+@Suite("Update key")
+struct UpdateKeyTests {
+    @Test func onlyARealKeyAllowsInstalling() {
+        #expect(!Updater.isUsableKey(nil))
+        #expect(!Updater.isUsableKey(""))
+        #expect(!Updater.isUsableKey("__UPDATE_PUBLIC_KEY__"))
+        #expect(Updater.isUsableKey(Data(repeating: 7, count: 32).base64EncodedString()))
+    }
+}

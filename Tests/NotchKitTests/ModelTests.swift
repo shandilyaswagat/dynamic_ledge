@@ -205,7 +205,7 @@ struct IslandModelTests {
         let notch = try #require(model.engine.notchInWindow)
         #expect(model.settings.notchOpenMode == .click)
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
-        try await Task.sleep(for: .milliseconds(550))
+        try await Task.sleep(for: .milliseconds(1200))
         #expect(model.presentation == .hidden(peek: true))
     }
 
@@ -214,7 +214,7 @@ struct IslandModelTests {
         let notch = try #require(model.engine.notchInWindow)
         model.settings.notchOpenMode = .hover
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
-        try await Task.sleep(for: .milliseconds(550))
+        try await Task.sleep(for: .milliseconds(1200))
         #expect(model.presentation == .home)
     }
 

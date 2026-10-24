@@ -7,23 +7,16 @@ last one.
 
 ## [Unreleased]
 
-### Security
-- Authenticate in-app updates with an embedded Ed25519 public key and signed release metadata.
-  Reject missing/invalid signatures and mismatched versions, products, sizes or hashes before
-  mounting updates; verify the expected Apple signing team for Developer ID installations.
-- Preserve quarantine during update installation. Release publishing now requires a signing key.
-- Limit update manifests and disk images, keep release links on GitHub, and bound Now Playing
-  artwork, metadata and command-pipe input to prevent malformed data exhausting resources.
-
-### Changed
-- **Notch opening controls.** Settings › General now offers Click or Hover as an explicit
-  opening mode. Existing “Expand on hover” settings migrate automatically.
-=======
 ### Added
 - **Several apps playing at once.** When a second app starts playing music or video while the
   first keeps going, the music view shows a button for each so you can switch between them.
+- **Click or hover.** Settings › General now has a simple choice for how the notch opens: click
+  it, or just rest the pointer on it. If you had "Expand on hover" on, you're already set to
+  Hover.
 
 ### Changed
+- **Safer updates.** Every update is now signed, and the app checks that signature before
+  installing anything, so a tampered download can't sneak in.
 - The Calendar panel looks like Apple's Calendar widget: the month name in red, a dot under days
   with events, and Up Next with each event's calendar colour. Click an event to open it in
   Calendar. It now shows the whole coming week, including all-day events.
@@ -34,12 +27,15 @@ last one.
   other displays. Choose Follow the pointer in Settings › General if you want that.
 
 ### Fixed
-- With Expand on hover, resting the pointer on the pill didn't open it while the pill was showing
-  on its own (Show when idle, or while trying sizes in Settings › Appearance). It now opens at
-  every size, and the whole hover puff around the notch counts, not just the camera housing.
+- You can now drag a document straight from an app's title bar (like Pages) onto the notch, not
+  just files from Finder.
+- Hover didn't open the pill while it was showing on its own (Show when idle, or while trying
+  sizes in Settings › Appearance). It now opens at every size, and the whole hover puff around
+  the notch counts, not just the camera housing.
 - After connecting Calendar, nothing showed up in the notch on a day with no more events. The
   Calendar row now always shows once connected, and the notch opens on your calendar right after
   you allow access.
+- Very long song titles or huge album art from a music app can no longer slow the app down.
 
 ## [1.2.0] - 2026-10-24
 

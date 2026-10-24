@@ -56,7 +56,7 @@ final class DebugHooks {
         case "timers": model.timerPanelMode = parts.dropFirst().first.flatMap(TimerPanelMode.init(rawValue:)) ?? .timer; model.showTab(.timers)
         case "calendar": model.showTab(.calendar)
         case "launcher": model.showTab(.launcher)
-        case "hoverexpand": model.settings.expandOnHover = parts.dropFirst().first != "off"
+        case "hoverexpand": model.settings.notchOpenMode = parts.dropFirst().first == "off" ? .click : .hover
         case "reminders": model.showTab(.reminders)
         case "checkupdate": model.updater.check()
         case "stopwatch": model.stopwatch.start()

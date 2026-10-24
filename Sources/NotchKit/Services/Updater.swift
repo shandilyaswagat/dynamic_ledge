@@ -105,7 +105,10 @@ public final class Updater {
     /// instead when the app can't replace itself (read-only location, or run from a disk image).
     public func install(_ release: ReleaseInfo) {
         let destination = Bundle.main.bundleURL
-        guard Self.canReplace(destination) else {
+        // No release-signing key in this build (or no signed manifest on the release) means the
+        // update can't be verified, so send the user to the download page instead of failing.
+        let key = Bundle.main.object(forInfoDictionaryKey: "DNUpdatePublicKey") as? String
+        guard Self.canReplace(destination), Self.isUsableKey(key), release.signedManifest != nil else {
             NSWorkspace.shared.open(release.page)
             return
         }
@@ -132,6 +135,12 @@ public final class Updater {
     enum UpdateError: Error {
         case unreadable
         case noApp
+    }
+
+    /// A base64 Ed25519 public key (32 bytes), not an empty or unfilled placeholder.
+    nonisolated static func isUsableKey(_ key: String?) -> Bool {
+        guard let key, let data = Data(base64Encoded: key) else { return false }
+        return data.count == 32
     }
 
     nonisolated static func canReplace(_ app: URL) -> Bool {

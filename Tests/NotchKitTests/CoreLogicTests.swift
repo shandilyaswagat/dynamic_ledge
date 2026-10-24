@@ -232,7 +232,9 @@ struct NowPlayingTests {
     @Test func boundsUntrustedArtworkAndMetadata() throws {
         let text = String(repeating: "x", count: BridgeMessage.maximumTextLength + 100)
         let oversizedArtwork = Data(repeating: 0, count: BridgeMessage.maximumArtworkBytes + 1).base64EncodedString()
-        let line = #"{"type":"nowPlaying","hasInfo":true,"title":"# + text + #"","artist":"Artist","artwork":"# + oversizedArtwork + #"}"#
+        // Built with JSONSerialization so the long values arrive as proper JSON strings.
+        let payload: [String: Any] = ["type": "nowPlaying", "hasInfo": true, "title": text, "artist": "Artist", "artwork": oversizedArtwork]
+        let line = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
         guard case .nowPlaying(let info?, let artwork) = try #require(BridgeMessage.parse(Data(line.utf8))) else {
             Issue.record("expected now playing data")
             return

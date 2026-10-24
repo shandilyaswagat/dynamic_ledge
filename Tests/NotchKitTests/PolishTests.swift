@@ -82,7 +82,7 @@ struct HoverOpenTests {
     private func makeModel() -> IslandModel {
         let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
         let model = IslandModel(settings: SettingsStore(defaults: defaults), tray: TrayStore(folder: nil), notes: NotesStore(defaults: defaults))
-        model.settings.expandOnHover = true
+        model.settings.notchOpenMode = .hover
         return model
     }
 

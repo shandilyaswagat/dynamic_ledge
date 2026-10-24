@@ -7,6 +7,18 @@ last one.
 
 ## [Unreleased]
 
+### Security
+- Authenticate in-app updates with an embedded Ed25519 public key and signed release metadata.
+  Reject missing/invalid signatures and mismatched versions, products, sizes or hashes before
+  mounting updates; verify the expected Apple signing team for Developer ID installations.
+- Preserve quarantine during update installation. Release publishing now requires a signing key.
+- Limit update manifests and disk images, keep release links on GitHub, and bound Now Playing
+  artwork, metadata and command-pipe input to prevent malformed data exhausting resources.
+
+### Changed
+- **Notch opening controls.** Settings › General now offers Click or Hover as an explicit
+  opening mode. Existing “Expand on hover” settings migrate automatically.
+=======
 ### Added
 - **Several apps playing at once.** When a second app starts playing music or video while the
   first keeps going, the music view shows a button for each so you can switch between them.

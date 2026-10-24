@@ -17,6 +17,11 @@ VERSION="${VERSION:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)}"
 BUNDLE_ID="${BUNDLE_ID:-com.rectircle.DynamicNotch}"
 APP="$ROOT/build/Dynamic Notch.app"
+UPDATE_PUBLIC_KEY="$(tr -d '[:space:]' < "$ROOT/Support/UpdatePublicKey.txt")"
+if [[ -n "$UPDATE_PUBLIC_KEY" && ! "$UPDATE_PUBLIC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
+    echo "Invalid Support/UpdatePublicKey.txt (expected base64 Ed25519 public key)" >&2
+    exit 1
+fi
 
 # Use the selected Xcode's SDK. A newer Command Line Tools SDK can contain
 # architectures that Xcode's linker doesn't know yet.
@@ -45,6 +50,7 @@ cp "$BIN_DIR/libNotchMediaBridge.dylib" "$APP/Contents/Frameworks/libNotchMediaB
 cp "$ROOT/Support/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD_NUMBER/" -e "s/__BUNDLE_ID__/$BUNDLE_ID/" \
     "$ROOT/Support/Info.plist" > "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :DNUpdatePublicKey $UPDATE_PUBLIC_KEY" "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" > /dev/null
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 

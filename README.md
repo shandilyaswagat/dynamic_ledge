@@ -94,7 +94,7 @@ xattr -dr com.apple.quarantine "/Applications/Dynamic Notch.app"
 | See more about something | Click it |
 | Close it | Click anywhere else, or just move your mouse away (Notes stays open until you click away or press Escape) |
 | Skip a song | Swipe left or right on the music with two fingers |
-| Open or close it without clicking | Pull down on the notch with two fingers, push up to close |
+| Open or close it without clicking | Choose **Hover** in Settings › General, or pull down on the notch with two fingers; push up to close |
 | Get back to Home | Click the back arrow at the top left |
 | Keep files for later, or AirDrop them | Drag them onto the notch and drop on **Tray** or **AirDrop** |
 | Pause a timer, skip a song, open settings | Right-click the notch |

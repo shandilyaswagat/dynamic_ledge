@@ -18,13 +18,16 @@ struct VersionTests {
     @Test func readsGitHubsLatestRelease() throws {
         let json = """
         {"tag_name":"v1.2.0","html_url":"https://github.com/o/r/releases/tag/v1.2.0","assets":[
-          {"name":"DynamicNotch.dmg","browser_download_url":"https://example.com/DynamicNotch.dmg"},
-          {"name":"DynamicNotch.dmg.sha256","browser_download_url":"https://example.com/DynamicNotch.dmg.sha256"}]}
+          {"name":"DynamicNotch.dmg","browser_download_url":"https://github.com/o/r/releases/download/v1.2.0/DynamicNotch.dmg"},
+          {"name":"DynamicNotch.dmg.sha256","browser_download_url":"https://github.com/o/r/releases/download/v1.2.0/DynamicNotch.dmg.sha256"},
+          {"name":"DynamicNotch.update.json","browser_download_url":"https://github.com/o/r/releases/download/v1.2.0/DynamicNotch.update.json"}]}
         """
         let release = try #require(ReleaseInfo.parse(Data(json.utf8)))
         #expect(release.version.description == "1.2.0")
+        #expect(release.signedManifest?.lastPathComponent == "DynamicNotch.update.json")
         #expect(release.checksum?.lastPathComponent == "DynamicNotch.dmg.sha256")
         #expect(ReleaseInfo.parse(Data(#"{"tag_name":"v1.2.0","assets":[]}"#.utf8)) == nil)
+        #expect(ReleaseInfo.parse(Data(#"{"tag_name":"v1.2.0","html_url":"https://attacker.example/release","assets":[{"name":"DynamicNotch.dmg","browser_download_url":"https://attacker.example/DynamicNotch.dmg"}]}"#.utf8)) == nil)
     }
 
     @Test func neverReplacesATranslocatedCopy() {

@@ -82,7 +82,16 @@ struct GeneralSettingsView: View {
 
             Section("Behavior") {
                 Toggle("Show when idle", isOn: $settings.showWhenIdle)
-                Toggle("Expand on hover", isOn: $settings.expandOnHover)
+                Picker("Open notch with", selection: $settings.notchOpenMode) {
+                    Text("Click").tag(NotchOpenMode.click)
+                    Text("Hover").tag(NotchOpenMode.hover)
+                }
+                .pickerStyle(.segmented)
+                Text(settings.notchOpenMode == .click
+                    ? "Click the notch to open it."
+                    : "Hold the pointer over the notch briefly to open it. Clicking still opens it immediately.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Collapse when the pointer leaves", isOn: $settings.collapseOnPointerExit)
                 Toggle("Liquid animations", isOn: $settings.liquidAnimations)
                 Toggle("Haptic feedback", isOn: $settings.hapticsEnabled)

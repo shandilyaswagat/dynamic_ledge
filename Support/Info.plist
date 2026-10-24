@@ -26,6 +26,8 @@
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>DNUpdatePublicKey</key>
+	<string>__UPDATE_PUBLIC_KEY__</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>

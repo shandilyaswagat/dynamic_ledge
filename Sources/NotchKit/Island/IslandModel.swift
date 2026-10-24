@@ -332,8 +332,9 @@ public final class IslandModel {
             }
         }
 
-        if settings.expandOnHover, inside, case .compact(let primary, _) = current {
+        if settings.notchOpenMode == .hover, inside, case .compact(let primary, _) = current {
             scheduleHoverExpand(.activity(primary))
+        } else if settings.notchOpenMode == .hover, inside, case .hidden = current {
         } else if settings.expandOnHover, inside, current == .idle || current.isHidden {
             // The tucked-away notch, or the resting pill (Show when idle, or while previewing a
             // size in Settings), opens Home.

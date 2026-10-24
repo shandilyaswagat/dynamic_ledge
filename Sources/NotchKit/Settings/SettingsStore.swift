@@ -12,6 +12,15 @@ public enum DisplayChoice: String, CaseIterable, Sendable, Identifiable {
     public var id: String { rawValue }
 }
 
+/// Controls how a closed notch opens. In hover mode only the opening trigger changes: once
+/// open, every control remains clickable and accessible.
+public enum NotchOpenMode: String, CaseIterable, Sendable, Identifiable {
+    case click
+    case hover
+
+    public var id: String { rawValue }
+}
+
 /// User preferences, saved to UserDefaults as soon as they change.
 @MainActor
 @Observable
@@ -33,7 +42,7 @@ public final class SettingsStore {
     }
 
     public var showWhenIdle: Bool { didSet { defaults.set(showWhenIdle, forKey: Key.showWhenIdle) } }
-    public var expandOnHover: Bool { didSet { defaults.set(expandOnHover, forKey: Key.expandOnHover) } }
+    public var notchOpenMode: NotchOpenMode { didSet { defaults.set(notchOpenMode.rawValue, forKey: Key.notchOpenMode) } }
     public var collapseOnPointerExit: Bool { didSet { defaults.set(collapseOnPointerExit, forKey: Key.collapseOnPointerExit) } }
     public var hapticsEnabled: Bool { didSet { defaults.set(hapticsEnabled, forKey: Key.haptics) } }
     public var liquidAnimations: Bool { didSet { defaults.set(liquidAnimations, forKey: Key.liquid) } }
@@ -94,7 +103,13 @@ public final class SettingsStore {
             size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
-        expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? false
+        // Keep the behaviour of existing installations after replacing the old toggle with an
+        // explicit interaction mode. New installations use click-to-open.
+        if let stored = defaults.string(forKey: Key.notchOpenMode), let mode = NotchOpenMode(rawValue: stored) {
+            notchOpenMode = mode
+        } else {
+            notchOpenMode = (defaults.object(forKey: Key.expandOnHover) as? Bool) == true ? .hover : .click
+        }
         collapseOnPointerExit = defaults.object(forKey: Key.collapseOnPointerExit) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
         liquidAnimations = defaults.object(forKey: Key.liquid) as? Bool ?? true
@@ -154,6 +169,8 @@ public final class SettingsStore {
         static let verticalOffset = "shape.verticalOffset"
         static let horizontalOffset = "shape.horizontalOffset"
         static let showWhenIdle = "behavior.showWhenIdle"
+        static let notchOpenMode = "behavior.notchOpenMode"
+        /// Legacy boolean retained only to migrate versions that shipped before interaction modes.
         static let expandOnHover = "behavior.expandOnHover"
         static let collapseOnPointerExit = "behavior.collapseOnPointerExit"
         static let haptics = "behavior.haptics"

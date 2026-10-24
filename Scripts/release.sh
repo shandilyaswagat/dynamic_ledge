@@ -24,6 +24,8 @@ fail() { echo "✗ $*" >&2; exit 1; }
 BRANCH="$(git symbolic-ref --quiet --short HEAD || echo "(detached)")"
 [[ "$BRANCH" == "main" ]] || fail "Releases come from main, but you're on $BRANCH. Merge into main first"
 git diff --quiet && git diff --cached --quiet || fail "Commit your changes first"
+[[ -n "${UPDATE_SIGNING_KEY_FILE:-}" && -f "$UPDATE_SIGNING_KEY_FILE" ]] || fail "Set UPDATE_SIGNING_KEY_FILE to your private Ed25519 key file"
+[[ -s Support/UpdatePublicKey.txt ]] || fail "Configure Support/UpdatePublicKey.txt before publishing"
 git fetch --tags --quiet origin
 [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || fail "Local main and origin/main differ. Pull or push first"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && fail "$TAG already exists. Bump VERSION"
@@ -55,11 +57,13 @@ echo "› Releasing Dynamic Notch $VERSION"
 ./Scripts/check.sh
 ./Scripts/make-dmg.sh
 
+swift Scripts/sign-update.swift sign "$UPDATE_SIGNING_KEY_FILE" build/DynamicNotch.dmg "$VERSION" "${BUNDLE_ID:-com.rectircle.DynamicNotch}" "build/Dynamic Notch.app/Contents/Info.plist"
+
 git tag -a "$TAG" -m "Dynamic Notch $VERSION"
 git push origin main "$TAG"
-# The in-app updater checks the disk image against this before installing it.
+# Also publish a plain checksum for manual verification and Homebrew.
 SHA="$(shasum -a 256 build/DynamicNotch.dmg | awk '{print $1}')"
 echo "$SHA" > build/DynamicNotch.dmg.sha256
-gh release create "$TAG" build/DynamicNotch.dmg build/DynamicNotch.dmg.sha256 --title "Dynamic Notch $VERSION" --notes-file "$NOTES"
+gh release create "$TAG" build/DynamicNotch.dmg build/DynamicNotch.dmg.sha256 build/DynamicNotch.update.json --title "Dynamic Notch $VERSION" --notes-file "$NOTES"
 echo "✓ Released $TAG"
 ./Scripts/update-cask.sh "$VERSION" "$SHA" || echo "! Couldn't update the Homebrew cask; run Scripts/update-cask.sh $VERSION $SHA"

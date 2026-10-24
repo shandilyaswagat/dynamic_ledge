@@ -33,6 +33,9 @@ static dispatch_queue_t bridgeQueue;
 static NSString *lastSignature;
 static NSString *lastArtworkKey;
 static BOOL refreshScheduled;
+static const NSUInteger MaximumArtworkBytes = 4 * 1024 * 1024;
+static const NSUInteger MaximumMetadataLength = 4096;
+static const NSUInteger MaximumCommandBytes = 4096;
 
 static void emit(NSDictionary *payload) {
     // NSJSONSerialization throws on NaN or infinity; never let one reach it.
@@ -48,8 +51,12 @@ static void emit(NSDictionary *payload) {
     fflush(stdout);
 }
 
-static id stringOrNull(id value) {
-    return [value isKindOfClass:[NSString class]] ? value : @"";
+static NSString *boundedString(id value) {
+    if (![value isKindOfClass:[NSString class]]) {
+        return @"";
+    }
+    NSString *string = value;
+    return string.length <= MaximumMetadataLength ? string : [string substringToIndex:MaximumMetadataLength];
 }
 
 /// Live streams report NaN or infinite lengths; only finite numbers are passed on.
@@ -70,7 +77,7 @@ static NSString *clientBundleIdentifier(id client) {
         if ([client respondsToSelector:selector]) {
             id value = [client valueForKey:key];
             if ([value isKindOfClass:[NSString class]] && [value length] > 0) {
-                return value;
+                return boundedString(value);
             }
         }
     }
@@ -86,9 +93,9 @@ static void publish(NSDictionary *info, BOOL isPlaying, int pid, NSString *bundl
     if (bundleIdentifier != nil) {
         payload[@"bundleID"] = bundleIdentifier;
     }
-    payload[@"title"] = stringOrNull(info[@"kMRMediaRemoteNowPlayingInfoTitle"]);
-    payload[@"artist"] = stringOrNull(info[@"kMRMediaRemoteNowPlayingInfoArtist"]);
-    payload[@"album"] = stringOrNull(info[@"kMRMediaRemoteNowPlayingInfoAlbum"]);
+    payload[@"title"] = boundedString(info[@"kMRMediaRemoteNowPlayingInfoTitle"]);
+    payload[@"artist"] = boundedString(info[@"kMRMediaRemoteNowPlayingInfoArtist"]);
+    payload[@"album"] = boundedString(info[@"kMRMediaRemoteNowPlayingInfoAlbum"]);
 
     NSNumber *duration = finiteNumber(info[@"kMRMediaRemoteNowPlayingInfoDuration"]);
     NSNumber *elapsed = finiteNumber(info[@"kMRMediaRemoteNowPlayingInfoElapsedTime"]);
@@ -103,10 +110,10 @@ static void publish(NSDictionary *info, BOOL isPlaying, int pid, NSString *bundl
 
     NSData *artwork = info[@"kMRMediaRemoteNowPlayingInfoArtworkData"];
     NSString *artworkKey = nil;
-    if ([artwork isKindOfClass:[NSData class]] && artwork.length > 0) {
+    if ([artwork isKindOfClass:[NSData class]] && artwork.length > 0 && artwork.length <= MaximumArtworkBytes) {
         id identifier = info[@"kMRMediaRemoteNowPlayingInfoArtworkIdentifier"];
         artworkKey = [identifier isKindOfClass:[NSString class]]
-            ? identifier
+            ? boundedString(identifier)
             : [NSString stringWithFormat:@"%lu-%lu", (unsigned long)artwork.length, (unsigned long)artwork.hash];
         payload[@"artworkKey"] = artworkKey;
     }
@@ -239,6 +246,12 @@ static void startReadingCommands(void) {
             exit(0);
         }
         [pending appendBytes:buffer length:(NSUInteger)count];
+        // Only the app owns this pipe, but a malformed or compromised helper must not be able
+        // to make its long-lived command buffer grow without bound.
+        if (pending.length > MaximumCommandBytes) {
+            [pending setLength:0];
+            return;
+        }
         while (YES) {
             NSRange newline = [pending rangeOfData:[NSData dataWithBytes:"\n" length:1] options:0 range:NSMakeRange(0, pending.length)];
             if (newline.location == NSNotFound) {

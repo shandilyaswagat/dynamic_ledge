@@ -73,6 +73,10 @@ public enum BridgeMessage: Equatable, Sendable {
     /// `info` is nil when nothing is playing. `artwork` is only present when it changed.
     case nowPlaying(info: NowPlayingInfo?, artwork: Data?)
 
+    /// The line reader has an 8 MiB limit; retain at most half of that as decoded artwork.
+    public static let maximumArtworkBytes = 4 * 1024 * 1024
+    public static let maximumTextLength = 4_096
+
     public static func parse(_ line: Data) -> BridgeMessage? {
         guard
             let object = try? JSONSerialization.jsonObject(with: line),
@@ -84,7 +88,7 @@ public enum BridgeMessage: Equatable, Sendable {
         case "ready":
             return .ready
         case "error":
-            return .error(dictionary["message"] as? String ?? "Unknown error")
+            return .error(boundedText(dictionary["message"] as? String))
         case "nowPlaying":
             return parseNowPlaying(dictionary)
         default:
@@ -93,9 +97,11 @@ public enum BridgeMessage: Equatable, Sendable {
     }
 
     private static func parseNowPlaying(_ dictionary: [String: Any]) -> BridgeMessage {
-        let artwork = (dictionary["artwork"] as? String).flatMap { Data(base64Encoded: $0) }
-        let title = dictionary["title"] as? String ?? ""
-        let artist = dictionary["artist"] as? String ?? ""
+        let artwork = (dictionary["artwork"] as? String)
+            .flatMap { Data(base64Encoded: $0) }
+            .flatMap { $0.count <= maximumArtworkBytes ? $0 : nil }
+        let title = boundedText(dictionary["title"] as? String)
+        let artist = boundedText(dictionary["artist"] as? String)
         guard (dictionary["hasInfo"] as? Bool) == true, !title.isEmpty || !artist.isEmpty else {
             return .nowPlaying(info: nil, artwork: nil)
         }
@@ -104,17 +110,22 @@ public enum BridgeMessage: Equatable, Sendable {
         let info = NowPlayingInfo(
             title: title,
             artist: artist,
-            album: dictionary["album"] as? String ?? "",
+            album: boundedText(dictionary["album"] as? String),
             duration: finitePositive(dictionary["duration"]),
             elapsed: finiteNonNegative(dictionary["elapsed"]),
             sampledAt: finitePositive(dictionary["timestamp"]).map(Date.init(timeIntervalSince1970:)),
             playbackRate: (dictionary["rate"] as? NSNumber)?.doubleValue ?? 0,
             isPlaying: (dictionary["playing"] as? Bool) ?? false,
-            bundleIdentifier: (dictionary["bundleID"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+            bundleIdentifier: (dictionary["bundleID"] as? String).flatMap { boundedText($0).isEmpty ? nil : boundedText($0) },
             processIdentifier: (pid ?? 0) > 0 ? pid : nil,
-            artworkKey: dictionary["artworkKey"] as? String
+            artworkKey: boundedText(dictionary["artworkKey"] as? String)
         )
         return .nowPlaying(info: info, artwork: artwork)
+    }
+
+    private static func boundedText(_ value: String?) -> String {
+        guard let value else { return "" }
+        return String(value.prefix(maximumTextLength))
     }
 
     private static func finitePositive(_ value: Any?) -> Double? {

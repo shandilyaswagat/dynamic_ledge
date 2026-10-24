@@ -18,6 +18,7 @@ struct SettingsStoreTests {
         #expect(store.appearance == .standard)
         #expect(store.collapseOnPointerExit)
         #expect(!store.showWhenIdle)
+        #expect(store.notchOpenMode == .click)
         #expect(store.nowPlayingEnabled && store.timerEnabled && store.callsEnabled && store.airDropEnabled)
         #expect(store.pausedMediaLinger == 30)
         #expect(store.display == .automatic)
@@ -31,6 +32,7 @@ struct SettingsStoreTests {
         store.appearance.pitchBlack = false
         store.showWhenIdle = true
         store.display = .main
+        store.notchOpenMode = .hover
         store.pausedMediaLinger = 300
         store.callsEnabled = false
 
@@ -40,6 +42,7 @@ struct SettingsStoreTests {
         #expect(!reloaded.appearance.pitchBlack)
         #expect(reloaded.showWhenIdle)
         #expect(reloaded.display == .main)
+        #expect(reloaded.notchOpenMode == .hover)
         #expect(reloaded.pausedMediaLinger == 300)
         #expect(!reloaded.callsEnabled)
     }
@@ -55,6 +58,14 @@ struct SettingsStoreTests {
         #expect(store.appearance.style == .notch)
         #expect(store.display == .automatic)
         #expect(store.pausedMediaLinger == 30)
+    }
+
+    @Test func migratesTheLegacyHoverSetting() {
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: "behavior.expandOnHover")
+        #expect(SettingsStore(defaults: defaults).notchOpenMode == .hover)
+        defaults.set("click", forKey: "behavior.notchOpenMode")
+        #expect(SettingsStore(defaults: defaults).notchOpenMode == .click)
     }
 
     @Test func resetAppearance() {
@@ -187,6 +198,24 @@ struct IslandModelTests {
         #expect(!model.pointerMoved(to: CGPoint(x: notch.midX, y: 200)))
         #expect(model.presentation == .hidden(peek: false))
         #expect(!model.pointerMoved(to: nil))
+    }
+
+    @Test func clickModeNeverOpensOnlyFromHover() async throws {
+        let model = makeModel()
+        let notch = try #require(model.engine.notchInWindow)
+        #expect(model.settings.notchOpenMode == .click)
+        _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
+        try await Task.sleep(for: .milliseconds(550))
+        #expect(model.presentation == .hidden(peek: true))
+    }
+
+    @Test func hoverModeOpensWithoutAClick() async throws {
+        let model = makeModel()
+        let notch = try #require(model.engine.notchInWindow)
+        model.settings.notchOpenMode = .hover
+        _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
+        try await Task.sleep(for: .milliseconds(550))
+        #expect(model.presentation == .home)
     }
 
     @Test func hoveringTheCompactShapeLiftsIt() {

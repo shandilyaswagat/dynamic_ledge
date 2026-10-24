@@ -295,7 +295,7 @@ struct DropView: View {
         }
         .animation(.spring(duration: 0.3, bounce: 0.4), value: targeted)
         .contentShape(Rectangle())
-        .onDrop(of: [.fileURL], isTargeted: Binding(
+        .onDrop(of: [.fileURL, .url], isTargeted: Binding(
             get: { model.targetedZone == zone },
             set: { model.setTargeted(zone, $0) }
         )) { providers in
@@ -308,10 +308,12 @@ struct DropView: View {
     private func loadURLs(from providers: [NSItemProvider], into zone: IslandModel.DropZone) {
         let group = DispatchGroup()
         let collector = URLCollector()
-        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+        for provider in providers where provider.canLoadObject(ofClass: URL.self) {
             group.enter()
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url { collector.append(url) }
+                // A document proxy may arrive as `public.url`. Only local file URLs are valid
+                // tray or AirDrop inputs; reject web and custom-scheme URLs.
+                if let url, url.isFileURL { collector.append(url) }
                 group.leave()
             }
         }

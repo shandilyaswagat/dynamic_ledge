@@ -229,6 +229,18 @@ struct NowPlayingTests {
         #expect(BridgeMessage.parse(Data(#"{"type":"error","message":"x"}"#.utf8)) == .error("x"))
     }
 
+    @Test func boundsUntrustedArtworkAndMetadata() throws {
+        let text = String(repeating: "x", count: BridgeMessage.maximumTextLength + 100)
+        let oversizedArtwork = Data(repeating: 0, count: BridgeMessage.maximumArtworkBytes + 1).base64EncodedString()
+        let line = #"{"type":"nowPlaying","hasInfo":true,"title":"# + text + #"","artist":"Artist","artwork":"# + oversizedArtwork + #"}"#
+        guard case .nowPlaying(let info?, let artwork) = try #require(BridgeMessage.parse(Data(line.utf8))) else {
+            Issue.record("expected now playing data")
+            return
+        }
+        #expect(info.title.count == BridgeMessage.maximumTextLength)
+        #expect(artwork == nil)
+    }
+
     @Test func badNumbersAreDropped() throws {
         let line = #"{"type":"nowPlaying","hasInfo":true,"title":"Live","duration":-1,"elapsed":-4,"timestamp":0,"pid":0,"bundleID":""}"#
         guard case .nowPlaying(let info?, _) = try #require(BridgeMessage.parse(Data(line.utf8))) else {

@@ -1,10 +1,19 @@
 import AppKit
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Places the island panel on the right display and routes the pointer to the model.
 @MainActor
 public final class IslandWindowController {
+    /// Finder uses `public.file-url`; document proxy icons, including Pages, can expose the
+    /// broader `public.url` representation instead. The receiver validates that it is a local
+    /// file before accepting the drop.
+    private static let supportedFileDragTypes: Set<NSPasteboard.PasteboardType> = [
+        .fileURL,
+        NSPasteboard.PasteboardType(UTType.url.identifier),
+    ]
+
     private let model: IslandModel
     private let panel = IslandPanel()
     private let hostingView: IslandHostingView<IslandRootView>
@@ -246,7 +255,8 @@ public final class IslandWindowController {
         let pasteboard = NSPasteboard(name: .drag)
         if !isFileDragging,
            pasteboard.changeCount != dragChangeCount,
-           pasteboard.types?.contains(.fileURL) == true {
+           let types = pasteboard.types,
+           !Self.supportedFileDragTypes.isDisjoint(with: types) {
             isFileDragging = true
             watchForDragEnd()
         }

@@ -46,7 +46,42 @@ has the version bump and changelog:
 git switch develop && git merge main && git push
 ```
 
-## Making a release now (unsigned)
+## Update signing (required before publishing)
+
+Updates are authenticated with Ed25519 independently of Apple's code signing. The updater
+rejects missing signatures, a different key, altered image bytes, incorrect product/version,
+and size/hash mismatches before mounting the image. Old checksum-only releases cannot be
+installed by this updater. An empty public-key file disables in-app installation safely.
+
+Generate the production key on a protected signing machine, outside this repository:
+
+```bash
+swift Scripts/sign-update.swift generate /secure/location/dynamic-notch-update.key
+```
+
+The command creates a private key with mode 0600 and prints only the public key. Put that public
+key in `Support/UpdatePublicKey.txt` and commit the public file. Back up the private key securely;
+never commit it, upload it as a release asset, or store it beside releases. Restrict CI signing
+secrets with approval controls independent of the GitHub release account. Do not regenerate keys
+for each release: existing installations pin the public key shipped in their app.
+
+Set `UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key` when running
+`Scripts/release.sh`. After building the final DMG (including notarization/stapling), the script
+signs a manifest and publishes `DynamicNotch.update.json` alongside the image. Signing verifies
+that the built app embeds the matching public key and has the expected version and bundle ID.
+The manifest envelope holds base64 payload bytes and their signature; the signed payload contains
+the version, bundle ID, DMG filename, byte length and SHA-256.
+
+The updater validates the extracted bundle ID and version. If the current app has an Apple
+signing Team ID, updates must also pass strict code validation for that same Apple-trusted team
+and identifier. Ad-hoc builds rely on the pinned release-signing key. Quarantine is not stripped
+by the installer; normal macOS launch checks still apply.
+
+The first release with this protection must reach users through a trusted installation channel.
+Old installed versions do not gain signature verification until replaced. Plan key rotation by
+shipping a trusted update with the next public key before retiring the old signing key.
+
+## Making a release now (ad-hoc Apple signature)
 
 1. On main, change `VERSION`, add the matching `## [x.y.z] - date` section to `CHANGELOG.md`,
    and commit.
@@ -54,14 +89,14 @@ git switch develop && git merge main && git push
 3. Run:
 
    ```bash
-   ./Scripts/release.sh
+   UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key ./Scripts/release.sh
    ```
 
 The script stops if you're not on main, local main doesn't match GitHub, the working tree isn't
 committed, the tag already exists, or the changelog has no section for the version. Then it runs all checks, builds `build/DynamicNotch.dmg`, tags
 `vX.Y.Z`, pushes, and publishes the GitHub release with the changelog section as its notes (plus
-short install steps for new users). It also uploads `DynamicNotch.dmg.sha256`, which the in-app
-updater checks before installing, and points the Homebrew cask in `shandilyaswagat/homebrew-tap`
+short install steps for new users). It also uploads `DynamicNotch.dmg.sha256`, for manual checksum checks, plus the signed manifest the in-app
+updater requires before installing, and points the Homebrew cask in `shandilyaswagat/homebrew-tap`
 at the new version (`Scripts/update-cask.sh`, from `packaging/homebrew/`).
 
 ### Why downloaded copies still get Now Playing
@@ -94,7 +129,7 @@ quarantine flag and keeps the library's signature) and loads that.
 Same as above, with your identity and notarization profile set:
 
 ```bash
-SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=dynamic-notch ./Scripts/release.sh
+UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=dynamic-notch ./Scripts/release.sh
 ```
 
 `make-dmg.sh` then signs the helper library and the app with hardened runtime, the camera and
@@ -104,6 +139,4 @@ the install note the release script adds.
 
 ## Not included yet
 
-* **Automatic updates.** Users download new versions by hand. Sparkle is the usual route once
-  releases are signed.
-* **Crash reporting.** None, by design: the app makes no network requests.
+* **Crash reporting.** None. Network access is used for update checks and downloads.

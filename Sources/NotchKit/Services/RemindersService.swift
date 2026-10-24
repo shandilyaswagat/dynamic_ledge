@@ -71,9 +71,13 @@ public final class RemindersService {
     }
 
     public func requestAccess() {
+        // Come forward so the permission dialog appears (see CalendarService.requestAccess).
+        NSApp.activate()
         Task { [weak self] in
             guard let self else { return }
             let granted = (try? await self.store.requestFullAccessToReminders()) ?? false
+            if granted { self.store.reset() }
+            if !granted, Self.currentAccess() != .notAsked { self.openPrivacySettings() }
             self.access = granted ? .granted : .denied
             self.reload()
         }

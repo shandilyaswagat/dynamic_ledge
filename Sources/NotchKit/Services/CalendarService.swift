@@ -67,6 +67,8 @@ public final class CalendarService {
         case notAsked
         case granted
         case denied
+        /// "Add Events Only": the app could create events but can't read them.
+        case limited
     }
 
     public private(set) var access: Access = .notAsked
@@ -116,12 +118,17 @@ public final class CalendarService {
     @ObservationIgnored public var onGranted: (() -> Void)?
 
     public func requestAccess() {
+        // The notch never brings the app forward, and macOS may not show a permission dialog for
+        // an app in the background. Come forward first so the dialog appears on top.
+        NSApp.activate()
         Task { [weak self] in
             guard let self else { return }
             let granted = (try? await self.store.requestFullAccessToEvents()) ?? false
+            // No dialog was shown (macOS remembered an earlier answer): send the user to the switch.
+            if !granted, Self.currentAccess() != .notAsked { self.openPrivacySettings() }
             // A store created before access was granted keeps returning nothing until it's reset.
             if granted { self.store.reset() }
-            self.access = granted ? .granted : .denied
+            self.access = granted ? .granted : Self.currentAccess()
             self.reload()
             if granted { self.onGranted?() }
         }
@@ -140,6 +147,14 @@ public final class CalendarService {
         }
     }
 
+    /// Picks up a change made in System Settings while the app was running.
+    public func refreshAccess() {
+        let now = Self.currentAccess()
+        guard now != access else { return }
+        if now == .granted { store.reset() }
+        reload()
+    }
+
     public func openPrivacySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
             NSWorkspace.shared.open(url)
@@ -150,6 +165,7 @@ public final class CalendarService {
         switch EKEventStore.authorizationStatus(for: .event) {
         case .fullAccess: .granted
         case .notDetermined: .notAsked
+        case .writeOnly: .limited
         default: .denied
         }
     }

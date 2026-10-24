@@ -209,12 +209,8 @@ public final class IslandModel {
 
     /// The calendar row shows the next event, or a button to connect the calendar.
     public var showsCalendarRow: Bool {
-        guard settings.calendarEnabled else { return false }
-        switch calendar.access {
-        case .notAsked: return true
-        case .granted: return true
-        case .denied: return false
-        }
+        // Always shown when switched on, so there's a way to connect or fix access from Home.
+        settings.calendarEnabled
     }
 
     public var favoriteShortcuts: [String] {
@@ -663,6 +659,7 @@ public final class IslandModel {
     }
 
     public func showTab(_ tab: HomeTab) {
+        if tab == .home || tab == .calendar { calendar.refreshAccess() }
         if tab == .tray { tray.pruneMissing() }
         if tab == .mirror { camera.refresh() }
         expand(ExpandTarget(tab))

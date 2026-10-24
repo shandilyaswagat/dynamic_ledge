@@ -21,12 +21,19 @@ last one.
   with events, and Up Next with each event's calendar colour. Click an event to open it in
   Calendar. It now shows the whole coming week, including all-day events.
 - The back arrow is a plain chevron that highlights under the pointer, like macOS toolbars.
+- The timer row in Home is tidier: "Timer ›" opens the full timer, and 5m, 10m, 15m and Focus
+  start one straight away. The Calendar and Shortcuts rows match it.
 - The feature grid has more room: taller tiles, lighter type and a small coloured dot for what's
   on right now.
 - The notch stays on your MacBook's screen again by default instead of following the pointer to
   other displays. Choose Follow the pointer in Settings › General if you want that.
 
 ### Fixed
+- Connecting Calendar, Reminders or the camera could seem to do nothing, because the permission
+  dialog didn't always appear while the app sat in the background. The app now comes forward to
+  ask, and if macOS already has an answer on file it opens the right switch in System Settings.
+- If Calendar access was off, the Calendar row disappeared from Home with no way to turn it on.
+  It now stays, with an Allow Access button. "Add Events Only" access is explained too.
 - You can now drag a document straight from an app's title bar (like Pages) onto the notch, not
   just files from Finder.
 - Hover didn't open the pill while it was showing on its own (Show when idle, or while trying

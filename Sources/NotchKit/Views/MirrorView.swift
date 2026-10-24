@@ -19,6 +19,8 @@ final class CameraAccess {
     }
 
     func request() {
+        // Come forward so the permission dialog appears (see CalendarService.requestAccess).
+        NSApp.activate()
         Task { [weak self] in
             _ = await AVCaptureDevice.requestAccess(for: .video)
             self?.refresh()

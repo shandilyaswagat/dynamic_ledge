@@ -16,7 +16,11 @@ struct CalendarPanelBody: View {
                 calendar.requestAccess()
             }
         case .denied:
-            ConnectPrompt(text: "Calendar access is off for Dynamic Notch.", button: "Open Settings", tint: .white) {
+            ConnectPrompt(text: "Calendar access is off for Dynamic Notch.", button: "Turn On in Settings", tint: .white) {
+                calendar.openPrivacySettings()
+            }
+        case .limited:
+            ConnectPrompt(text: "Dynamic Notch can add events but can't see them yet.", button: "Allow Full Access", tint: .white) {
                 calendar.openPrivacySettings()
             }
         case .granted:

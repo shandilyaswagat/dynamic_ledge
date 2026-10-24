@@ -325,7 +325,7 @@ struct HomeSettingsView: View {
                             Text("Allowed").foregroundStyle(.secondary)
                         case .notAsked:
                             Button("Connect Calendar") { calendar.requestAccess() }
-                        case .denied:
+                        case .denied, .limited:
                             Button("Open Privacy Settings") { calendar.openPrivacySettings() }
                         }
                     }

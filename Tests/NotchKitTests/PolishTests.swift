@@ -94,7 +94,9 @@ struct HoverOpenTests {
         #expect(model.presentation == .idle)
         let center = CGPoint(x: model.layout.pill.midX, y: model.layout.pill.midY)
         model.pointerMoved(to: center)
-        try await Task.sleep(for: .milliseconds(1500))
+        for _ in 0..<60 where model.presentation != .home {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         #expect(model.presentation == .home)
     }
 
@@ -105,7 +107,9 @@ struct HoverOpenTests {
         let notch = try #require(model.engine.notchInWindow)
         // Just past the camera housing, on the peek it swells into.
         model.pointerMoved(to: CGPoint(x: notch.maxX + 6, y: 10))
-        try await Task.sleep(for: .milliseconds(1500))
+        for _ in 0..<60 where model.presentation != .home {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         #expect(model.presentation == .home)
     }
 }

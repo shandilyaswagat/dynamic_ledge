@@ -214,7 +214,10 @@ struct IslandModelTests {
         let notch = try #require(model.engine.notchInWindow)
         model.settings.notchOpenMode = .hover
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
-        try await Task.sleep(for: .milliseconds(1200))
+        // Wait for the hover delay, allowing for a main thread busy with other tests.
+        for _ in 0..<60 where model.presentation != .home {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         #expect(model.presentation == .home)
     }
 

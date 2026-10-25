@@ -5,7 +5,7 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
-## [Unreleased]
+## [1.3.2] - 2026-10-25
 
 ### Fixed
 - Connecting Calendar or Reminders could look like it did nothing: you clicked Allow, and the notch
@@ -151,6 +151,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.2]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.2
 [1.3.1]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.1
 [1.3.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.0
 [1.2.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.2.0

@@ -5,7 +5,7 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
-## [Unreleased]
+## [1.3.0] - 2026-10-25
 
 ### Added
 - **Several apps playing at once.** When a second app starts playing music or video while the

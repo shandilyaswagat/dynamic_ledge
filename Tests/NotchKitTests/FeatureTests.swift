@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Testing
 @testable import NotchKit
 
@@ -20,11 +21,11 @@ struct TrayTests {
         try Data("b".utf8).write(to: b)
         let tray = TrayStore(folder: nil)
         #expect(tray.add([a]) == 1)
-        #expect(tray.add([b, a, folder.appendingPathComponent("missing.txt"), URL(string: "https://example.com")!]) == 1)
+        #expect(tray.add([b, a, folder.appendingPathComponent("missing.txt")]) == 1)
         #expect(tray.items.map(\.name) == ["b.txt", "a.txt"])
     }
 
-    @Test func survivesRelaunchAndForgetsDeletedFiles() throws {
+    @Test func startsEmptyInANewSession() throws {
         let folder = try tempFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let store = folder.appendingPathComponent("store", isDirectory: true)
@@ -35,7 +36,8 @@ struct TrayTests {
         TrayStore(folder: store).add([keep, gone])
         try FileManager.default.removeItem(at: gone)
         let reloaded = TrayStore(folder: store)
-        #expect(reloaded.items.map(\.name) == ["keep.pdf"])
+        #expect(reloaded.items.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: keep.path))
     }
 
     @Test func removeAndClear() throws {
@@ -66,7 +68,7 @@ struct TrayTests {
         #expect(tray.items.isEmpty)
     }
 
-    @Test func capacityKeepsTheNewest() throws {
+    @Test func capacityRejectsOverflowWithoutEviction() throws {
         let folder = try tempFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let files = try (0..<(TrayStore.capacity + 5)).map { index -> URL in
@@ -77,8 +79,115 @@ struct TrayTests {
         let tray = TrayStore(folder: nil)
         for file in files { tray.add([file]) }
         #expect(tray.items.count == TrayStore.capacity)
-        #expect(tray.items.first?.name == "\(TrayStore.capacity + 4).txt")
+        #expect(tray.items.first?.name == "\(TrayStore.capacity - 1).txt")
     }
+    @Test func webShortcutsAreUniqueAndCleanedWithoutDeletingOriginals() throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("original.txt")
+        try Data().write(to: file)
+        let tray = TrayStore(folder: folder)
+        let first = try #require(URL(string: "https://example.com/first"))
+        let second = try #require(URL(string: "https://example.com/second"))
+        #expect(tray.add([first, second, file]) == 3)
+        #expect(tray.add([first]) == 0)
+        let shortcuts = tray.items.filter { $0.url.pathExtension == "webloc" }
+        #expect(Set(shortcuts.map(\.url)).count == 2)
+        let removed = try #require(shortcuts.first)
+        tray.remove(removed.id)
+        #expect(!FileManager.default.fileExists(atPath: removed.url.path))
+        tray.removeAll()
+        #expect(shortcuts.allSatisfy { !FileManager.default.fileExists(atPath: $0.url.path) })
+        #expect(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test func overflowDoesNotCreateShortcutFilesAndWriteErrorsAreReported() throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let files = try (0..<TrayStore.capacity).map { index -> URL in
+            let url = folder.appendingPathComponent("\(index).txt")
+            try Data().write(to: url)
+            return url
+        }
+        let tray = TrayStore(folder: folder)
+        #expect(tray.add(files) == TrayStore.capacity)
+        let before = try FileManager.default.subpathsOfDirectory(atPath: folder.path).count
+        let link = try #require(URL(string: "https://example.com/new"))
+        #expect(tray.add([link]) == 0)
+        let after = try FileManager.default.subpathsOfDirectory(atPath: folder.path).count
+        #expect(before == after)
+        let invalidBase = try #require(files.first)
+        let failingTray = TrayStore(folder: invalidBase)
+        #expect(failingTray.add([link]) == 0)
+        #expect(failingTray.statusMessage != nil)
+    }
+
+    @Test func disabledDestinationsCannotReceiveFiles() throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("document.txt")
+        try Data().write(to: file)
+        let defaults = UserDefaults(suiteName: "DropTests-" + UUID().uuidString)!
+        let model = IslandModel(settings: SettingsStore(defaults: defaults), tray: TrayStore(folder: folder))
+        model.settings.trayEnabled = false
+        model.settings.airDropEnabled = false
+        #expect(!model.acceptDrop([file], into: .tray))
+        #expect(!model.acceptDrop([file], into: .airDrop))
+        #expect(model.tray.items.isEmpty)
+    }
+
+    @Test func distinctPagesPackagesAreNotDuplicates() throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let files = [folder.appendingPathComponent("file1.pages"),
+                     folder.appendingPathComponent("file2.pages"),
+                     folder.appendingPathComponent("other/file1.pages")]
+        for file in files {
+            try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
+        }
+        let tray = TrayStore(folder: folder)
+        #expect(tray.add(files) == 3)
+        #expect(Set(tray.items.map(\.url)) == Set(files.map(\.standardizedFileURL)))
+        #expect(tray.add([files[0]]) == 0)
+        #expect(tray.items.count == 3)
+    }
+
+    @Test func nativePasteboardReadsIndividualFilesAndLinks() throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let first = URL(fileURLWithPath: "/tmp/first.pages")
+        let second = URL(fileURLWithPath: "/tmp/second.pages")
+        let a = NSPasteboardItem()
+        let b = NSPasteboardItem()
+        a.setString(first.absoluteString, forType: .fileURL)
+        b.setString(second.absoluteString, forType: .fileURL)
+        #expect(pasteboard.writeObjects([a, b]))
+        #expect(FileDropReader.urls(from: pasteboard) == [first, second])
+        pasteboard.clearContents()
+        let web = NSPasteboardItem()
+        let link = try #require(URL(string: "https://example.com/document"))
+        web.setString(link.absoluteString, forType: .URL)
+        #expect(pasteboard.writeObjects([web]))
+        #expect(FileDropReader.urls(from: pasteboard) == [link])
+    }
+
+    @Test func documentReleaseAcceptsNotchEdgeAndExpandedTarget() {
+        let activation = CGRect(x: 100, y: 0, width: 200, height: 100)
+        let pill = CGRect(x: 80, y: 20, width: 240, height: 150)
+        let target = DocumentDragPolicy.dropRegion(activation: activation, pill: pill)
+        #expect(target.contains(CGPoint(x: 200, y: 0)))
+        #expect(target.contains(CGPoint(x: 100, y: 150)))
+        #expect(!target.contains(CGPoint(x: 400, y: 200)))
+    }
+
+    @Test func windowMovementAndDestinationPolicy() {
+        #expect(!DocumentDragPolicy.hasMoved(from: .zero, to: CGPoint(x: 2, y: 0)))
+        #expect(DocumentDragPolicy.hasMoved(from: .zero, to: CGPoint(x: 10, y: 0)))
+        let content = CGRect(x: 0, y: 0, width: 200, height: 100)
+        #expect(DropPolicy.destination(at: CGPoint(x: 20, y: 20), content: content, tray: false, airDrop: false) == nil)
+        #expect(DropPolicy.destination(at: CGPoint(x: 150, y: 20), content: content, tray: true, airDrop: true) == .airDrop)
+    }
+
 }
 
 @Suite("Calendar rules")

@@ -51,6 +51,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
+        model?.tray.removeAll()
         model?.stopServices()
         islandController?.tearDown()
     }

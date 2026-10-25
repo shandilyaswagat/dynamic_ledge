@@ -12,7 +12,7 @@ fi
 
 cd "$ROOT"
 echo "› Unit tests…"
-swift test
+swift test --build-system native
 echo "› Release build, warnings as errors…"
-swift build -c release -Xswiftc -warnings-as-errors -Xcc -Werror
+swift build --build-system native -c release -Xswiftc -warnings-as-errors -Xcc -Werror
 echo "✓ All checks passed"

@@ -57,7 +57,7 @@ echo "› Releasing Dynamic Notch $VERSION"
 ./Scripts/check.sh
 ./Scripts/make-dmg.sh
 
-swift Scripts/sign-update.swift sign "$UPDATE_SIGNING_KEY_FILE" build/DynamicNotch.dmg "$VERSION" "${BUNDLE_ID:-com.rectircle.DynamicNotch}" "build/Dynamic Notch.app/Contents/Info.plist"
+swift Scripts/sign-update.swift sign "$UPDATE_SIGNING_KEY_FILE" build/DynamicNotch.dmg "$VERSION" "${BUNDLE_ID:-com.rectircle.DynamicNotch}" "build/ReleaseInfo.plist"
 
 git tag -a "$TAG" -m "Dynamic Notch $VERSION"
 git push origin main "$TAG"

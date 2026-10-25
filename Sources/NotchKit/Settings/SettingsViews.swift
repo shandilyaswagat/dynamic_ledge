@@ -87,6 +87,13 @@ struct GeneralSettingsView: View {
                     Text("Hover").tag(NotchOpenMode.hover)
                 }
                 .pickerStyle(.segmented)
+                if settings.notchOpenMode == .hover {
+                    Picker("Hover delay", selection: $settings.hoverDelay) {
+                        ForEach(SettingsStore.hoverDelayChoices, id: \.self) { delay in
+                            Text(SettingsStore.hoverDelayLabel(delay)).tag(delay)
+                        }
+                    }
+                }
                 Text(settings.notchOpenMode == .click
                     ? "Click the notch to open it."
                     : "Hold the pointer over the notch briefly to open it. Clicking still opens it immediately.")
@@ -302,7 +309,13 @@ struct HomeSettingsView: View {
     var body: some View {
         Form {
             Section {
-                IconToggle(title: "File Tray", detail: "Drop files on the notch to keep them for later", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
+                IconToggle(title: "File Tray", detail: "Drag saved document windows here. Up to 30 shortcuts; clears when the app quits", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
+                if settings.trayEnabled {
+                    Button("Allow document window dragging…") { DocumentWindowDrag.requestAccess() }
+                    Text("Enable Dynamic Notch in macOS Accessibility settings to store a saved document by dragging its whole window to the notch. The source app must expose its saved document location. Some apps also ask for Automation access. Unsaved or ambiguous documents cannot be stored.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 IconToggle(title: "Clipboard", detail: "Text you copied recently. Passwords are skipped, nothing is saved", symbol: "doc.on.clipboard.fill", color: .orange, isOn: $settings.clipboardEnabled)
                 IconToggle(title: "Notes", detail: "A quick scratchpad, saved as you type", symbol: "note.text", color: .yellow, isOn: $settings.notesEnabled)
                 IconToggle(title: "Reminders", detail: "Today's to-dos, ticked off from the notch", symbol: "checklist", color: .blue, isOn: $settings.remindersEnabled)

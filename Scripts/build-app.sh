@@ -16,7 +16,7 @@ SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 VERSION="${VERSION:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)}"
 BUNDLE_ID="${BUNDLE_ID:-com.rectircle.DynamicNotch}"
-APP="$ROOT/build/Dynamic Notch.app"
+APP="${APP_OUTPUT:-$ROOT/build/Dynamic Notch.app}"
 UPDATE_PUBLIC_KEY="$(tr -d '[:space:]' < "$ROOT/Support/UpdatePublicKey.txt")"
 if [[ -n "$UPDATE_PUBLIC_KEY" && ! "$UPDATE_PUBLIC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
     echo "Invalid Support/UpdatePublicKey.txt (expected base64 Ed25519 public key)" >&2
@@ -32,15 +32,28 @@ if [[ -z "${SDKROOT:-}" && -d "$XCODE_SDK" ]]; then
     export SDKROOT="$XCODE_SDK"
 fi
 
-ARCH_FLAGS=()
-if [[ "${UNIVERSAL:-0}" == "1" ]]; then
-    ARCH_FLAGS=(--arch arm64 --arch x86_64)
-fi
-
 cd "$ROOT"
 echo "› Building ($CONFIG)…"
-swift build -c "$CONFIG" ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
-BIN_DIR="$(swift build -c "$CONFIG" ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path)"
+# Keep package builds independent of Xcode's private xcbuild executable. This project uses
+# SwiftPM's native build system and does not need an Xcode project or workspace.
+BUILD_FLAGS=(--build-system native -c "$CONFIG")
+if [[ "${UNIVERSAL:-0}" == "1" ]]; then
+    # Multiple --arch values select XCBuild even with --build-system native.
+    # Build each architecture independently so Command Line Tools are sufficient.
+    swift build "${BUILD_FLAGS[@]}" --arch arm64
+    ARM_BIN_DIR="$(swift build "${BUILD_FLAGS[@]}" --arch arm64 --show-bin-path)"
+    swift build "${BUILD_FLAGS[@]}" --arch x86_64
+    INTEL_BIN_DIR="$(swift build "${BUILD_FLAGS[@]}" --arch x86_64 --show-bin-path)"
+    BIN_DIR="$ROOT/.build/universal-$CONFIG"
+    mkdir -p "$BIN_DIR"
+    for BINARY in DynamicNotch libNotchMediaBridge.dylib; do
+        xcrun lipo -create "$ARM_BIN_DIR/$BINARY" "$INTEL_BIN_DIR/$BINARY" -output "$BIN_DIR/$BINARY"
+        xcrun lipo "$BIN_DIR/$BINARY" -verify_arch arm64 x86_64
+    done
+else
+    swift build "${BUILD_FLAGS[@]}"
+    BIN_DIR="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
+fi
 
 echo "› Assembling app bundle…"
 rm -rf "$APP"
@@ -60,6 +73,10 @@ if [[ "$CONFIG" == "release" ]]; then
 fi
 
 echo "› Signing with: $SIGN_IDENTITY"
+# Finder/File Provider may add bundle metadata in synced project folders. These attributes
+# invalidate code signing; remove only those attributes from our generated bundle.
+xattr -dr com.apple.FinderInfo "$APP" 2>/dev/null || true
+xattr -dr com.apple.ResourceFork "$APP" 2>/dev/null || true
 SIGN_FLAGS=(--force --options runtime)
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
     SIGN_FLAGS+=(--timestamp=none)

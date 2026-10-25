@@ -40,6 +40,11 @@ And when you click it, you get a little home base right under the notch:
 
 Drag files onto the notch and you can also AirDrop them straight from there.
 
+To add an open document, save it, then drag its window by the title bar to the notch and release
+over **Tray**. Enable Accessibility access for Dynamic Notch and approve Automation access if
+requested. The source app must expose the saved document location.
+
+
 Everything else lives behind the grid button at the top right: the timer, stopwatch, calendar,
 today's reminders, a scratchpad, your camera mirror and Keep Awake (stops your Mac from
 sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.

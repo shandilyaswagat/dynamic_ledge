@@ -36,10 +36,19 @@ final class IslandPanel: NSPanel {
 /// Hosting view that reacts to the first click even though the app is in the background.
 final class IslandHostingView<Content: View>: NSHostingView<Content> {
     var onMouseMoved: (() -> Void)?
+    var onDraggingEntered: ((NSDraggingInfo) -> NSDragOperation)?
+    var onDraggingUpdated: ((NSDraggingInfo) -> NSDragOperation)?
+    var onDraggingExited: (() -> Void)?
+    var onPerformDrag: ((NSDraggingInfo) -> Bool)?
     private var trackingArea: NSTrackingArea?
 
     required init(rootView: Content) {
         super.init(rootView: rootView)
+        registerForDraggedTypes([
+            .fileURL,
+            .URL,
+            NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+        ])
     }
 
     @available(*, unavailable)
@@ -48,6 +57,22 @@ final class IslandHostingView<Content: View>: NSHostingView<Content> {
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        onDraggingEntered?(sender) ?? []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        onDraggingUpdated?(sender) ?? []
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        onDraggingExited?()
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        return onPerformDrag?(sender) ?? false
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()

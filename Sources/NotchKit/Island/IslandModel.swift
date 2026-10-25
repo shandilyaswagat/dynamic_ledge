@@ -44,11 +44,10 @@ public final class IslandModel {
     public private(set) var targetedZone: DropZone?
     /// True while the user drags a file out of the tray, so it isn't mistaken for a new drop.
     public var isDraggingFromTray = false
+    /// A document window is moving, rather than a native pasteboard file drag.
+    public var isDocumentWindowDrag = false
 
-    public enum DropZone: Sendable, Equatable {
-        case tray
-        case airDrop
-    }
+    public typealias DropZone = FileDropDestination
     /// True while the Appearance settings are open, so the pill shows for live preview.
     public var isPreviewing = false
 
@@ -426,7 +425,8 @@ public final class IslandModel {
     private func scheduleHoverExpand(_ target: ExpandTarget) {
         guard hoverExpandTask == nil else { return }
         hoverExpandTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(450))
+            let ms = Int(((self?.settings.hoverDelay ?? 0.2) * 1000).rounded())
+            try? await Task.sleep(for: .milliseconds(max(50, ms)))
             guard !Task.isCancelled, let self else { return }
             self.hoverExpandTask = nil
             switch (target, self.presentation) {
@@ -627,7 +627,7 @@ public final class IslandModel {
             isFileDragNear = near
         }
         if !isDragging, isDropTargeted {
-            setTargeted(nil, true)
+            setTargeted(nil, false)
         }
     }
 
@@ -642,16 +642,32 @@ public final class IslandModel {
         if isDropTargeted != any { isDropTargeted = any }
     }
 
+    @discardableResult
+    public func acceptDrop(_ urls: [URL], into destination: DropZone) -> Bool {
+        let supported = urls.filter(DropPolicy.isSupported)
+        guard !supported.isEmpty else { return false }
+        switch destination {
+        case .tray: return settings.trayEnabled && addToTray(supported) > 0
+        case .airDrop: return settings.airDropEnabled && airDrop(supported.filter(\.isFileURL))
+        }
+    }
+
+    public func showDropFailure(_ message: String) {
+        tray.reportFailure(message)
+        expand(.tray)
+        pointerEnteredExpanded = true
+    }
+
     /// Keeps dropped files in the tray and shows them.
     @discardableResult
     public func addToTray(_ urls: [URL]) -> Int {
         isFileDragNear = false
         setTargeted(nil, false)
         let added = tray.add(urls)
+        expand(.tray)
+        pointerEnteredExpanded = true
         if added > 0 {
             Haptics.perform(enabled: settings.hapticsEnabled)
-            expand(.tray)
-            pointerEnteredExpanded = true
         } else {
             NSSound.beep()
         }

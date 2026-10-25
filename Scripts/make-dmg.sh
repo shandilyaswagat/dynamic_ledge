@@ -11,15 +11,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export UNIVERSAL=1
 export CONFIG=release
 
-"$ROOT/Scripts/build-app.sh"
-
-APP="$ROOT/build/Dynamic Notch.app"
 DMG="$ROOT/build/DynamicNotch.dmg"
 STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
+# Assemble and sign outside synced folders so File Provider cannot reattach Finder metadata
+# between signing and packaging. The disk image preserves the signed bundle unchanged.
+APP_OUTPUT="$STAGING/Dynamic Notch.app" "$ROOT/Scripts/build-app.sh"
+mkdir -p "$ROOT/build"
 
-echo "› Packaging $DMG…"
-cp -R "$APP" "$STAGING/"
+echo "› Packaging ${DMG}…"
 ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
 hdiutil create -volname "Dynamic Notch" -srcfolder "$STAGING" -ov -format UDZO -quiet "$DMG"
@@ -39,4 +39,5 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
     spctl --assess --type open --context context:primary-signature --verbose "$DMG"
 fi
 
+cp "$STAGING/Dynamic Notch.app/Contents/Info.plist" "$ROOT/build/ReleaseInfo.plist"
 echo "✓ $DMG"

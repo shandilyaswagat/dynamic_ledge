@@ -6,14 +6,6 @@ import UniformTypeIdentifiers
 /// Places the island panel on the right display and routes the pointer to the model.
 @MainActor
 public final class IslandWindowController {
-    /// Finder uses `public.file-url`; document proxy icons, including Pages, can expose the
-    /// broader `public.url` representation instead. The receiver validates that it is a local
-    /// file before accepting the drop.
-    private static let supportedFileDragTypes: Set<NSPasteboard.PasteboardType> = [
-        .fileURL,
-        NSPasteboard.PasteboardType(UTType.url.identifier),
-    ]
-
     private let model: IslandModel
     private let panel = IslandPanel()
     private let hostingView: IslandHostingView<IslandRootView>
@@ -23,6 +15,12 @@ public final class IslandWindowController {
 
     private var dragChangeCount = NSPasteboard(name: .drag).changeCount
     private var isFileDragging = false
+    private var documentWindowDrag = DocumentWindowDrag()
+    private var documentDragTask: Task<Void, Never>?
+    private var documentGestureStart: CGPoint?
+    private var dragActivationTask: Task<Void, Never>?
+    private var nativeDragTask: Task<Void, Never>?
+    private var lastIdleDragChangeCount = NSPasteboard(name: .drag).changeCount
     private var scrollTotal: CGSize = .zero
     private var scrollHandled = false
     private var lastWheelStep = Date.distantPast
@@ -34,9 +32,25 @@ public final class IslandWindowController {
         // The window size is ours to set; SwiftUI must never resize it to fit its content.
         hostingView.sizingOptions = []
         hostingView.onMouseMoved = { [weak self] in self?.pointerChanged() }
+        hostingView.onDraggingEntered = { [weak self] sender in
+            self?.updateNativeDrag(sender) ?? []
+        }
+        hostingView.onDraggingUpdated = { [weak self] sender in
+            self?.updateNativeDrag(sender) ?? []
+        }
+        hostingView.onDraggingExited = { [weak self] in self?.endNativeDrag() }
+        hostingView.onPerformDrag = { [weak self] sender in
+            guard let self else { return false }
+            let urls = FileDropReader.urls(from: sender.draggingPasteboard)
+            let destination = self.dropDestination(at: self.windowPoint())
+            self.endNativeDrag()
+            guard let destination else { return false }
+            return self.model.acceptDrop(urls, into: destination)
+        }
         panel.contentView = hostingView
         updateScreen()
         installMonitors()
+        watchDragActivation()
         observeEnvironment()
         observeLayout()
         observeKeyboard()
@@ -52,6 +66,11 @@ public final class IslandWindowController {
     }
 
     public func tearDown() {
+        dragActivationTask?.cancel()
+        dragActivationTask = nil
+        nativeDragTask?.cancel()
+        nativeDragTask = nil
+        cancelDocumentDrag()
         monitors.forEach(NSEvent.removeMonitor)
         monitors.removeAll()
         observers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -204,7 +223,7 @@ public final class IslandWindowController {
     /// With "follow the pointer", hop to the display the pointer moved to, but never while
     /// something is open or being dragged, so nothing jumps away from under the user.
     private func followPointerIfNeeded() {
-        guard model.settings.display == .followPointer, !isFileDragging,
+        guard model.settings.display == .followPointer, !isFileDragging, documentDragTask == nil,
               !model.presentation.isExpandedFamily, let current = screen else { return }
         let pointer = NSEvent.mouseLocation
         guard !NSMouseInRect(pointer, current.frame, false),
@@ -218,12 +237,19 @@ public final class IslandWindowController {
         // something still needs to be switched off.
         let location = NSEvent.mouseLocation
         let nearWindow = panel.frame.insetBy(dx: -8, dy: -8).contains(location)
-        if !nearWindow, !isFileDragging, panel.ignoresMouseEvents, !model.isHoveringPill, !model.isHoveringNotch {
+        if !nearWindow, !isFileDragging, !model.isDocumentWindowDrag, panel.ignoresMouseEvents, !model.isHoveringPill, !model.isHoveringNotch {
             return
         }
         let wantsMouse = model.pointerMoved(to: windowPoint())
-        if panel.ignoresMouseEvents == wantsMouse {
-            panel.ignoresMouseEvents = !wantsMouse
+        // A window move is owned by the source app, not an NSDraggingSession. Keep its mouse
+        // events passing through the overlay until release; the global monitor/poller handles it.
+        if model.isDocumentWindowDrag {
+            panel.ignoresMouseEvents = true
+            return
+        }
+        let shouldAcceptMouse = wantsMouse || isFileDragging || model.isFileDragNear || model.isDocumentWindowDrag
+        if panel.ignoresMouseEvents == shouldAcceptMouse {
+            panel.ignoresMouseEvents = !shouldAcceptMouse
         }
     }
 
@@ -232,6 +258,12 @@ public final class IslandWindowController {
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             if event.type == .leftMouseDown {
                 dragChangeCount = NSPasteboard(name: .drag).changeCount
+                cancelDocumentDrag()
+                if model.settings.trayEnabled, (!isLocal || event.window !== panel) {
+                    documentGestureStart = NSEvent.mouseLocation
+                    _ = documentWindowDrag.begin(at: NSEvent.mouseLocation)
+                    watchDocumentDrag()
+                }
             }
             // Clicks in other apps, and in our own Settings window, are outside the notch.
             if !isLocal || event.window !== panel {
@@ -240,40 +272,164 @@ public final class IslandWindowController {
         case .leftMouseDragged:
             updateFileDrag()
         case .leftMouseUp:
-            if isFileDragging {
-                isFileDragging = false
-                model.fileDragChanged(isDragging: false, at: nil)
-            }
+            finishDocumentDrag()
+            // AppKit completes a native drop after delivering mouse-up. Its destination
+            // callbacks (or the delayed release fallback) clear that session.
+
         default:
             break
         }
         pointerChanged()
     }
 
-    /// A file drag is a mouse drag whose drag pasteboard changed since the mouse went down.
+    private func dropDestination(at point: CGPoint) -> IslandModel.DropZone? {
+        DropPolicy.destination(at: point, content: model.layout.content,
+            tray: model.settings.trayEnabled,
+            airDrop: model.settings.airDropEnabled && !model.isDocumentWindowDrag)
+    }
+
+    private func updateNativeDrag(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let urls = FileDropReader.urls(from: sender.draggingPasteboard)
+        guard model.acceptsFileDrops, !model.isDraggingFromTray, !urls.isEmpty else { return [] }
+        cancelDocumentDrag()
+        if !isFileDragging { isFileDragging = true; watchForDragEnd() }
+        model.fileDragChanged(isDragging: true, at: windowPoint())
+        let destination = dropDestination(at: windowPoint())
+        model.setTargeted(destination, destination != nil)
+        pointerChanged()
+        if destination == .airDrop, !urls.contains(where: \.isFileURL) { return [] }
+        return destination == nil ? [] : .copy
+    }
+
+    private func endNativeDrag() {
+        nativeDragTask?.cancel()
+        nativeDragTask = nil
+        isFileDragging = false
+        model.fileDragChanged(isDragging: false, at: nil)
+        model.setTargeted(nil, false)
+        pointerChanged()
+    }
+
     private func updateFileDrag() {
         let pasteboard = NSPasteboard(name: .drag)
-        if !isFileDragging,
-           pasteboard.changeCount != dragChangeCount,
-           let types = pasteboard.types,
-           !Self.supportedFileDragTypes.isDisjoint(with: types) {
-            isFileDragging = true
-            watchForDragEnd()
-        }
-        if isFileDragging {
-            model.fileDragChanged(isDragging: true, at: windowPoint())
+        guard pasteboard.changeCount != dragChangeCount,
+              !FileDropReader.urls(from: pasteboard).isEmpty, !model.isDraggingFromTray else { return }
+        cancelDocumentDrag()
+        if !isFileDragging { isFileDragging = true; watchForDragEnd() }
+        model.fileDragChanged(isDragging: true, at: windowPoint())
+    }
+
+    /// Some source applications consume mouse-drag events in a tracking loop. Detect their
+    /// pasteboard/held-button state independently, without relying on a global drag callback.
+    private func watchDragActivation() {
+        dragActivationTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(50))
+                guard !Task.isCancelled, let self else { return }
+                let pasteboard = NSPasteboard(name: .drag)
+                guard NSEvent.pressedMouseButtons & 1 != 0 else {
+                    self.lastIdleDragChangeCount = pasteboard.changeCount
+                    continue
+                }
+                guard self.model.acceptsFileDrops, !self.model.isDraggingFromTray else { continue }
+                if !self.isFileDragging, self.documentGestureStart == nil,
+                   NSWorkspace.shared.frontmostApplication?.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+                    self.dragChangeCount = self.lastIdleDragChangeCount
+                    if self.model.settings.trayEnabled {
+                        self.documentGestureStart = NSEvent.mouseLocation
+                        _ = self.documentWindowDrag.begin(at: NSEvent.mouseLocation)
+                        self.watchDocumentDrag()
+                    }
+                }
+                self.updateFileDrag()
+                if self.isFileDragging {
+                    self.model.fileDragChanged(isDragging: true, at: self.windowPoint())
+                    self.pointerChanged()
+                }
+            }
         }
     }
 
-    /// Drops onto other apps don't always send us a mouse-up, so also watch the button state.
-    private func watchForDragEnd() {
+    private func watchDocumentDrag() {
+        documentDragTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, let self else { return }
+                if NSEvent.pressedMouseButtons & 1 == 0 { self.finishDocumentDrag(); return }
+                guard self.model.settings.trayEnabled, !self.isFileDragging else { self.cancelDocumentDrag(); return }
+                let missingAccess = !DocumentWindowDrag.hasAccess
+                let pointerMoved = self.documentGestureStart.map {
+                    DocumentDragPolicy.hasMoved(from: $0, to: NSEvent.mouseLocation)
+                } == true
+                let moved = self.documentWindowDrag.hasMoved || (missingAccess && pointerMoved)
+                self.model.isDocumentWindowDrag = moved
+                self.model.fileDragChanged(isDragging: moved, at: self.windowPoint())
+                let destination: IslandModel.DropZone? = moved && self.documentDropRegion.contains(self.windowPoint()) ? .tray : nil
+                self.model.setTargeted(destination, destination != nil)
+                self.pointerChanged()
+            }
+        }
+    }
+
+    private var documentDropRegion: CGRect {
+        DocumentDragPolicy.dropRegion(activation: model.engine.dropZone, pill: model.layout.pill)
+    }
+
+    private func finishDocumentDrag() {
+        guard documentDragTask != nil else { return }
+        let overTarget = documentDropRegion.contains(windowPoint())
+        let missingAccess = !DocumentWindowDrag.hasAccess && overTarget
+            && documentGestureStart.map { DocumentDragPolicy.hasMoved(from: $0, to: NSEvent.mouseLocation) } == true
+        let shouldStore = documentWindowDrag.hasMoved && overTarget
+        documentGestureStart = nil
+        documentDragTask?.cancel()
+        documentDragTask = nil
+        model.isDocumentWindowDrag = false
+        model.fileDragChanged(isDragging: false, at: nil)
+        model.setTargeted(nil, false)
+        guard shouldStore else {
+            documentWindowDrag.reset()
+            if missingAccess {
+                model.showDropFailure("Accessibility access is required to read the document in a moved window.")
+                DocumentWindowDrag.requestAccess()
+            }
+            pointerChanged()
+            return
+        }
+        // Retain the captured session while asynchronous resolution completes.
+        let session = documentWindowDrag
+        documentWindowDrag = DocumentWindowDrag()
         Task { @MainActor [weak self] in
-            while let self, self.isFileDragging {
-                try? await Task.sleep(for: .milliseconds(250))
+            let result = await session.resolve()
+            guard let self, self.model.settings.trayEnabled else { return }
+            if let url = result.url { _ = self.model.acceptDrop([url], into: .tray) }
+            else if let message = result.message { self.model.showDropFailure(message) }
+        }
+        pointerChanged()
+    }
+
+    private func cancelDocumentDrag() {
+        documentDragTask?.cancel()
+        documentDragTask = nil
+        documentGestureStart = nil
+        documentWindowDrag.reset()
+        if model.isDocumentWindowDrag {
+            model.isDocumentWindowDrag = false
+            model.fileDragChanged(isDragging: false, at: nil)
+            model.setTargeted(nil, false)
+        }
+    }
+
+    private func watchForDragEnd() {
+        guard nativeDragTask == nil else { return }
+        nativeDragTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, let self else { return }
                 if NSEvent.pressedMouseButtons & 1 == 0 {
-                    self.isFileDragging = false
-                    self.model.fileDragChanged(isDragging: false, at: nil)
-                    self.pointerChanged()
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled else { return }
+                    if NSEvent.pressedMouseButtons & 1 == 0 { self.endNativeDrag(); return }
                 }
             }
         }

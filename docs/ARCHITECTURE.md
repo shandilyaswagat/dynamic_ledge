@@ -24,7 +24,7 @@ Sources/
     │   ├── CallMonitor             Microphone (Core Audio) and camera (Core Media IO)
     │   ├── AudioRouteMonitor       Bluetooth headphones becoming the output
     │   ├── PowerMonitor            IOKit power-source notifications
-    │   ├── TrayStore               Files kept in the tray, saved across launches
+    │   ├── TrayStore               Up to 30 session-only references; generated shortcuts cleaned on clear/exit
     │   ├── ClipboardMonitor        Copied text, in memory only; skips private copies
     │   ├── NotesStore              The Notes scratchpad, saved to preferences
     │   ├── CalendarService         EventKit: next event and 5-minute heads-ups

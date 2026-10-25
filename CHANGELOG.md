@@ -7,42 +7,81 @@ last one.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-25
+
+### Security
+- Add fail-closed support for authenticated in-app updates: once a release public key is
+  configured, the updater accepts only signed metadata and rejects invalid signatures and
+  mismatched versions, products, sizes or hashes before mounting an update. It also verifies
+  the expected Apple signing team for Developer ID installations.
+- Preserve quarantine during update installation. Publishing refuses to run until a signing key
+  and embedded public key are configured.
+- Limit update manifests and disk images, keep release links on GitHub, and bound Now Playing
+  artwork, metadata and command-pipe input to prevent malformed data exhausting resources.
+
 ### Added
+- **Configurable hover delay.** When opening the notch on hover, choose how quickly it opens
+  in Settings › General (from 0.1s up to 0.5s, defaulting to 0.4s).
+- **Document window dragging.** Move a saved Pages, Numbers, Keynote, TextEdit, Safari, or
+  Chromium-family browser window to the notch and release it over Tray. This requires
+  Accessibility access and a document location exposed by the source app. iWork and browser
+  fallbacks also require Automation access and one exact window-title match; unsaved or
+  ambiguous windows are rejected. File and document-proxy-icon drags continue to work normally.
+- **Web shortcuts.** HTTP and HTTPS links accepted into Tray become session-owned `.webloc`
+  files. Browser window resolution supports Safari and Chromium-family apps when they expose
+  the active tab through Automation; dragging tab content is not treated as moving a window.
 - **Several apps playing at once.** When a second app starts playing music or video while the
   first keeps going, the music view shows a button for each so you can switch between them.
-- **Click or hover.** Settings › General now has a simple choice for how the notch opens: click
-  it, or just rest the pointer on it. If you had "Expand on hover" on, you're already set to
-  Hover.
 
 ### Changed
-- **Safer updates.** Every update is now signed, and the app checks that signature before
-  installing anything, so a tampered download can't sneak in.
+- **Tray empty state.** Restored the original dashed drop card and its standard file-drop
+  guidance: “Drag files onto the notch to keep them here.” The 30-item, session-only shelf
+  remains in effect without adding permission controls to the Tray design.
+- **Tray capacity and session shelf.** Tray holds up to 30 file references and web shortcuts for
+  the current app session, avoids replacing existing items on overflow, and leaves originals
+  untouched on disk. The empty Tray keeps its original file-drop design.
+- **Drop destinations.** Valid file drags reveal enabled Tray/AirDrop targets; moved document
+  windows offer Tray. Unsupported gestures and disabled destinations are rejected.
+- **Notch opening controls.** Settings › General now offers Click or Hover as an explicit
+  opening mode. Existing “Expand on hover” settings migrate automatically.
+- **Document file drops.** The notch accepts file drags and document-proxy drags from apps such
+  as Pages, then routes local files to Tray or AirDrop.
 - The Calendar panel looks like Apple's Calendar widget: the month name in red, a dot under days
   with events, and Up Next with each event's calendar colour. Click an event to open it in
   Calendar. It now shows the whole coming week, including all-day events.
 - The back arrow is a plain chevron that highlights under the pointer, like macOS toolbars.
-- The timer row in Home is tidier: "Timer ›" opens the full timer, and 5m, 10m, 15m and Focus
-  start one straight away. The Calendar and Shortcuts rows match it.
 - The feature grid has more room: taller tiles, lighter type and a small coloured dot for what's
   on right now.
 - The notch stays on your MacBook's screen again by default instead of following the pointer to
   other displays. Choose Follow the pointer in Settings › General if you want that.
 
 ### Fixed
-- Connecting Calendar, Reminders or the camera could seem to do nothing, because the permission
-  dialog didn't always appear while the app sat in the background. The app now comes forward to
-  ask, and if macOS already has an answer on file it opens the right switch in System Settings.
-- If Calendar access was off, the Calendar row disappeared from Home with no way to turn it on.
-  It now stays, with an Allow Access button. "Add Events Only" access is explained too.
-- You can now drag a document straight from an app's title bar (like Pages) onto the notch, not
-  just files from Finder.
-- Hover didn't open the pill while it was showing on its own (Show when idle, or while trying
-  sizes in Settings › Appearance). It now opens at every size, and the whole hover puff around
-  the notch counts, not just the camera housing.
+- Clarify that saved open-document windows can be added to Tray and remove error-message
+  wording that directs users to Finder as the required way to add a document.
+- Reveal file-drop targets during source-app tracking loops independently of mouse-drag
+  callbacks, and keep native destinations active until AppKit completes the drop.
+- Accept moved document windows across the highlighted notch target, including the top edge;
+  preserve source-window mouse events and retain confirmed movement until release.
+- Accept individual file/URL pasteboard representations as well as bridged URL objects.
+- Prompt for macOS Accessibility access when an open window is released over Tray without
+  permission. Keep permission controls in Settings and Tray, and remove the permission banner
+  from the drag target. Finder file drops do not require this permission.
+- Verify that different Pages documents, including identically named files in different folders,
+  are accepted separately; duplicate detection uses the full file URL, not its extension.
+- Build universal binaries with native per-architecture SwiftPM builds and preserve the packaged
+  app metadata for update signing. Sign in temporary staging to avoid Finder metadata errors.
+- Keep web shortcut files unique, bounded by accepted tray items, and clean them on removal.
+- **Sequential and multi-file drops.** Dragging multiple files or adding several files in a row
+  from Finder now reliably adds each individual file to the Tray shelf instead of misidentifying
+  the folder or rejecting subsequent drops as duplicates.
+- **Application bundle fallbacks for document apps.** Dragging document editors or web browser
+  windows no longer falls back to adding the browser or editor application executable to the Tray.
+- With Expand on hover, resting the pointer on the pill didn't open it while the pill was showing
+  on its own (Show when idle, or while trying sizes in Settings › Appearance). It now opens at
+  every size, and the whole hover puff around the notch counts, not just the camera housing.
 - After connecting Calendar, nothing showed up in the notch on a day with no more events. The
   Calendar row now always shows once connected, and the notch opens on your calendar right after
   you allow access.
-- Very long song titles or huge album art from a music app can no longer slow the app down.
 
 ## [1.2.0] - 2026-10-24
 
@@ -119,6 +158,7 @@ last one.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.0
 [1.2.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.2.0
 [1.1.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.1.0
 [1.0.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.0.0

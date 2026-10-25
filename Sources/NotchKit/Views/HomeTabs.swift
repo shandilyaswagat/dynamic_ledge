@@ -348,27 +348,27 @@ private struct CalendarRow: View {
 
     var body: some View {
         HStack(spacing: 8 * s) {
-            switch calendar.access {
-            case .notAsked:
-                RowLabel(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
-                Spacer(minLength: 8 * s)
+            Image(systemName: "calendar")
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.red)
+                .frame(width: 16 * s)
+            if calendar.access == .notAsked {
+                Text("Your next event")
+                    .font(.system(size: 12 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .lineLimit(1)
+                Spacer(minLength: 6 * s)
                 Button("Connect") { calendar.requestAccess() }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-            case .denied, .limited:
-                RowLabel(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
-                Spacer(minLength: 8 * s)
-                Button("Allow Access") { calendar.openPrivacySettings() }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-                    .help("Turn on Dynamic Notch in Privacy & Security › Calendars")
-            case .granted:
+                    .buttonStyle(ChipButtonStyle(tint: NotchColor.red, scale: s))
+                    .fixedSize()
+            } else {
                 // Always shown once connected, even on a free day, and always opens the month.
                 Button { model.showTab(.calendar) } label: {
-                    HStack(spacing: 8 * s) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 12 * s, weight: .semibold))
-                            .foregroundStyle(NotchColor.red)
-                            .frame(width: 16 * s)
+                    HStack(spacing: 7 * s) {
                         if let event = calendar.nextEvent {
+                            RoundedRectangle(cornerRadius: 1.5 * s, style: .continuous)
+                                .fill(NotchColor.accent(event.color))
+                                .frame(width: 3 * s, height: 14 * s)
                             Text(event.title)
                                 .font(.system(size: 12 * s, weight: .semibold))
                                 .foregroundStyle(.white)
@@ -401,93 +401,27 @@ private struct CalendarRow: View {
     }
 }
 
-/// The start of a Home row: a tinted symbol and a name, like a row in an Apple list.
-private struct RowLabel: View {
-    let symbol: String
-    let tint: Color
-    let title: LocalizedStringKey
-    var showsChevron = false
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        HStack(spacing: 8 * s) {
-            Image(systemName: symbol)
-                .font(.system(size: 12 * s, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 16 * s)
-            Text(title)
-                .font(.system(size: 12 * s, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .fixedSize()
-            if showsChevron {
-                Image(systemName: "chevron.forward")
-                    .font(.system(size: 9 * s, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.3))
-            }
-        }
-    }
-}
-
-/// A small quick-action capsule on the right of a Home row: soft grey fill, tinted label, every
-/// one the same type size (no shrinking to fit).
-struct QuickActionStyle: ButtonStyle {
-    var tint: Color
-    var scale: CGFloat
-    var width: CGFloat?
-
-    func makeBody(configuration: Configuration) -> some View {
-        QuickActionLabel(configuration: configuration, tint: tint, scale: scale, width: width)
-    }
-}
-
-private struct QuickActionLabel: View {
-    let configuration: ButtonStyleConfiguration
-    let tint: Color
-    let scale: CGFloat
-    let width: CGFloat?
-    @State private var isHovering = false
-
-    var body: some View {
-        configuration.label
-            .font(.system(size: 12 * scale, weight: .semibold))
-            .monospacedDigit()
-            .lineLimit(1)
-            .foregroundStyle(tint)
-            .padding(.horizontal, 9 * scale)
-            .frame(minWidth: width, minHeight: 26 * scale, maxHeight: 26 * scale)
-            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.2 : (isHovering ? 0.14 : 0.09))))
-            .contentShape(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .animation(.spring(duration: 0.2, bounce: 0.3), value: configuration.isPressed)
-            .animation(.easeOut(duration: 0.12), value: isHovering)
-            .onHover { isHovering = $0 }
-            .fixedSize()
-    }
-}
-
-/// "Timer ›" opens the full timer; the capsules on the right start one straight away.
+/// Timer icon followed by preset chips, on one line.
 private struct TimerPresetsRow: View {
     let model: IslandModel
     @Environment(\.notchScale) private var s
 
     var body: some View {
         HStack(spacing: 6 * s) {
-            Button {
-                model.timerPanelMode = .timer
-                model.showTab(.timers)
-            } label: {
-                RowLabel(symbol: "timer", tint: NotchColor.orange, title: "Timer", showsChevron: true)
-                    .contentShape(Rectangle())
+            Button { openPanel(.timer) } label: {
+                Image(systemName: "timer")
+                    .font(.system(size: 12 * s, weight: .semibold))
+                    .foregroundStyle(NotchColor.orange)
+                    .frame(width: 16 * s, height: 30 * s)
             }
             .buttonStyle(PressableButtonStyle())
-            .help("Any length, Pomodoro or Stopwatch")
             .accessibilityLabel(Text("Timer"))
-            Spacer(minLength: 8 * s)
             ForEach(TimerService.presets.prefix(3), id: \.self) { preset in
-                Button(Self.shortLabel(preset)) { model.startTimer(preset) }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s, width: 40 * s))
-                    .accessibilityLabel(Text("Start \(TimeFormatting.spoken(preset)) timer"))
+                Button(TimeFormatting.presetLabel(seconds: preset)) {
+                    model.startTimer(preset)
+                }
+                .buttonStyle(ChipButtonStyle(scale: s))
+                .accessibilityLabel(Text("Start \(TimeFormatting.spoken(preset)) timer"))
             }
             Button {
                 model.startSession(.focus)
@@ -495,15 +429,24 @@ private struct TimerPresetsRow: View {
                 Label("Focus", systemImage: TimerMode.focus.symbol)
                     .labelStyle(.titleAndIcon)
             }
-            .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s))
+            .buttonStyle(ChipButtonStyle(tint: TimerMode.focus.tint, scale: s))
+            .frame(width: 78 * s)
             .help("Focus for \(model.settings.focusMinutes) minutes, then take a \(model.settings.breakMinutes) minute break")
             .accessibilityLabel(Text("Start a \(model.settings.focusMinutes) minute focus session"))
+            Button { openPanel(.timer) } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 12 * s, weight: .bold))
+            }
+            .buttonStyle(ChipButtonStyle(tint: .white, scale: s))
+            .frame(width: 40 * s)
+            .help("More: any length, Focus or Stopwatch")
+            .accessibilityLabel(Text("More timers"))
         }
     }
 
-    /// "5m", "10m": short enough that the row fits beside the music card.
-    private static func shortLabel(_ seconds: TimeInterval) -> String {
-        "\(Int(seconds / 60))m"
+    private func openPanel(_ mode: TimerPanelMode) {
+        model.timerPanelMode = mode
+        model.showTab(.timers)
     }
 }
 
@@ -513,8 +456,11 @@ private struct ShortcutsRow: View {
 
     var body: some View {
         HStack(spacing: 6 * s) {
-            RowLabel(symbol: "bolt.fill", tint: NotchColor.blue, title: "Shortcuts")
-            Spacer(minLength: 8 * s)
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.blue)
+                .frame(width: 16 * s)
+                .accessibilityHidden(true)
             ForEach(model.favoriteShortcuts, id: \.self) { name in
                 let isRunning = model.shortcuts.running.contains(name)
                 Button {
@@ -526,11 +472,11 @@ private struct ShortcutsRow: View {
                                 .controlSize(.mini)
                         }
                         Text(name)
+                            .lineLimit(1)
                             .truncationMode(.tail)
-                            .frame(maxWidth: 110 * s)
                     }
                 }
-                .buttonStyle(QuickActionStyle(tint: NotchColor.blue, scale: s))
+                .buttonStyle(ChipButtonStyle(tint: NotchColor.blue, scale: s))
                 .disabled(isRunning)
                 .accessibilityLabel(Text("Run shortcut \(name)"))
             }
@@ -546,6 +492,17 @@ struct TrayBody: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 6 * s) {
+            if let message = model.tray.statusMessage {
+                Text(message)
+                    .font(.system(size: 10 * s))
+                    .foregroundStyle(.orange)
+            }
+            contents
+        }
+    }
+
+    @ViewBuilder private var contents: some View {
         let items = model.tray.items
         if items.isEmpty {
             ZStack {
@@ -553,9 +510,11 @@ struct TrayBody: View {
                     .strokeBorder(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
                 VStack(spacing: 6 * s) {
                     Image(systemName: "tray.and.arrow.down.fill")
-                        .font(.system(size: 20 * s, weight: .semibold))
+                        .font(.system(size: 22 * s, weight: .semibold))
                     Text("Drag files onto the notch to keep them here")
-                        .font(.system(size: 12 * s, weight: .medium))
+                        .font(.system(size: 13 * s, weight: .medium))
+                    Text("Try it with a file from your computer. It stays in this browser.")
+                        .font(.system(size: 10 * s))
                 }
                 .foregroundStyle(NotchColor.secondaryText)
             }
@@ -587,7 +546,7 @@ struct TrayBody: View {
     }
 }
 
-private struct TrayItemView: View {
+struct TrayItemView: View {
     let model: IslandModel
     let item: TrayStore.Item
     @State private var isHovering = false

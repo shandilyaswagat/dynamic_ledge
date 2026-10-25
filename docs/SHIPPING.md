@@ -67,7 +67,9 @@ for each release: existing installations pin the public key shipped in their app
 
 Set `UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key` when running
 `Scripts/release.sh`. After building the final DMG (including notarization/stapling), the script
-signs a manifest and publishes `DynamicNotch.update.json` alongside the image. Signing verifies
+signs a manifest and publishes `DynamicNotch.update.json` alongside the image.
+The packaging script writes `build/ReleaseInfo.plist` from the exact staged app before removing
+staging; release signing validates this file, rather than an older standalone app bundle. Signing verifies
 that the built app embeds the matching public key and has the expected version and bundle ID.
 The manifest envelope holds base64 payload bytes and their signature; the signed payload contains
 the version, bundle ID, DMG filename, byte length and SHA-256.

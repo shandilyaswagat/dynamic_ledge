@@ -19,6 +19,7 @@ struct SettingsStoreTests {
         #expect(store.collapseOnPointerExit)
         #expect(!store.showWhenIdle)
         #expect(store.notchOpenMode == .click)
+        #expect(store.hoverDelay == 0.4)
         #expect(store.nowPlayingEnabled && store.timerEnabled && store.callsEnabled && store.airDropEnabled)
         #expect(store.pausedMediaLinger == 30)
         #expect(store.display == .automatic)
@@ -33,6 +34,7 @@ struct SettingsStoreTests {
         store.showWhenIdle = true
         store.display = .main
         store.notchOpenMode = .hover
+        store.hoverDelay = 0.4
         store.pausedMediaLinger = 300
         store.callsEnabled = false
 
@@ -43,6 +45,7 @@ struct SettingsStoreTests {
         #expect(reloaded.showWhenIdle)
         #expect(reloaded.display == .main)
         #expect(reloaded.notchOpenMode == .hover)
+        #expect(reloaded.hoverDelay == 0.4)
         #expect(reloaded.pausedMediaLinger == 300)
         #expect(!reloaded.callsEnabled)
     }
@@ -53,11 +56,13 @@ struct SettingsStoreTests {
         defaults.set("sideways", forKey: "shape.style")
         defaults.set("moon", forKey: "general.display")
         defaults.set(7.0, forKey: "nowPlaying.pausedLinger")
+        defaults.set(2.5, forKey: "behavior.hoverDelay")
         let store = SettingsStore(defaults: defaults)
         #expect(store.appearance.width == NotchAppearance.widthRange.upperBound)
         #expect(store.appearance.style == .notch)
         #expect(store.display == .automatic)
         #expect(store.pausedMediaLinger == 30)
+        #expect(store.hoverDelay == 0.5)
     }
 
     @Test func migratesTheLegacyHoverSetting() {
@@ -205,7 +210,7 @@ struct IslandModelTests {
         let notch = try #require(model.engine.notchInWindow)
         #expect(model.settings.notchOpenMode == .click)
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
-        try await Task.sleep(for: .milliseconds(1200))
+        try await Task.sleep(for: .milliseconds(550))
         #expect(model.presentation == .hidden(peek: true))
     }
 
@@ -214,11 +219,20 @@ struct IslandModelTests {
         let notch = try #require(model.engine.notchInWindow)
         model.settings.notchOpenMode = .hover
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
-        // Wait for the hover delay, allowing for a main thread busy with other tests.
         for _ in 0..<60 where model.presentation != .home {
             try await Task.sleep(for: .milliseconds(50))
         }
         #expect(model.presentation == .home)
+    }
+
+    @Test func leavingBeforeHoverDelayDoesNotOpen() async throws {
+        let model = makeModel()
+        let notch = try #require(model.engine.notchInWindow)
+        model.settings.notchOpenMode = .hover
+        _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
+        _ = model.pointerMoved(to: nil)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(model.presentation == .hidden(peek: false))
     }
 
     @Test func hoveringTheCompactShapeLiftsIt() {

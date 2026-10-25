@@ -43,6 +43,13 @@ public final class SettingsStore {
 
     public var showWhenIdle: Bool { didSet { defaults.set(showWhenIdle, forKey: Key.showWhenIdle) } }
     public var notchOpenMode: NotchOpenMode { didSet { defaults.set(notchOpenMode.rawValue, forKey: Key.notchOpenMode) } }
+    public var hoverDelay: Double {
+        didSet {
+            let clamped = max(0.1, min(0.5, (hoverDelay * 100).rounded() / 100))
+            if hoverDelay != clamped { hoverDelay = clamped }
+            defaults.set(hoverDelay, forKey: Key.hoverDelay)
+        }
+    }
     public var collapseOnPointerExit: Bool { didSet { defaults.set(collapseOnPointerExit, forKey: Key.collapseOnPointerExit) } }
     public var hapticsEnabled: Bool { didSet { defaults.set(hapticsEnabled, forKey: Key.haptics) } }
     public var liquidAnimations: Bool { didSet { defaults.set(liquidAnimations, forKey: Key.liquid) } }
@@ -89,6 +96,14 @@ public final class SettingsStore {
     public var pausedMediaLinger: TimeInterval { didSet { defaults.set(pausedMediaLinger, forKey: Key.linger) } }
 
     public static let lingerChoices: [TimeInterval] = [10, 30, 60, 300]
+    public static let hoverDelayChoices: [Double] = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5]
+
+    public static func hoverDelayLabel(_ seconds: Double) -> String {
+        if abs(seconds - 0.4) < 0.001 {
+            return "0.4 seconds (default)"
+        }
+        return String(format: "%.2g seconds", seconds)
+    }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -110,6 +125,8 @@ public final class SettingsStore {
         } else {
             notchOpenMode = (defaults.object(forKey: Key.expandOnHover) as? Bool) == true ? .hover : .click
         }
+        let delay = defaults.object(forKey: Key.hoverDelay) as? Double ?? 0.4
+        hoverDelay = max(0.1, min(0.5, (delay * 100).rounded() / 100))
         collapseOnPointerExit = defaults.object(forKey: Key.collapseOnPointerExit) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
         liquidAnimations = defaults.object(forKey: Key.liquid) as? Bool ?? true
@@ -170,6 +187,7 @@ public final class SettingsStore {
         static let horizontalOffset = "shape.horizontalOffset"
         static let showWhenIdle = "behavior.showWhenIdle"
         static let notchOpenMode = "behavior.notchOpenMode"
+        static let hoverDelay = "behavior.hoverDelay"
         /// Legacy boolean retained only to migrate versions that shipped before interaction modes.
         static let expandOnHover = "behavior.expandOnHover"
         static let collapseOnPointerExit = "behavior.collapseOnPointerExit"

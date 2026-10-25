@@ -42,6 +42,8 @@
 	<string>Dynamic Notch shows today's to-dos in the notch so you can tick them off.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Mirror shows your camera so you can check how you look before a call. Nothing is recorded.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Dynamic Notch reads the saved document or web address of the window you drop into Tray.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026. All rights reserved.</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>

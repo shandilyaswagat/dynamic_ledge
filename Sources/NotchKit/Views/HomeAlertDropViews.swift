@@ -264,11 +264,13 @@ struct DropView: View {
             if model.settings.trayEnabled {
                 zone(.tray, title: "Tray", targetedTitle: "Keep in Tray", symbol: "tray.and.arrow.down.fill", tint: .white)
             }
-            if model.settings.airDropEnabled {
+            if model.settings.airDropEnabled && !model.isDocumentWindowDrag {
                 zone(.airDrop, title: "AirDrop", targetedTitle: "Send with AirDrop", symbol: "dot.radiowaves.up.forward", tint: NotchColor.blue)
             }
+
         }
         .padding(12 * s)
+
     }
 
     private func zone(_ zone: IslandModel.DropZone, title: LocalizedStringKey, targetedTitle: LocalizedStringKey, symbol: String, tint: Color) -> some View {
@@ -293,57 +295,12 @@ struct DropView: View {
                     .foregroundStyle(.white)
             }
         }
+        .frame(maxWidth: .infinity)
         .animation(.spring(duration: 0.3, bounce: 0.4), value: targeted)
         .contentShape(Rectangle())
-        .onDrop(of: [.fileURL, .url], isTargeted: Binding(
-            get: { model.targetedZone == zone },
-            set: { model.setTargeted(zone, $0) }
-        )) { providers in
-            loadURLs(from: providers, into: zone)
-            return true
-        }
         .accessibilityElement(children: .combine)
     }
 
-    private func loadURLs(from providers: [NSItemProvider], into zone: IslandModel.DropZone) {
-        let group = DispatchGroup()
-        let collector = URLCollector()
-        for provider in providers where provider.canLoadObject(ofClass: URL.self) {
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                // A document proxy may arrive as `public.url`. Only local file URLs are valid
-                // tray or AirDrop inputs; reject web and custom-scheme URLs.
-                if let url, url.isFileURL { collector.append(url) }
-                group.leave()
-            }
-        }
-        group.notify(queue: .main) {
-            MainActor.assumeIsolated {
-                switch zone {
-                case .tray: model.addToTray(collector.urls)
-                case .airDrop: model.airDrop(collector.urls)
-                }
-            }
-        }
-    }
-}
-
-/// Collects URLs from item-provider callbacks, which arrive on background threads.
-private final class URLCollector: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage: [URL] = []
-
-    func append(_ url: URL) {
-        lock.lock()
-        storage.append(url)
-        lock.unlock()
-    }
-
-    var urls: [URL] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage
-    }
 }
 
 /// Thin level meter for volume and brightness.

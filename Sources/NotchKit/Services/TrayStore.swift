@@ -2,8 +2,7 @@ import AppKit
 import Observation
 import QuickLookThumbnailing
 
-/// Files dropped on the notch, kept until the user drags them out or removes them.
-/// Items are references to the original files (nothing is copied), saved across launches.
+/// A bounded, session-only shelf of references. Originals are never copied or deleted.
 @MainActor
 @Observable
 public final class TrayStore {
@@ -11,63 +10,98 @@ public final class TrayStore {
         public let id: UUID
         public let url: URL
         public let addedAt: Date
+        public var sourceURL: URL? = nil
 
-        public var name: String { url.lastPathComponent }
+        public var name: String {
+            if let sourceURL, !sourceURL.isFileURL { return (sourceURL.host ?? "Web Link") + sourceURL.path }
+            if url.pathExtension == "app" || url.pathExtension == "webloc" {
+                return url.deletingPathExtension().lastPathComponent
+            }
+            return url.lastPathComponent
+        }
     }
 
     public private(set) var items: [Item] = []
     /// Quick Look thumbnails, filled in lazily.
     public private(set) var thumbnails: [UUID: NSImage] = [:]
+    public private(set) var statusMessage: String?
 
     public static let capacity = 30
 
-    @ObservationIgnored private let storeURL: URL?
     @ObservationIgnored private let fileManager: FileManager
+    @ObservationIgnored private let sessionFolder: URL
 
-    /// `folder` is where the list is saved; nil keeps it in memory only (tests).
-    public init(folder: URL? = TrayStore.defaultFolder, fileManager: FileManager = .default) {
+    /// `folder` injects a base directory for tests. Generated shortcuts belong to this instance.
+    public init(folder: URL? = nil, fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        storeURL = folder?.appendingPathComponent("tray.json")
-        load()
+        sessionFolder = (folder ?? fileManager.temporaryDirectory)
+            .appendingPathComponent("DynamicNotch-Tray-" + UUID().uuidString, isDirectory: true)
     }
 
-    public nonisolated static var defaultFolder: URL? {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("Dynamic Notch", isDirectory: true)
+    deinit { try? FileManager.default.removeItem(at: sessionFolder) }
+
+    private func makeWebloc(for url: URL) throws -> URL {
+        try fileManager.createDirectory(at: sessionFolder, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
+        let file = sessionFolder.appendingPathComponent(UUID().uuidString + ".webloc")
+        let data = try PropertyListSerialization.data(fromPropertyList: ["URL": url.absoluteString], format: .xml, options: 0)
+        try data.write(to: file, options: .atomic)
+        return file
     }
+
+    public func reportFailure(_ message: String) { statusMessage = message }
 
     // MARK: Changes
 
     /// Adds files, skipping ones already in the tray and anything that isn't a file on disk.
+    /// Web URLs (http/https) are saved as standard macOS .webloc internet shortcuts.
     /// Returns how many were added.
     @discardableResult
     public func add(_ urls: [URL], now: Date = Date()) -> Int {
-        let existing = Set(items.map { $0.url.standardizedFileURL })
+        pruneMissing()
+        var existing = Set(items.map { ($0.sourceURL ?? $0.url).absoluteString })
         var added: [Item] = []
-        for url in urls where url.isFileURL {
-            let standard = url.standardizedFileURL
-            guard !existing.contains(standard), !added.contains(where: { $0.url == standard }),
-                  fileManager.fileExists(atPath: standard.path) else { continue }
-            added.append(Item(id: UUID(), url: standard, addedAt: now))
+        var overflow = false
+        var writeFailure = false
+        for input in urls where DropPolicy.isSupported(input) {
+            let source = input.isFileURL ? input.standardizedFileURL : input
+            guard !existing.contains(source.absoluteString) else { continue }
+            guard items.count + added.count < Self.capacity else { overflow = true; continue }
+            do {
+                let local: URL
+                if source.isFileURL {
+                    guard fileManager.fileExists(atPath: source.path) else { continue }
+                    local = source
+                } else {
+                    local = try makeWebloc(for: source)
+                }
+                existing.insert(source.absoluteString)
+                added.append(Item(id: UUID(), url: local, addedAt: now, sourceURL: source))
+            } catch { writeFailure = true }
         }
+        statusMessage = overflow ? "Tray full — remove an item to add another." :
+            (added.isEmpty ? "No new files added. The file may already be here or unavailable." : nil)
+        if writeFailure { statusMessage = "Could not create a web shortcut. Check available disk space and permissions." }
         guard !added.isEmpty else { return 0 }
-        // Newest first; the oldest fall off past capacity.
-        items = Array((added.reversed() + items).prefix(Self.capacity))
-        save()
+        items = added.reversed() + items
         added.forEach(loadThumbnail)
         return added.count
     }
 
     public func remove(_ id: UUID) {
+        if let item = items.first(where: { $0.id == id }), item.url.deletingLastPathComponent() == sessionFolder {
+            try? fileManager.removeItem(at: item.url)
+        }
         items.removeAll { $0.id == id }
         thumbnails[id] = nil
-        save()
+        statusMessage = nil
     }
 
     public func removeAll() {
+        try? fileManager.removeItem(at: sessionFolder)
         items.removeAll()
         thumbnails.removeAll()
-        save()
+        statusMessage = nil
     }
 
     /// Drops items whose files were moved or deleted since they were added.
@@ -77,7 +111,6 @@ public final class TrayStore {
         let keptIDs = Set(kept.map(\.id))
         thumbnails = thumbnails.filter { keptIDs.contains($0.key) }
         items = kept
-        save()
     }
 
     // MARK: Actions
@@ -92,25 +125,6 @@ public final class TrayStore {
 
     public func icon(for item: Item) -> NSImage {
         thumbnails[item.id] ?? NSWorkspace.shared.icon(forFile: item.url.path)
-    }
-
-    // MARK: Storage
-
-    private func load() {
-        guard let storeURL, let data = try? Data(contentsOf: storeURL),
-              let saved = try? JSONDecoder().decode([Item].self, from: data) else { return }
-        items = saved.filter { fileManager.fileExists(atPath: $0.url.path) }
-        items.forEach(loadThumbnail)
-    }
-
-    private func save() {
-        guard let storeURL else { return }
-        do {
-            try fileManager.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(items).write(to: storeURL, options: .atomic)
-        } catch {
-            // The tray still works for this session; it just won't survive a relaunch.
-        }
     }
 
     private func loadThumbnail(_ item: Item) {

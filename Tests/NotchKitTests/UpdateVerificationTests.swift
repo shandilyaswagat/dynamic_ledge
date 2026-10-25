@@ -84,4 +84,18 @@ struct UpdateKeyTests {
         #expect(!Updater.isUsableKey("__UPDATE_PUBLIC_KEY__"))
         #expect(Updater.isUsableKey(Data(repeating: 7, count: 32).base64EncodedString()))
     }
+
+    @Test func installsInPlaceOnlyWithAKeyAndASignedRelease() throws {
+        let key = Data(repeating: 7, count: 32).base64EncodedString()
+        let app = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Dynamic Notch.app")
+        let page = try #require(URL(string: "https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v9.0.0"))
+        let image = try #require(URL(string: "https://github.com/shandilyaswagat/dynamic_notch/releases/download/v9.0.0/DynamicNotch.dmg"))
+        var release = ReleaseInfo(version: try #require(SemanticVersion("9.0.0")), diskImage: image, checksum: nil,
+                                  signedManifest: image.deletingLastPathComponent().appendingPathComponent("DynamicNotch.update.json"),
+                                  page: page)
+        #expect(Updater.canInstallInPlace(release, app: app, key: key))
+        #expect(!Updater.canInstallInPlace(release, app: app, key: ""), "a build without a key can only download")
+        release.signedManifest = nil
+        #expect(!Updater.canInstallInPlace(release, app: app, key: key), "an unsigned release can only download")
+    }
 }

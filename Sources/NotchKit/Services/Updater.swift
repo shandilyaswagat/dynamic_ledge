@@ -105,10 +105,7 @@ public final class Updater {
     /// instead when the app can't replace itself (read-only location, or run from a disk image).
     public func install(_ release: ReleaseInfo) {
         let destination = Bundle.main.bundleURL
-        // No release-signing key in this build (or no signed manifest on the release) means the
-        // update can't be verified, so send the user to the download page instead of failing.
-        let key = Bundle.main.object(forInfoDictionaryKey: "DNUpdatePublicKey") as? String
-        guard Self.canReplace(destination), Self.isUsableKey(key), release.signedManifest != nil else {
+        guard canInstallInPlace(release) else {
             NSWorkspace.shared.open(release.page)
             return
         }
@@ -135,6 +132,19 @@ public final class Updater {
     enum UpdateError: Error {
         case unreadable
         case noApp
+    }
+
+    /// Whether Install can swap the app in place. When it can't, the button says Download and
+    /// opens the release page, so it never promises a relaunch that won't happen.
+    public func canInstallInPlace(_ release: ReleaseInfo) -> Bool {
+        Self.canInstallInPlace(release, app: Bundle.main.bundleURL,
+                               key: Bundle.main.object(forInfoDictionaryKey: "DNUpdatePublicKey") as? String)
+    }
+
+    /// No release-signing key in this build, or no signed manifest on the release, means the
+    /// update can't be verified, so it has to be downloaded by hand.
+    nonisolated static func canInstallInPlace(_ release: ReleaseInfo, app: URL, key: String?) -> Bool {
+        canReplace(app) && isUsableKey(key) && release.signedManifest != nil
     }
 
     /// A base64 Ed25519 public key (32 bytes), not an empty or unfilled placeholder.

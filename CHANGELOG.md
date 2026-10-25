@@ -5,6 +5,12 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+### Fixed
+- When a copy of the app can't update itself (for example a build you made yourself), the update
+  button now says Download instead of Install and Relaunch, since it opens the download page.
+
 ## [1.3.0] - 2026-10-25
 
 ### Added

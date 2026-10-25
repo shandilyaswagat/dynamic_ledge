@@ -446,7 +446,7 @@ private struct UpdatesBox: View {
                 switch updater.state {
                 case .available(let release):
                     Text("Version \(release.version.description) is available.")
-                    Button("Install and Relaunch") { updater.install(release) }
+                    Button(updater.canInstallInPlace(release) ? "Install and Relaunch" : "Download") { updater.install(release) }
                         .buttonStyle(.borderedProminent)
                 case .installing:
                     ProgressView().controlSize(.small)

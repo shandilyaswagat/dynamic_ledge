@@ -88,7 +88,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(action("Open Notch") { [weak self] in self?.model.expand(.home) })
         if let release = model.updater.availableRelease {
             menu.addItem(.separator())
-            menu.addItem(action("Install Update \(release.version.description)…") { [weak self] in self?.model.updater.install(release) })
+            let verb = model.updater.canInstallInPlace(release) ? "Install" : "Download"
+            menu.addItem(action("\(verb) Update \(release.version.description)…") { [weak self] in self?.model.updater.install(release) })
         }
 
         menu.addItem(.separator())

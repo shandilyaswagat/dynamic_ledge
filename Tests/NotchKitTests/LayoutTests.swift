@@ -184,7 +184,8 @@ struct IslandLayoutTests {
         let compact = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: false)
         #expect(compact.pill.minY == notch.maxY + 6)
         #expect(compact.pill.height == 34)
-        #expect(compact.topRadius == 17 && compact.bottomRadius == 17)
+        // A rounded rectangle, not a full capsule.
+        #expect(compact.topRadius == 13 && compact.bottomRadius == 13)
         #expect(compact.flare == 0)
         #expect(!compact.isAttachedToTop)
     }

@@ -1,15 +1,42 @@
 import Foundation
 import Observation
 
-public enum DisplayChoice: String, CaseIterable, Sendable, Identifiable {
-    /// Whichever display the pointer is on: the notch on the built-in screen, an island elsewhere.
-    case followPointer
+/// Where the notch shows up.
+public enum DisplayChoice: Hashable, Sendable, Identifiable {
     /// The built-in display if it has a notch, otherwise the main display.
     case automatic
     /// The display that holds the menu bar.
     case main
+    /// Whichever display the pointer is on: the notch on the built-in screen, an island elsewhere.
+    case followPointer
+    /// One particular display, remembered by its UUID; falls back to automatic when unplugged.
+    case specific(String)
+    /// Every connected display at once. Things you open appear on the screen you're using.
+    case all
 
     public var id: String { rawValue }
+
+    public var rawValue: String {
+        switch self {
+        case .automatic: "automatic"
+        case .main: "main"
+        case .followPointer: "followPointer"
+        case .specific(let uuid): "display:" + uuid
+        case .all: "all"
+        }
+    }
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "automatic": self = .automatic
+        case "main": self = .main
+        case "followPointer": self = .followPointer
+        case "all": self = .all
+        default:
+            guard rawValue.hasPrefix("display:"), rawValue.count > 8 else { return nil }
+            self = .specific(String(rawValue.dropFirst(8)))
+        }
+    }
 }
 
 /// Controls how a closed notch opens. In hover mode only the opening trigger changes: once

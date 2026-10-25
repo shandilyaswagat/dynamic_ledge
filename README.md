@@ -53,8 +53,9 @@ sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 A few more handy bits: a mute button for your mic during calls, and (if you switch it on in
 Settings) a heads-up when a download finishes.
 
-Got a second screen? It stays on your MacBook, or turn on Follow the pointer in Settings and it
-follows you there as a floating island.
+Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,
+have it follow your pointer, or show it on all your screens at once. Screens without a notch get a
+floating island.
 
 You can make it small, medium or large, whatever looks right on your screen.
 

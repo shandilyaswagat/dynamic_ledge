@@ -495,10 +495,13 @@ public struct LayoutEngine: Equatable, Sendable {
         }
         var layout = IslandLayout(canvasSize: windowSize, pill: .zero, topRadius: 0, bottomRadius: 0, notch: notchReplica)
 
+        // A rounded rectangle rather than a full capsule: it reads as an object sitting on the
+        // screen, the way Apple's floating panels do.
         func capsule(_ rect: CGRect) {
+            let radius = min(rect.height / 2, (rect.height * IslandMetrics.islandCornerRatio).rounded())
             layout.pill = rect
-            layout.topRadius = rect.height / 2
-            layout.bottomRadius = rect.height / 2
+            layout.topRadius = radius
+            layout.bottomRadius = radius
             layout.content = rect
         }
 

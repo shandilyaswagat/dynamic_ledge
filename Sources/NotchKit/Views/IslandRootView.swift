@@ -3,11 +3,13 @@ import SwiftUI
 /// Everything inside the island window.
 struct IslandRootView: View {
     let model: IslandModel
+    /// The screen this window is on. Only the screen in use shows what's opened.
+    let display: DisplayContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let presentation = model.presentation
-        let layout = model.layout
+        let presentation = model.presentation(onDisplay: display.id)
+        let layout = model.layout(onDisplay: display.id, metrics: display.metrics)
         let liquid = model.settings.liquidAnimations && !reduceMotion
 
         ZStack(alignment: .topLeading) {

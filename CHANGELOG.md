@@ -16,9 +16,15 @@ last one.
 - **Drop whole windows into Tray.** Drag a saved Pages, Numbers, Keynote, TextEdit, Safari or
   Chrome window by its title bar onto the notch and it lands in Tray. macOS asks for
   Accessibility access the first time, and some apps ask for Automation access too.
+- **Choose your screen.** Settings › General › Display lists your screens by name, plus All
+  displays. With All displays, music, timers and alerts show on every screen, and whatever you
+  open appears on the screen you're using.
 - **Links in Tray.** Drop a web link onto Tray and it's kept as a shortcut you can drag out later.
 
 ### Changed
+- **A nicer island on other screens.** On displays without a notch, the floating island is now a
+  rounded rectangle in a very dark grey, so it stands out on bright wallpapers. The notch on your
+  MacBook stays pure black.
 - **Safer updates.** Every update is signed, and the app checks that signature before installing
   anything, so a tampered download can't sneak in.
 - **Tray is now a scratch space.** It holds up to 30 items and empties when the app quits. Your

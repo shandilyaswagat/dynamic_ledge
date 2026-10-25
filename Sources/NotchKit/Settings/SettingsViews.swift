@@ -71,11 +71,20 @@ struct GeneralSettingsView: View {
                 Toggle("Show in menu bar", isOn: $settings.showMenuBarIcon)
                 Picker("Display", selection: $settings.display) {
                     Text("Built-in display").tag(DisplayChoice.automatic)
-                    Text("Follow the pointer").tag(DisplayChoice.followPointer)
                     Text("Main display").tag(DisplayChoice.main)
+                    Text("Follow the pointer").tag(DisplayChoice.followPointer)
+                    Divider()
+                    ForEach(DisplayOption.connected) { option in
+                        Text(option.name).tag(DisplayChoice.specific(option.uuid))
+                    }
+                    if case .specific(let uuid) = settings.display, !DisplayOption.connected.contains(where: { $0.uuid == uuid }) {
+                        Text("Saved display (not connected)").tag(settings.display)
+                    }
+                    Divider()
+                    Text("All displays").tag(DisplayChoice.all)
                 }
             } footer: {
-                Text("Built-in display keeps it on your MacBook's notch. Follow the pointer moves it to whichever screen you're using, as a floating island on displays without a notch. When the menu bar icon is hidden, open Dynamic Notch again from Applications to get back here.")
+                Text("Built-in display keeps it on your MacBook's notch. Pick a screen by name to keep it there, or All displays to show it on every screen: music, timers and alerts appear everywhere, and what you open shows on the screen you're using. Screens without a notch get a floating island. When the menu bar icon is hidden, open Dynamic Notch again from Applications to get back here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -462,5 +471,19 @@ private struct UpdatesBox: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: 380)
+    }
+}
+
+/// A connected screen, for the Display picker.
+struct DisplayOption: Identifiable {
+    let uuid: String
+    let name: String
+    var id: String { uuid }
+
+    @MainActor
+    static var connected: [DisplayOption] {
+        NSScreen.screens.compactMap { screen in
+            IslandWindowController.uuid(screen).map { DisplayOption(uuid: $0, name: screen.localizedName) }
+        }
     }
 }

@@ -3,10 +3,24 @@ import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Places the island panel on the right display and routes the pointer to the model.
+/// Which display a window is on, for the views inside it.
+@MainActor
+@Observable
+final class DisplayContext {
+    var id: UInt32 = 0
+    var metrics: ScreenMetrics = .sample
+}
+
+/// Places the island panel on a display and routes the pointer to the model. Normally there is
+/// one; with "All displays" there is one per screen, and only the screen you're using (the
+/// model's active display) handles the pointer, drags and keyboard. The others mirror it.
 @MainActor
 public final class IslandWindowController {
     private let model: IslandModel
+    /// Set for one window per screen ("All displays"); nil for the single window that picks its
+    /// screen from the Display setting.
+    private let fixedDisplayID: UInt32?
+    private let context = DisplayContext()
     private let panel = IslandPanel()
     private let hostingView: IslandHostingView<IslandRootView>
     private var screen: NSScreen?
@@ -26,9 +40,10 @@ public final class IslandWindowController {
     private var lastWheelStep = Date.distantPast
     private var workspaceObservers: [NSObjectProtocol] = []
 
-    public init(model: IslandModel) {
+    public init(model: IslandModel, displayID: UInt32? = nil) {
         self.model = model
-        hostingView = IslandHostingView(rootView: IslandRootView(model: model))
+        fixedDisplayID = displayID
+        hostingView = IslandHostingView(rootView: IslandRootView(model: model, display: context))
         // The window size is ours to set; SwiftUI must never resize it to fit its content.
         hostingView.sizingOptions = []
         hostingView.onMouseMoved = { [weak self] in self?.pointerChanged() }
@@ -82,15 +97,28 @@ public final class IslandWindowController {
 
     // MARK: Placement
 
+    private var isActive: Bool { model.activeDisplayID == context.id }
+
+    /// Makes this window's screen the one in use when the pointer comes near it.
+    private func activateIfPointerHere() -> Bool {
+        guard panel.frame.insetBy(dx: -8, dy: -8).contains(NSEvent.mouseLocation) else { return false }
+        return model.activate(display: context.id, metrics: context.metrics)
+    }
+
     private func chooseScreen() -> NSScreen? {
+        if let fixedDisplayID {
+            return NSScreen.screens.first { Self.displayID($0) == fixedDisplayID }
+        }
         switch model.settings.display {
+        case .specific(let uuid):
+            return NSScreen.screens.first { Self.uuid($0) == uuid } ?? Self.builtIn
+        case .automatic, .all:
+            return Self.builtIn
         case .followPointer:
             let pointer = NSEvent.mouseLocation
             return NSScreen.screens.first { NSMouseInRect(pointer, $0.frame, false) }
                 ?? NSScreen.screens.first { $0.safeAreaInsets.top > 0 }
                 ?? NSScreen.screens.first
-        case .automatic:
-            return NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens.first
         case .main:
             return NSScreen.screens.first
         }
@@ -103,21 +131,36 @@ public final class IslandWindowController {
         }
         screen = chosen
         let metrics = ScreenMetrics(screen: chosen)
-        if model.screen != metrics {
-            model.screen = metrics
+        let id = Self.displayID(chosen)
+        if context.id != id { context.id = id }
+        if context.metrics != metrics { context.metrics = metrics }
+        if fixedDisplayID == nil {
+            model.useOnly(display: id, metrics: metrics)
+        } else if isActive {
+            model.activate(display: id, metrics: metrics)
         }
         reposition()
         panel.orderFrontRegardless()
     }
 
     /// NSScreen objects are recreated freely; the display ID identifies the physical display.
-    private static func displayID(_ screen: NSScreen) -> UInt32 {
+    static func displayID(_ screen: NSScreen) -> UInt32 {
         (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+    }
+
+    /// Survives reconnecting and restarting, unlike the display ID.
+    static func uuid(_ screen: NSScreen) -> String? {
+        guard let uuid = CGDisplayCreateUUIDFromDisplayID(displayID(screen))?.takeRetainedValue() else { return nil }
+        return CFUUIDCreateString(nil, uuid) as String?
+    }
+
+    static var builtIn: NSScreen? {
+        NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens.first
     }
 
     private func reposition() {
         guard let screen else { return }
-        let engine = model.engine
+        let engine = model.engine(for: context.metrics)
         let size = engine.windowSize
         let frame = NSRect(
             x: screen.frame.minX + engine.windowOriginX,
@@ -132,7 +175,7 @@ public final class IslandWindowController {
 
     private func observeLayout() {
         withObservationTracking {
-            _ = model.engine
+            _ = model.engine(for: context.metrics)
             _ = model.settings.display
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
@@ -151,7 +194,7 @@ public final class IslandWindowController {
     /// Notes takes the keyboard while it's open and hands it straight back when it closes.
     /// The panel never activates the app, so the app you were in stays in front.
     private func observeKeyboard() {
-        let wantsKeyboard = model.presentation == .notes
+        let wantsKeyboard = isActive && model.presentation == .notes
         if wantsKeyboard {
             panel.acceptsKeyboard = true
             panel.makeKey()
@@ -162,7 +205,7 @@ public final class IslandWindowController {
             panel.acceptsKeyboard = false
         }
         withObservationTracking {
-            _ = model.presentation == .notes
+            _ = isActive && model.presentation == .notes
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.observeKeyboard() }
         }
@@ -233,6 +276,11 @@ public final class IslandWindowController {
 
     private func pointerChanged() {
         followPointerIfNeeded()
+        // Another screen is in use: this window just mirrors it, unless the pointer arrives here.
+        guard isActive || activateIfPointerHere() else {
+            if !panel.ignoresMouseEvents { panel.ignoresMouseEvents = true }
+            return
+        }
         // Most pointer movement happens far from the notch. Skip the layout work there unless
         // something still needs to be switched off.
         let location = NSEvent.mouseLocation
@@ -254,6 +302,7 @@ public final class IslandWindowController {
     }
 
     private func handle(_ event: NSEvent, isLocal: Bool) {
+        guard isActive || activateIfPointerHere() else { return }
         switch event.type {
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             if event.type == .leftMouseDown {
@@ -289,6 +338,7 @@ public final class IslandWindowController {
     }
 
     private func updateNativeDrag(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard isActive || activateIfPointerHere() else { return [] }
         let urls = FileDropReader.urls(from: sender.draggingPasteboard)
         guard model.acceptsFileDrops, !model.isDraggingFromTray, !urls.isEmpty else { return [] }
         cancelDocumentDrag()
@@ -305,12 +355,14 @@ public final class IslandWindowController {
         nativeDragTask?.cancel()
         nativeDragTask = nil
         isFileDragging = false
+        guard isActive else { return }
         model.fileDragChanged(isDragging: false, at: nil)
         model.setTargeted(nil, false)
         pointerChanged()
     }
 
     private func updateFileDrag() {
+        guard isActive else { return }
         let pasteboard = NSPasteboard(name: .drag)
         guard pasteboard.changeCount != dragChangeCount,
               !FileDropReader.urls(from: pasteboard).isEmpty, !model.isDraggingFromTray else { return }
@@ -326,6 +378,7 @@ public final class IslandWindowController {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(50))
                 guard !Task.isCancelled, let self else { return }
+                guard self.isActive else { continue }
                 let pasteboard = NSPasteboard(name: .drag)
                 guard NSEvent.pressedMouseButtons & 1 != 0 else {
                     self.lastIdleDragChangeCount = pasteboard.changeCount
@@ -355,6 +408,7 @@ public final class IslandWindowController {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(100))
                 guard !Task.isCancelled, let self else { return }
+                guard self.isActive else { self.cancelDocumentDrag(); return }
                 if NSEvent.pressedMouseButtons & 1 == 0 { self.finishDocumentDrag(); return }
                 guard self.model.settings.trayEnabled, !self.isFileDragging else { self.cancelDocumentDrag(); return }
                 let missingAccess = !DocumentWindowDrag.hasAccess
@@ -413,7 +467,8 @@ public final class IslandWindowController {
         documentDragTask = nil
         documentGestureStart = nil
         documentWindowDrag.reset()
-        if model.isDocumentWindowDrag {
+        // The drag state belongs to the screen in use; a mirroring window leaves it alone.
+        if isActive, model.isDocumentWindowDrag {
             model.isDocumentWindowDrag = false
             model.fileDragChanged(isDragging: false, at: nil)
             model.setTargeted(nil, false)
@@ -439,6 +494,7 @@ public final class IslandWindowController {
     /// sideways skips songs when music is in front (otherwise swaps activities), pulling down
     /// opens the notch and pushing up closes it. Home and its tabs keep their own scrolling.
     private func handleScroll(_ event: NSEvent) -> Bool {
+        guard isActive else { return false }
         let presentation = model.presentation
         guard model.isHoveringPill || model.isHoveringNotch else { return false }
         let accepts: Bool = switch presentation {

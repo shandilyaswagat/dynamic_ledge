@@ -9,6 +9,9 @@ enum NotchColor {
     static let blue = Color(red: 10 / 255, green: 132 / 255, blue: 1)
     static let secondaryText = Color.white.opacity(0.55)
     static let buttonFill = Color.white.opacity(0.18)
+    /// The floating island is a very dark grey, so it reads as an object on bright wallpapers.
+    /// The notch itself stays pure black to blend with the camera housing.
+    static let islandFill = Color(red: 0.055, green: 0.055, blue: 0.06)
 
     static func accent(_ rgb: ColorMath.RGB) -> Color {
         Color(red: rgb.red, green: rgb.green, blue: rgb.blue)

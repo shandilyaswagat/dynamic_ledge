@@ -25,8 +25,9 @@ struct IslandSurface: View, Animatable {
             // back inside the notch, instead of fading in and out like a floating pill.
             let opacity = layout.isAttachedToTop ? min(1, layout.pillOpacity * 20) : layout.pillOpacity
             guard opacity > 0.001 || layout.bubble.width > 0.5 else { return }
-            let mainShading = GraphicsContext.Shading.color(.black.opacity(opacity))
-            let black = GraphicsContext.Shading.color(.black)
+            let fill = layout.isAttachedToTop ? Color.black : NotchColor.islandFill
+            let mainShading = GraphicsContext.Shading.color(fill.opacity(opacity))
+            let black = GraphicsContext.Shading.color(fill)
             let hasBubble = layout.bubble.width > 0.5 && layout.bubble.height > 0.5
             let blur = GooMath.blurRadius(strength: strength)
 

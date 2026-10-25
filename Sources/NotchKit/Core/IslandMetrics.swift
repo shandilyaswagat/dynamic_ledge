@@ -78,7 +78,9 @@ public enum IslandMetrics {
     /// Island style: the row above an open activity that holds the back button and its name.
     /// (Notch style puts it in the strip beside the camera instead.)
     public static let activityHeader: CGFloat = 26
-    public static let islandExpandedRadius: CGFloat = 36
+    public static let islandExpandedRadius: CGFloat = 28
+    /// Island style: corner radius of the small shapes as a share of their height.
+    public static let islandCornerRatio: CGFloat = 0.38
     /// Notch style: space between the notch strip and the content, and below the content.
     public static let notchContentGap: CGFloat = 2
     public static let notchBottomPadding: CGFloat = 14

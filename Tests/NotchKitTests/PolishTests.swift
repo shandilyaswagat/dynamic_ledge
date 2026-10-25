@@ -113,3 +113,48 @@ struct HoverOpenTests {
         #expect(model.presentation == .home)
     }
 }
+
+@Suite("Display choice")
+struct DisplayChoiceTests {
+    @Test func survivesSavingAndLoading() {
+        for choice: DisplayChoice in [.automatic, .main, .followPointer, .all, .specific("37D8832A-2D66-02CA-B9F7-8F30A301B230")] {
+            #expect(DisplayChoice(rawValue: choice.rawValue) == choice)
+        }
+        #expect(DisplayChoice(rawValue: "display:") == nil)
+        #expect(DisplayChoice(rawValue: "moon") == nil)
+    }
+}
+
+@MainActor
+@Suite("All displays")
+struct AllDisplaysTests {
+    private func makeModel() -> IslandModel {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        return IslandModel(settings: SettingsStore(defaults: defaults), tray: TrayStore(folder: nil), notes: NotesStore(defaults: defaults))
+    }
+
+    private let external = ScreenMetrics(size: CGSize(width: 2560, height: 1440), notch: nil, menuBarHeight: 25)
+
+    @Test func openedThingsShowOnlyOnTheScreenInUse() {
+        let model = makeModel()
+        model.useOnly(display: 1, metrics: .sample)
+        model.timer.start(duration: 300)
+        model.expand(.home)
+        #expect(model.presentation(onDisplay: 1) == .home)
+        #expect(model.presentation(onDisplay: 2) == .compact(primary: .timer, secondary: nil))
+        #expect(model.layout(onDisplay: 2, metrics: external).isAttachedToTop == false, "no notch: an island")
+        model.cancelTimer()
+    }
+
+    @Test func switchesScreensOnlyWhenNothingIsOpen() {
+        let model = makeModel()
+        model.useOnly(display: 1, metrics: .sample)
+        model.expand(.home)
+        #expect(!model.activate(display: 2, metrics: external))
+        #expect(model.activeDisplayID == 1)
+        model.collapse()
+        #expect(model.activate(display: 2, metrics: external))
+        #expect(model.activeDisplayID == 2)
+        #expect(model.screen == external)
+    }
+}

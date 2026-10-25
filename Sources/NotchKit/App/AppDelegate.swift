@@ -5,7 +5,7 @@ import os
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: SettingsStore?
     private var model: IslandModel?
-    private var islandController: IslandWindowController?
+    private var islandWindows: IslandWindowManager?
     private var statusController: StatusItemController?
     private var settingsController: SettingsWindowController?
     #if DEBUG
@@ -34,7 +34,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         self.settings = settings
         self.model = model
         self.settingsController = settingsController
-        islandController = IslandWindowController(model: model)
+        islandWindows = IslandWindowManager(model: model)
         statusController = StatusItemController(model: model) { [weak settingsController] in settingsController?.show() }
         model.startServices()
 
@@ -53,7 +53,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     public func applicationWillTerminate(_ notification: Notification) {
         model?.tray.removeAll()
         model?.stopServices()
-        islandController?.tearDown()
+        islandWindows?.tearDown()
     }
 
     private func terminateIfAlreadyRunning() -> Bool {

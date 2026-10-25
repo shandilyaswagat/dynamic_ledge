@@ -32,7 +32,10 @@ public final class IslandModel {
     public var timerPanelMinutes = 15
     public var focusPanelMinutes: Int
 
+    /// The display you're using: where things open and the pointer is tracked. With "All
+    /// displays" the other screens show the same activities but nothing opened.
     public var screen: ScreenMetrics = .sample
+    public private(set) var activeDisplayID: UInt32 = 0
     public private(set) var alerts = AlertQueue()
     public private(set) var expandTarget: ExpandTarget?
     public private(set) var preferredPrimary: ActivityKind?
@@ -168,10 +171,53 @@ public final class IslandModel {
     // MARK: Derived state
 
     public var engine: LayoutEngine {
+        engine(for: screen)
+    }
+
+    public func engine(for metrics: ScreenMetrics) -> LayoutEngine {
         var appearance = settings.appearance
         // A display without a notch gets the floating island, not a pretend notch.
-        if screen.notch == nil { appearance.style = .island }
-        return LayoutEngine(screen: screen, appearance: appearance)
+        if metrics.notch == nil { appearance.style = .island }
+        return LayoutEngine(screen: metrics, appearance: appearance)
+    }
+
+    /// Makes a display the one you're using. Ignored while something is open elsewhere, so a
+    /// view never jumps screens under you; it switches once that closes.
+    @discardableResult
+    public func activate(display id: UInt32, metrics: ScreenMetrics) -> Bool {
+        if id == activeDisplayID {
+            if screen != metrics { screen = metrics }
+            return true
+        }
+        guard expandTarget == nil, !isFileDragNear, !isDropTargeted, !isDocumentWindowDrag else { return false }
+        setHovering(pill: false, notch: false)
+        activeDisplayID = id
+        screen = metrics
+        return true
+    }
+
+    /// The only display there is (every mode except "All displays"): always the one in use.
+    public func useOnly(display id: UInt32, metrics: ScreenMetrics) {
+        if activeDisplayID != id { activeDisplayID = id }
+        if screen != metrics { screen = metrics }
+    }
+
+    /// What a display shows: everything on the one you're using; on the others the same
+    /// activities and alerts, but nothing opened, dragged or hovered.
+    public func presentation(onDisplay id: UInt32) -> IslandPresentation {
+        if id == activeDisplayID { return presentation }
+        return PresentationResolver.resolve(PresentationInput(
+            activeActivities: activeActivities,
+            preferredPrimary: preferredPrimary,
+            alert: alerts.current,
+            showWhenIdle: settings.showWhenIdle,
+            isPreviewing: isPreviewing
+        ))
+    }
+
+    public func layout(onDisplay id: UInt32, metrics: ScreenMetrics) -> IslandLayout {
+        if id == activeDisplayID { return layout }
+        return engine(for: metrics).layout(for: presentation(onDisplay: id), home: homeContent, hovering: false)
     }
 
     public var activeActivities: Set<ActivityKind> {

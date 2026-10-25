@@ -245,6 +245,15 @@ struct NewFeatureLayoutTests {
         #expect(empty.pill == home.pill)
     }
 
+    @Test func nookBodySitsEvenlyBetweenTheStripAndTheBottom() throws {
+        let notch = try #require(ScreenMetrics.sample.notch)
+        let home = engine.layout(for: .home, home: HomeContent(), hovering: false)
+        let above = IslandMetrics.notchContentGap + IslandMetrics.Nook.bodyTopInset
+        let below = home.pill.height - home.content.height
+        #expect(home.content.height == notch.height + above + IslandMetrics.Nook.body)
+        #expect(abs(above - below) <= 2, "the body doesn't hug the strip")
+    }
+
     @Test func floatingPillKeepsTheHeaderInside() {
         var appearance = NotchAppearance.standard
         appearance.style = .island

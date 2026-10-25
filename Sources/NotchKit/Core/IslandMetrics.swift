@@ -64,6 +64,9 @@ public enum IslandMetrics {
         /// Floating pill style only; in notch style the header sits beside the camera.
         public static let header: CGFloat = 24
         public static let headerGap: CGFloat = 10
+        /// Notch style: extra room between the strip and the body, so the body sits as far below
+        /// the strip as it does above the bottom edge.
+        public static let bodyTopInset: CGFloat = 10
         public static let row: CGFloat = 30
         public static let rowGap: CGFloat = 8
         public static let mediaCardWidth: CGFloat = 210

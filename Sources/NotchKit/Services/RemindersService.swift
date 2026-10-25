@@ -48,7 +48,9 @@ public final class RemindersService {
     public private(set) var access: Access = .notAsked
     public private(set) var items: [ReminderItem] = []
 
-    @ObservationIgnored private let store = EKEventStore()
+    @ObservationIgnored private var store = EKEventStore()
+    /// See CalendarService: macOS can report "not asked yet" for a while after the user allows it.
+    @ObservationIgnored private var grantedThisSession = false
     @ObservationIgnored private var observer: NSObjectProtocol?
     @ObservationIgnored private var isRunning = false
 
@@ -57,8 +59,9 @@ public final class RemindersService {
     public func start() {
         guard !isRunning else { return }
         isRunning = true
-        access = Self.currentAccess()
-        observer = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { [weak self] _ in
+        access = currentAccess()
+        // Any store, because the store is replaced once access is granted.
+        observer = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         }
         reload()
@@ -76,9 +79,11 @@ public final class RemindersService {
         Task { [weak self] in
             guard let self else { return }
             let granted = (try? await self.store.requestFullAccessToReminders()) ?? false
-            if granted { self.store.reset() }
-            if !granted, Self.currentAccess() != .notAsked { self.openPrivacySettings() }
-            self.access = granted ? .granted : .denied
+            if granted {
+                self.grantedThisSession = true
+                self.store = EKEventStore()
+            }
+            if !granted, self.currentAccess() != .notAsked { self.openPrivacySettings() }
             self.reload()
         }
     }
@@ -108,7 +113,7 @@ public final class RemindersService {
     }
 
     private func reload() {
-        access = Self.currentAccess()
+        access = currentAccess()
         guard isRunning, access == .granted else {
             items = []
             return
@@ -131,10 +136,14 @@ public final class RemindersService {
         }
     }
 
-    private static func currentAccess() -> Access {
-        switch EKEventStore.authorizationStatus(for: .reminder) {
+    private func currentAccess() -> Access {
+        Self.access(for: EKEventStore.authorizationStatus(for: .reminder), grantedThisSession: grantedThisSession)
+    }
+
+    nonisolated static func access(for status: EKAuthorizationStatus, grantedThisSession: Bool) -> Access {
+        switch status {
         case .fullAccess: .granted
-        case .notDetermined: .notAsked
+        case .notDetermined: grantedThisSession ? .granted : .notAsked
         default: .denied
         }
     }

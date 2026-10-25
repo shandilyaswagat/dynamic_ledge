@@ -5,6 +5,16 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+### Fixed
+- Connecting Calendar or Reminders could look like it did nothing: you clicked Allow, and the notch
+  still asked you to connect. It now shows your calendar and to-dos as soon as you allow access.
+- Everything you open from the notch (Home, Tray, Clipboard, Calendar and the rest) now sits evenly
+  inside it, instead of crowding up against the top.
+- The empty Tray had a stray line about a browser. It now says files stay until you quit and your
+  originals aren't touched.
+
 ## [1.3.1] - 2026-10-25
 
 You can install this from Settings › About › Install and Relaunch. If your button says Download

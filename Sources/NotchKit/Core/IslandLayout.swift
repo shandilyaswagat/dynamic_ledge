@@ -458,6 +458,7 @@ public struct LayoutEngine: Equatable, Sendable {
             let width = nookWidth
             let strip = screen.topInset
             let body = ((presentation == .nook(.launcher) ? IslandMetrics.Nook.launcherBody : IslandMetrics.Nook.body) * scale).rounded()
+                + (IslandMetrics.Nook.bodyTopInset * scale).rounded()
             let height = strip + IslandMetrics.notchContentGap + body + (IslandMetrics.notchBottomPadding * scale).rounded()
             layout.pill = shape(body: width, height: height, flare: IslandMetrics.expandedFlare)
             layout.flare = IslandMetrics.expandedFlare

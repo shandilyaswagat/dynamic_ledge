@@ -1,4 +1,5 @@
 import AppKit
+import EventKit
 import Foundation
 import Testing
 @testable import NotchKit
@@ -29,6 +30,17 @@ struct CalendarPolishTests {
         #expect(CalendarRules.relativeLabel(for: tomorrow, at: now, calendar: calendar).hasPrefix("Tomorrow "))
         let today = CalendarEvent(id: "n", title: "Now", start: now.addingTimeInterval(-60), end: now.addingTimeInterval(600))
         #expect(CalendarRules.dayLabel(for: today, at: now, calendar: calendar) == "Today")
+    }
+
+    @Test func allowingAccessCountsEvenBeforeMacOSCatchesUp() {
+        // Right after the user allows access, macOS can still say "not asked yet".
+        #expect(CalendarService.access(for: .notDetermined, grantedThisSession: true) == .granted)
+        #expect(CalendarService.access(for: .notDetermined, grantedThisSession: false) == .notAsked)
+        #expect(CalendarService.access(for: .fullAccess, grantedThisSession: false) == .granted)
+        #expect(CalendarService.access(for: .writeOnly, grantedThisSession: true) == .limited)
+        #expect(CalendarService.access(for: .denied, grantedThisSession: true) == .denied)
+        #expect(RemindersService.access(for: .notDetermined, grantedThisSession: true) == .granted)
+        #expect(RemindersService.access(for: .notDetermined, grantedThisSession: false) == .notAsked)
     }
 }
 

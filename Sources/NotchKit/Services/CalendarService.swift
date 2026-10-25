@@ -77,7 +77,10 @@ public final class CalendarService {
     /// Called when an event is about to start.
     @ObservationIgnored public var onReminder: ((CalendarEvent) -> Void)?
 
-    @ObservationIgnored private let store = EKEventStore()
+    @ObservationIgnored private var store = EKEventStore()
+    /// The user said yes in this session. Right after that, macOS can keep reporting "not asked
+    /// yet" for a while; without this the panel fell back to Connect after the user allowed it.
+    @ObservationIgnored private var grantedThisSession = false
     @ObservationIgnored private var reminded = Set<String>()
     @ObservationIgnored private var reminderTask: Task<Void, Never>?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
@@ -85,7 +88,7 @@ public final class CalendarService {
     @ObservationIgnored private var isRunning = false
 
     public init() {
-        access = Self.currentAccess()
+        access = currentAccess()
     }
 
     public var nextEvent: CalendarEvent? {
@@ -95,8 +98,9 @@ public final class CalendarService {
     public func start() {
         guard !isRunning else { return }
         isRunning = true
-        access = Self.currentAccess()
-        observers.append(NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { [weak self] _ in
+        access = currentAccess()
+        // Any store, because the store is replaced once access is granted.
+        observers.append(NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         })
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -125,10 +129,12 @@ public final class CalendarService {
             guard let self else { return }
             let granted = (try? await self.store.requestFullAccessToEvents()) ?? false
             // No dialog was shown (macOS remembered an earlier answer): send the user to the switch.
-            if !granted, Self.currentAccess() != .notAsked { self.openPrivacySettings() }
-            // A store created before access was granted keeps returning nothing until it's reset.
-            if granted { self.store.reset() }
-            self.access = granted ? .granted : Self.currentAccess()
+            if !granted, self.currentAccess() != .notAsked { self.openPrivacySettings() }
+            if granted {
+                self.grantedThisSession = true
+                // A store made before access was granted keeps returning nothing, so start fresh.
+                self.store = EKEventStore()
+            }
             self.reload()
             if granted { self.onGranted?() }
         }
@@ -149,9 +155,9 @@ public final class CalendarService {
 
     /// Picks up a change made in System Settings while the app was running.
     public func refreshAccess() {
-        let now = Self.currentAccess()
+        let now = currentAccess()
         guard now != access else { return }
-        if now == .granted { store.reset() }
+        if now == .granted { store = EKEventStore() }
         reload()
     }
 
@@ -161,17 +167,21 @@ public final class CalendarService {
         }
     }
 
-    private static func currentAccess() -> Access {
-        switch EKEventStore.authorizationStatus(for: .event) {
+    private func currentAccess() -> Access {
+        Self.access(for: EKEventStore.authorizationStatus(for: .event), grantedThisSession: grantedThisSession)
+    }
+
+    nonisolated static func access(for status: EKAuthorizationStatus, grantedThisSession: Bool) -> Access {
+        switch status {
         case .fullAccess: .granted
-        case .notDetermined: .notAsked
+        case .notDetermined: grantedThisSession ? .granted : .notAsked
         case .writeOnly: .limited
         default: .denied
         }
     }
 
     private func reload() {
-        access = Self.currentAccess()
+        access = currentAccess()
         guard isRunning, access == .granted else {
             events = []
             scheduleReminder()

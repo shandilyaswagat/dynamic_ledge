@@ -44,6 +44,7 @@ struct NookContainer<Content: View>: View {
             .padding(.bottom, stripHeight > 0 ? IslandMetrics.notchContentGap : IslandMetrics.Nook.headerGap * s)
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.top, stripHeight > 0 ? (IslandMetrics.Nook.bodyTopInset * s).rounded() : 0)
         }
         .padding(.horizontal, 20 * s)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -567,7 +568,7 @@ struct TrayBody: View {
                         .font(.system(size: 22 * s, weight: .semibold))
                     Text("Drag files onto the notch to keep them here")
                         .font(.system(size: 13 * s, weight: .medium))
-                    Text("Try it with a file from your computer. It stays in this browser.")
+                    Text("They stay here until you quit. Your originals aren't touched.")
                         .font(.system(size: 10 * s))
                 }
                 .foregroundStyle(NotchColor.secondaryText)

@@ -49,7 +49,6 @@ Each state was triggered on the real notch with debug-build commands and checked
 | Home: last media + timer presets | ✅ all three sizes |
 | Charging, low battery, headphones alerts | ✅ all three sizes |
 | AirDrop drop target, normal and targeted | ✅ |
-| Floating pill style | ✅ |
 | Home nook: tabs and battery beside the camera, media card plus calendar, timers and shortcuts | ✅ all three sizes |
 | Tray: empty state, files with thumbnails, count badge | ✅ |
 | Mirror: camera prompt (camera itself not switched on during QA) | ✅ |
@@ -140,7 +139,7 @@ some events need real hardware. These paths are covered by unit tests at the mod
 - [ ] Quit and reopen: the note is still there.
 - [ ] Grid button: every tile opens its view; each ⌃⌥ shortcut works from another app.
 - [ ] Reminders: Connect, tick one off, it's done in the Reminders app.
-- [ ] With an external display: move the pointer there, the island follows; back to the MacBook, the notch.
+- [ ] With an external display chosen in Settings: nothing shows at rest; rest the pointer at the top centre and the notch slides down after the hover delay; click opens Home; move away and it slides back up. A running timer shows there as a notch.
 - [ ] Updates: with an older build installed, Settings › About › Check Now offers the new version and Install and Relaunch works.
 - [ ] Homebrew: `brew install --cask shandilyaswagat/tap/dynamic-notch` installs and opens without the Open Anyway step.
 - [ ] Timer panel: drag the ruler both ways; it follows the pointer and settles on a minute.

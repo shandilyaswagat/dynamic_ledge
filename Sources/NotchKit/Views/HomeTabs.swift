@@ -2,17 +2,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 // Home, its tabs (Tray, Clipboard, Notes, Mirror) and its panels (Timer, Calendar) share one
-// fixed-size nook (IslandMetrics.Nook): wide and short, widgets side by side. In notch style the
-// header sits in the strip beside the camera: tabs, or a back button and title for a panel.
+// fixed-size nook (IslandMetrics.Nook): wide and short, widgets side by side. The header sits
+// in the strip beside the camera: tabs, or a back button and title for a panel.
 
 // MARK: Container
 
 struct NookContainer<Content: View>: View {
     let model: IslandModel
     let tab: HomeTab
-    /// Width of the camera in the middle of the strip (notch style), 0 otherwise.
+    /// Width of the camera in the middle of the strip.
     let cameraGap: CGFloat
-    /// Height of the strip beside the camera (notch style), 0 for the floating pill.
+    /// Height of the strip beside the camera.
     let stripHeight: CGFloat
     @ViewBuilder var content: Content
     @Environment(\.notchScale) private var s
@@ -33,18 +33,18 @@ struct NookContainer<Content: View>: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Color.clear
-                    .frame(width: stripHeight > 0 ? cameraGap + 12 * s : 8 * s)
+                    .frame(width: cameraGap + 12 * s)
                 HStack(spacing: 4 * s) {
                     LauncherButton(model: model, isOpen: tab == .launcher)
                     SettingsButton(model: model)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .frame(height: stripHeight > 0 ? stripHeight : IslandMetrics.Nook.header * s)
-            .padding(.bottom, stripHeight > 0 ? IslandMetrics.notchContentGap : IslandMetrics.Nook.headerGap * s)
+            .frame(height: stripHeight)
+            .padding(.bottom, IslandMetrics.notchContentGap)
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.top, stripHeight > 0 ? (IslandMetrics.Nook.bodyTopInset * s).rounded() : 0)
+                .padding(.top, (IslandMetrics.Nook.bodyTopInset * s).rounded())
         }
         .padding(.horizontal, 20 * s)
         .frame(maxHeight: .infinity, alignment: .top)

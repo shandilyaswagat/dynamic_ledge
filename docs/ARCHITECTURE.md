@@ -7,7 +7,7 @@ Sources/
 └── NotchKit/
     ├── Core/                     Pure logic, no AppKit: fully unit-tested
     │   ├── Presentation.swift      Activities, alerts, presentations, priority rules
-    │   ├── IslandLayout.swift      Layout engine for both styles + the shape outline
+    │   ├── IslandLayout.swift      Layout engine (real or virtual notch) + the shape outline
     │   ├── IslandMetrics.swift     Every size (mirrors DESIGN.md)
     │   ├── NotchAppearance.swift   User size/style settings and clamping
     │   ├── AlertQueue.swift        One alert at a time, with durations
@@ -56,7 +56,7 @@ Sources/
 Debug builds listen for a distributed notification named `DynamicNotch.debug`. Its object is a
 command: `timer:<seconds>`, `pause`, `cancel`, `home`, `expand`, `collapse`, `charging`,
 `lowbattery`, `headphones`, `drop`, `target`, `nodrop`, `peek`, `hover`, `unhover`, `swipe`,
-`settings:<tab>`, `idle`, `dismiss`, `size:<small|medium|large>`, `style:<notch|island>`, `welcome`,
+`settings:<tab>`, `idle`, `dismiss`, `size:<small|medium|large>`, `welcome`,
 `dump` (writes the model state to `$TMPDIR/DynamicNotch-debug.txt`), `tray`, `mirror`,
 `trayadd:<path>:<path>`, `volume:<0-1>`, `brightness:<0-1>`, `event`, `shortcutdone`. Example:
 

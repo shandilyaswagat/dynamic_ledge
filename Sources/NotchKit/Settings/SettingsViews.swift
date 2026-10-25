@@ -84,7 +84,7 @@ struct GeneralSettingsView: View {
                     Text("All displays").tag(DisplayChoice.all)
                 }
             } footer: {
-                Text("Built-in display keeps it on your MacBook's notch. Pick a screen by name to keep it there, or All displays to show it on every screen: music, timers and alerts appear everywhere, and what you open shows on the screen you're using. Screens without a notch get a floating island. When the menu bar icon is hidden, open Dynamic Notch again from Applications to get back here.")
+                Text("Built-in display keeps it on your MacBook's notch. Pick a screen by name to keep it there, or All displays to show it on every screen: music, timers and alerts appear everywhere, and what you open shows on the screen you're using. Screens without a notch get a notch of their own at the top, which stays out of sight until something's showing or you rest the pointer on its spot. When the menu bar icon is hidden, open Dynamic Notch again from Applications to get back here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -170,24 +170,13 @@ struct GeneralSettingsView: View {
 
 struct AppearanceSettingsView: View {
     @Bindable var settings: SettingsStore
-    /// Read live, so the ranges follow display changes while the window is open.
-    let model: IslandModel
-
-    private var screen: ScreenMetrics { model.screen }
 
     var body: some View {
         Form {
             Section {
-                Picker("Style", selection: $settings.appearance.style) {
-                    Text("Notch").tag(NotchStyle.notch)
-                    Text("Floating pill").tag(NotchStyle.island)
-                }
-                .pickerStyle(.segmented)
                 Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
             } footer: {
-                Text(settings.appearance.style == .notch
-                    ? "The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch."
-                    : "A separate pill floats below the notch. Pitch black removes its shadow and outline.")
+                Text("The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -204,26 +193,10 @@ struct AppearanceSettingsView: View {
             } header: {
                 Text("Size")
             } footer: {
-                Text(settings.appearance.style == .notch && screen.hasNotch
-                    ? "Size scales everything the notch shows. Width and thickness fine-tune the compact shape; thickness never goes below the height of the notch."
-                    : "Size scales everything the pill shows. Width and thickness fine-tune the compact pill.")
+                Text("Size scales everything the notch shows. Width and thickness fine-tune the compact shape; thickness never goes below the height of the notch.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Section {
-                slider("Vertical offset", value: $settings.appearance.verticalOffset, range: NotchAppearance.verticalOffsetRange, step: 1)
-                slider("Horizontal offset", value: $settings.appearance.horizontalOffset, range: horizontalRange, step: 2)
-            } header: {
-                Text("Position")
-            } footer: {
-                Text(settings.appearance.style == .notch
-                    ? "Position applies to the floating pill. In notch style the shape always grows from the notch."
-                    : "Negative vertical offsets pull the pill up into the notch.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .disabled(settings.appearance.style == .notch)
 
             Section {
                 HStack {
@@ -237,11 +210,6 @@ struct AppearanceSettingsView: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    private var horizontalRange: ClosedRange<Double> {
-        let half = max(40, Double(screen.size.width) / 2 - 300)
-        return -half...half
     }
 
     /// Continuous slider (a stepped one draws a tick per step) that stores rounded values.

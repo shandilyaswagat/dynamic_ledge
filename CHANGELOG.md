@@ -5,6 +5,23 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [1.3.3] - 2026-10-25
+
+### Changed
+- **A real notch on every screen.** Screens without a notch, like an external monitor, now get a
+  notch at the top centre instead of a floating island. It stays out of sight until something's
+  going on, like music, a timer or a call.
+- **Rest your pointer to bring it out.** On a screen without a notch, rest your pointer at the top
+  centre for a moment (the same delay as hover, 0.4 seconds by default) and the notch slides down.
+  Click it to open Home, or with Hover on it opens by itself. Move away and it slides back up, and
+  the menu bar underneath keeps working until then.
+- **Smoother animations.** Opening has a little give, like the iPhone's island, and what's inside
+  now grows out of the notch instead of popping in. Closing slides the notch smoothly back into
+  the edge with crisp outlines, and switching between Home, Tray and Clipboard is a soft
+  crossfade.
+- The floating pill style is gone, along with its position settings, so Settings › Appearance is
+  simpler. If you were using it, you'll see the notch style instead.
+
 ## [1.3.2] - 2026-10-25
 
 ### Fixed
@@ -151,6 +168,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.3]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.3
 [1.3.2]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.2
 [1.3.1]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.1
 [1.3.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.0

@@ -9,9 +9,6 @@ enum NotchColor {
     static let blue = Color(red: 10 / 255, green: 132 / 255, blue: 1)
     static let secondaryText = Color.white.opacity(0.55)
     static let buttonFill = Color.white.opacity(0.18)
-    /// The floating island is a very dark grey, so it reads as an object on bright wallpapers.
-    /// The notch itself stays pure black to blend with the camera housing.
-    static let islandFill = Color(red: 0.055, green: 0.055, blue: 0.06)
 
     static func accent(_ rgb: ColorMath.RGB) -> Color {
         Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
@@ -40,23 +37,29 @@ extension TimerMode {
 }
 
 enum Motion {
-    /// Spring for a change of presentation, picked by where the pill is going.
+    /// Spring for a change of presentation, picked by where the shape is going. Opening has a
+    /// little give, like the iPhone's island; closing settles without a bounce.
     static func shape(to presentation: IslandPresentation, reduceMotion: Bool) -> Animation {
         if reduceMotion {
             return .easeInOut(duration: 0.2)
         }
         switch presentation {
+        case .hidden(peek: true):
+            return .spring(response: 0.34, dampingFraction: 0.72)
         case .hidden:
-            return .spring(duration: 0.4, bounce: 0.1)
+            // Retracting: smooth and deliberate, no overshoot, so it settles exactly at the edge.
+            return .smooth(duration: 0.42)
         case .idle, .compact:
-            return .spring(duration: 0.45, bounce: 0.28)
-        case .expanded, .nook, .alert, .drop:
-            return .spring(duration: 0.5, bounce: 0.25)
+            return .spring(response: 0.42, dampingFraction: 0.76)
+        case .alert:
+            return .spring(response: 0.44, dampingFraction: 0.74)
+        case .expanded, .nook, .drop:
+            return .spring(response: 0.48, dampingFraction: 0.8)
         }
     }
 
-    static let settings = Animation.spring(duration: 0.3, bounce: 0)
-    static let hover = Animation.spring(duration: 0.3, bounce: 0.35)
+    static let settings = Animation.spring(response: 0.3, dampingFraction: 1)
+    static let hover = Animation.spring(response: 0.3, dampingFraction: 0.68)
 }
 
 /// Sizes inside the compact shape scale with its thickness and with Small / Medium / Large.
@@ -89,23 +92,38 @@ private struct BlurFade: ViewModifier {
     func body(content: Content) -> some View {
         content
             .blur(radius: blur)
-            .scaleEffect(scale)
+            .scaleEffect(scale, anchor: .top)
             .opacity(opacity)
     }
 }
 
 extension AnyTransition {
-    /// Old content blurs out quickly; new content blurs in once the shape is on its way.
+    /// Content grows out of the notch: it unblurs and scales up from the top edge as the shape
+    /// opens, and leaves quickly so the shape never closes over it.
     static var islandContent: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: BlurFade(blur: 8, scale: 0.9, opacity: 0),
+                active: BlurFade(blur: 6, scale: 0.92, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeOut(duration: 0.3).delay(0.06)),
+            ).animation(.smooth(duration: 0.34).delay(0.06)),
             removal: .modifier(
-                active: BlurFade(blur: 6, scale: 1.04, opacity: 0),
+                active: BlurFade(blur: 4, scale: 0.97, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeIn(duration: 0.15))
+            ).animation(.easeIn(duration: 0.12))
+        )
+    }
+
+    /// Switching tabs while Home is open: a quick, soft crossfade, like a segmented control.
+    static var nookTab: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: BlurFade(blur: 3, scale: 1, opacity: 0),
+                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
+            ).animation(.smooth(duration: 0.22).delay(0.04)),
+            removal: .modifier(
+                active: BlurFade(blur: 3, scale: 1, opacity: 0),
+                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
+            ).animation(.easeOut(duration: 0.1))
         )
     }
 }

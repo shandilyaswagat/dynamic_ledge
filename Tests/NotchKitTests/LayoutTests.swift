@@ -11,8 +11,7 @@ struct NotchLayoutTests {
         engine.layout(for: presentation, homeHasMedia: media, hovering: hovering)
     }
 
-    @Test func standardIsNotchStyle() {
-        #expect(NotchAppearance.standard.style == .notch)
+    @Test func standardIsPitchBlack() {
         #expect(NotchAppearance.standard.pitchBlack)
     }
 
@@ -25,19 +24,18 @@ struct NotchLayoutTests {
         for presentation in presentations {
             let result = layout(presentation)
             #expect(result.pill.minY == 0, "\(presentation) should start at the screen edge")
-            #expect(result.isAttachedToTop)
         }
     }
 
     @Test func centredOnTheNotch() throws {
-        let notch = try #require(engine.notchInWindow)
+        let notch = engine.notchInWindow
         for presentation in [IslandPresentation.compact(primary: .timer, secondary: nil), .home, .alert(.lowBattery(level: 10))] {
             #expect(abs(layout(presentation).pill.midX - notch.midX) < 0.001)
         }
     }
 
     @Test func hiddenShapeStaysInsideTheRealNotch() throws {
-        let notch = try #require(engine.notchInWindow)
+        let notch = engine.notchInWindow
         let hidden = layout(.hidden(peek: false))
         #expect(notch.contains(hidden.pill))
         #expect(hidden.flare == 0)
@@ -46,14 +44,14 @@ struct NotchLayoutTests {
     }
 
     @Test func peekSwellsTheNotchSlightly() throws {
-        let notch = try #require(engine.notchInWindow)
+        let notch = engine.notchInWindow
         let peek = layout(.hidden(peek: true)).pill
         #expect(peek.width > notch.width && peek.width < notch.width + 40)
         #expect(peek.height > notch.height && peek.height < notch.height + 6)
     }
 
     @Test func compactKeepsTheCameraClearAndHasEars() throws {
-        let notch = try #require(engine.notchInWindow)
+        let notch = engine.notchInWindow
         let compact = layout(.compact(primary: .timer, secondary: nil))
         #expect(compact.cameraGap == notch.width)
         #expect(compact.content.minX < notch.minX - 30)
@@ -153,83 +151,73 @@ struct NotchLayoutTests {
         #expect(hidden.pill.height == 0, "nothing drawn when idle")
         let compact = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: false)
         #expect(compact.pill.height == 32)
-        #expect(compact.cameraGap == 0)
+        #expect(compact.cameraGap == IslandMetrics.virtualNotchWidth, "laid out like a MacBook's notch")
         #expect(abs(compact.pill.midX + engine.windowOriginX - 960) < 0.001)
-        #expect(engine.interactiveRects(for: .hidden(peek: false), layout: hidden).isEmpty)
+        let spot = engine.interactiveRects(for: .hidden(peek: false), layout: hidden)
+        #expect(spot.contains { $0.contains(CGPoint(x: 960, y: 10)) }, "resting the pointer there can reveal it")
     }
 
     @Test func notchIsClickableWhenHidden() throws {
-        let notch = try #require(engine.notchInWindow)
+        let notch = engine.notchInWindow
         let rects = engine.interactiveRects(for: .hidden(peek: false), layout: layout(.hidden(peek: false)))
         #expect(rects.contains { $0.contains(CGPoint(x: notch.midX, y: notch.midY)) })
     }
-
-    @Test func horizontalOffsetIgnoredInNotchStyle() {
-        var shifted = NotchAppearance.standard
-        shifted.horizontalOffset = 300
-        #expect(LayoutEngine(screen: screen, appearance: shifted).anchorScreenX == engine.anchorScreenX)
-    }
 }
 
-@Suite("Layout: floating pill style")
-struct IslandLayoutTests {
-    let screen = ScreenMetrics.sample
-    var appearance: NotchAppearance {
-        NotchAppearance(style: .island, width: 180, height: 34, verticalOffset: 6, horizontalOffset: 0, pitchBlack: false)
-    }
-    var engine: LayoutEngine { LayoutEngine(screen: screen, appearance: appearance) }
+@Suite("Layout: displays without a notch")
+struct VirtualNotchLayoutTests {
+    let screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+    var engine: LayoutEngine { LayoutEngine(screen: screen, appearance: .standard) }
 
-    @Test func floatsBelowTheNotch() throws {
-        let notch = try #require(engine.notchInWindow)
-        let compact = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: false)
-        #expect(compact.pill.minY == notch.maxY + 6)
-        #expect(compact.pill.height == 34)
-        // A rounded rectangle, not a full capsule.
-        #expect(compact.topRadius == 13 && compact.bottomRadius == 13)
-        #expect(compact.flare == 0)
-        #expect(!compact.isAttachedToTop)
+    private func layout(_ presentation: IslandPresentation) -> IslandLayout {
+        engine.layout(for: presentation, homeHasMedia: true, hovering: false)
     }
 
-    @Test func horizontalOffsetMovesThePillButStaysOnScreen() {
-        var moved = appearance
-        moved.horizontalOffset = 200
-        let shifted = LayoutEngine(screen: screen, appearance: moved)
-        #expect(shifted.anchorScreenX == screen.centerX + 200)
-        moved.horizontalOffset = 600
-        let far = LayoutEngine(screen: screen, appearance: moved)
-        #expect(far.windowOriginX + far.windowSize.width <= screen.size.width)
-        #expect(far.anchorScreenX < screen.size.width - 200)
+    @Test func getsANotchTheSizeOfAMacBooksAtTheTopCentre() {
+        #expect(engine.isVirtualNotch)
+        #expect(!LayoutEngine(screen: .sample, appearance: .standard).isVirtualNotch)
+        let notch = engine.notchInWindow
+        #expect(notch.width == IslandMetrics.virtualNotchWidth)
+        #expect(notch.height == IslandMetrics.virtualNotchMinHeight, "never shorter than a MacBook notch")
+        #expect(notch.minY == 0 && abs(notch.midX - screen.size.width / 2) <= 0.5)
     }
 
-    @Test func hiddenRetractsIntoTheNotch() throws {
-        let notch = try #require(engine.notchInWindow)
-        let hidden = engine.layout(for: .hidden(peek: false), homeHasMedia: false, hovering: false)
-        #expect(hidden.pill.height == 0)
-        #expect(hidden.pill.minY < notch.maxY)
-        let peek = engine.layout(for: .hidden(peek: true), homeHasMedia: false, hovering: false)
-        #expect(peek.gooBase == 1)
-    }
-
-    @Test func negativeOffsetCanTouchTheTop() {
-        var up = appearance
-        up.verticalOffset = -40
-        #expect(LayoutEngine(screen: screen, appearance: up).pillTop == 0)
-    }
-
-    @Test func expandedHasPaddingAroundContent() {
-        // An open activity also has the back-button row above its content.
-        let expanded = engine.layout(for: .expanded(.timer), homeHasMedia: false, hovering: false)
-        #expect(expanded.content.minY - expanded.pill.minY == IslandMetrics.islandExpandedPadding + IslandMetrics.activityHeader)
-        #expect(expanded.pill.maxY - expanded.content.maxY == IslandMetrics.islandExpandedPadding)
-        let home = engine.layout(for: .home, homeHasMedia: false, hovering: false)
-        #expect(home.content.minY - home.pill.minY == IslandMetrics.islandExpandedPadding)
-    }
-
-    @Test func everyOpenActivityFitsTheWindow() {
-        for kind in ActivityKind.allCases {
-            let layout = engine.layout(for: .expanded(kind), homeHasMedia: true, hovering: false)
-            #expect(layout.pill.maxY <= engine.windowSize.height)
+    @Test func everyShapeIsANotchFusedToTheTop() {
+        let presentations: [IslandPresentation] = [
+            .hidden(peek: true), .idle, .compact(primary: .timer, secondary: .nowPlaying), .expanded(.nowPlaying),
+            .home, .alert(.charging(level: 50, isCharging: true)), .drop(targeted: true),
+        ]
+        for presentation in presentations {
+            let result = layout(presentation)
+            #expect(result.pill.minY == 0, "\(presentation)")
+            #expect(result.flare > 0, "\(presentation) has the notch's shoulders")
+            #expect(result.topRadius == 0)
+            #expect(abs(result.pill.midX - engine.notchInWindow.midX) < 0.001)
         }
+    }
+
+    @Test func hiddenSlidesUpIntoTheTopEdge() {
+        let hidden = layout(.hidden(peek: false))
+        #expect(hidden.pill.height == 0, "nothing is drawn at zero height")
+        #expect(hidden.pill.minY == 0)
+        #expect(hidden.flare > 0 && hidden.bottomRadius > 0, "keeps its outline while it retracts")
+        #expect(IslandPath.path(in: hidden.pill, topRadius: 0, bottomRadius: hidden.bottomRadius, flare: hidden.flare).isEmpty)
+        let shown = layout(.hidden(peek: true))
+        #expect(shown.pill.height == engine.notchInWindow.height + 3)
+        #expect(shown.pillOpacity == 1)
+    }
+
+    @Test func tabsSitInTheStripLikeOnAMacBook() {
+        let home = layout(.home)
+        #expect(home.stripHeight == engine.notchInWindow.height)
+        #expect(home.cameraGap == engine.notchInWindow.width)
+    }
+
+    @Test func everyOpenViewFitsTheWindow() {
+        for kind in ActivityKind.allCases {
+            #expect(layout(.expanded(kind)).pill.maxY <= engine.windowSize.height)
+        }
+        #expect(layout(.nook(.launcher)).pill.maxY <= engine.windowSize.height)
     }
 }
 

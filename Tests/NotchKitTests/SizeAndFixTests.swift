@@ -8,10 +8,9 @@ import Testing
 struct SizeModeTests {
     let screen = ScreenMetrics.sample
 
-    private func engine(_ size: NotchSize, style: NotchStyle = .notch) -> LayoutEngine {
+    private func engine(_ size: NotchSize, screen: ScreenMetrics = .sample) -> LayoutEngine {
         var appearance = NotchAppearance.standard
         appearance.size = size
-        appearance.style = style
         return LayoutEngine(screen: screen, appearance: appearance)
     }
 
@@ -29,13 +28,14 @@ struct SizeModeTests {
             .compact(primary: .timer, secondary: .nowPlaying), .expanded(.nowPlaying), .expanded(.timer), .home,
             .alert(.charging(level: 50, isCharging: true)), .alert(.timerFinished), .drop(targeted: false),
         ]
-        for style in NotchStyle.allCases {
+        let external = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        for screen in [ScreenMetrics.sample, external] {
             for presentation in presentations {
                 let sizes = [NotchSize.small, .medium, .large].map {
-                    engine($0, style: style).layout(for: presentation, homeHasMedia: true, hovering: false)
+                    engine($0, screen: screen).layout(for: presentation, homeHasMedia: true, hovering: false)
                 }
-                #expect(sizes[0].pill.width <= sizes[1].pill.width && sizes[1].pill.width <= sizes[2].pill.width, "\(style) \(presentation)")
-                #expect(sizes[0].pill.height <= sizes[1].pill.height && sizes[1].pill.height <= sizes[2].pill.height, "\(style) \(presentation)")
+                #expect(sizes[0].pill.width <= sizes[1].pill.width && sizes[1].pill.width <= sizes[2].pill.width, "\(presentation)")
+                #expect(sizes[0].pill.height <= sizes[1].pill.height && sizes[1].pill.height <= sizes[2].pill.height, "\(presentation)")
                 #expect(sizes.map(\.contentScale) == [0.8, 0.9, 1])
             }
         }
@@ -75,19 +75,15 @@ struct WindowTests {
         let screen = ScreenMetrics.sample
         var sizes = Set<CGSize.Hashable>()
         for size in NotchSize.allCases {
-            for style in NotchStyle.allCases {
-                for width in [120.0, 200, 420] {
-                    for offset in [-40.0, 6, 60] {
-                        var appearance = NotchAppearance.standard
-                        appearance.size = size
-                        appearance.style = style
-                        appearance.width = width
-                        appearance.verticalOffset = offset
-                        appearance.horizontalOffset = offset * 5
-                        let engine = LayoutEngine(screen: screen, appearance: appearance)
-                        sizes.insert(CGSize.Hashable(engine.windowSize))
-                        #expect(engine.windowOriginX == 0)
-                    }
+            for width in [120.0, 200, 420] {
+                for height in [24.0, 32, 52] {
+                    var appearance = NotchAppearance.standard
+                    appearance.size = size
+                    appearance.width = width
+                    appearance.height = height
+                    let engine = LayoutEngine(screen: screen, appearance: appearance)
+                    sizes.insert(CGSize.Hashable(engine.windowSize))
+                    #expect(engine.windowOriginX == 0)
                 }
             }
         }

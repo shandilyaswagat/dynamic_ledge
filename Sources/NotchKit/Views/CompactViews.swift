@@ -5,7 +5,7 @@ struct CompactView: View {
     let model: IslandModel
     let kind: ActivityKind
     let size: CGSize
-    /// Middle width kept clear for the camera in notch style.
+    /// Middle width kept clear for the camera.
     let cameraGap: CGFloat
     @Environment(\.notchScale) private var sizeScale
 

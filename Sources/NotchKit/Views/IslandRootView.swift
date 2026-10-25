@@ -13,7 +13,9 @@ struct IslandRootView: View {
         let liquid = model.settings.liquidAnimations && !reduceMotion
 
         ZStack(alignment: .topLeading) {
-            KeyframeAnimator(initialValue: 0.0, trigger: presentation.topology) { pulse in
+            // Only the bubble splitting off (or merging back) melts; the notch itself keeps crisp
+            // edges as it opens and closes.
+            KeyframeAnimator(initialValue: 0.0, trigger: presentation.topology.split) { pulse in
                 IslandSurface(layout: layout, pulse: pulse, liquid: liquid)
             } keyframes: { _ in
                 KeyframeTrack {
@@ -38,6 +40,9 @@ struct IslandContentLayer: View {
     let model: IslandModel
     let presentation: IslandPresentation
     let layout: IslandLayout
+    /// Home or one of its tabs was already open before this render. Switching between them keeps
+    /// the shape still, so the content just crossfades instead of growing out of the notch again.
+    @State private var nookWasOpen = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -45,6 +50,7 @@ struct IslandContentLayer: View {
             bubble
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
+        .onChange(of: presentation.homeTab != nil, initial: true) { _, isOpen in nookWasOpen = isOpen }
     }
 
     private var pillShape: IslandShape {
@@ -59,11 +65,11 @@ struct IslandContentLayer: View {
                     .frame(width: layout.content.width, height: layout.content.height)
                     .offset(x: layout.content.minX - layout.pill.minX, y: layout.content.minY - layout.pill.minY)
                     .id(ContentKey(presentation))
-                    .transition(.islandContent)
+                    .transition(nookWasOpen && presentation.homeTab != nil ? .nookTab : .islandContent)
             }
         }
         .overlay(alignment: .topLeading) {
-            // Notch style: in the strip beside the camera. Island style: in the row above the content.
+            // In the strip beside the camera.
             if case .expanded = presentation {
                 ActivityHeader(model: model, presentation: presentation)
                     .environment(\.notchScale, layout.contentScale)
@@ -134,7 +140,7 @@ struct NotchContent: View {
     let size: CGSize
     /// Width in the middle reserved for the camera.
     let cameraGap: CGFloat
-    /// Notch style Home tabs: height of the strip beside the camera.
+    /// Home tabs: height of the strip beside the camera.
     var stripHeight: CGFloat = 0
 
     var body: some View {

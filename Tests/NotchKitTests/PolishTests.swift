@@ -116,7 +116,7 @@ struct HoverOpenTests {
     func theNotchOpensHomeFromItsEdge(size: NotchSize) async throws {
         let model = makeModel()
         model.settings.appearance.size = size
-        let notch = try #require(model.engine.notchInWindow)
+        let notch = model.engine.notchInWindow
         // Just past the camera housing, on the peek it swells into.
         model.pointerMoved(to: CGPoint(x: notch.maxX + 6, y: 10))
         for _ in 0..<60 where model.presentation != .home {
@@ -154,7 +154,7 @@ struct AllDisplaysTests {
         model.expand(.home)
         #expect(model.presentation(onDisplay: 1) == .home)
         #expect(model.presentation(onDisplay: 2) == .compact(primary: .timer, secondary: nil))
-        #expect(model.layout(onDisplay: 2, metrics: external).isAttachedToTop == false, "no notch: an island")
+        #expect(model.layout(onDisplay: 2, metrics: external).flare > 0, "no notch: still a notch")
         model.cancelTimer()
     }
 

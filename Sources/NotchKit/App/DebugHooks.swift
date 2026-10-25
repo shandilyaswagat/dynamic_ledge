@@ -40,7 +40,7 @@ final class DebugHooks {
         case "drop": model.fileDragChanged(isDragging: true, at: CGPoint(x: model.engine.anchorX, y: 10))
         case "target": model.isDropTargeted = true
         case "nodrop": model.fileDragChanged(isDragging: false, at: nil)
-        case "peek": model.pointerMoved(to: model.engine.notchInWindow.map { CGPoint(x: $0.midX, y: 10) })
+        case "peek": model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 10))
         case "unhover": model.pointerMoved(to: nil)
         case "hover": model.pointerMoved(to: CGPoint(x: model.layout.pill.midX, y: model.layout.pill.midY))
         case "swipe": model.cyclePrimary(forward: true)
@@ -48,7 +48,6 @@ final class DebugHooks {
         case "idle": model.settings.showWhenIdle.toggle()
         case "dismiss": model.dismissAlert()
         case "size": model.settings.appearance.size = parts.dropFirst().first.flatMap(NotchSize.init(rawValue:)) ?? .large
-        case "style": model.settings.appearance.style = parts.dropFirst().first.flatMap(NotchStyle.init(rawValue:)) ?? .notch
         case "welcome": model.receive(.welcome)
         case "tray": model.showTab(.tray)
         case "mirror": model.showTab(.mirror)
@@ -77,7 +76,7 @@ final class DebugHooks {
             let line = "presentation=\(model.presentation) active=\(model.activeActivities.map(\.rawValue).sorted()) "
                 + "playing=\(String(describing: info?.isPlaying)) lingering=\(model.nowPlaying.isLingering) "
                 + "title=\(info?.title ?? "-") rate=\(info?.playbackRate ?? -1) expand=\(String(describing: model.expandTarget)) "
-                + "hoverNotch=\(model.isHoveringNotch) hoverPill=\(model.isHoveringPill) notch=\(String(describing: model.engine.notchInWindow)) style=\(model.engine.style)\n"
+                + "hoverNotch=\(model.isHoveringNotch) hoverPill=\(model.isHoveringPill) notch=\(model.engine.notchInWindow) virtual=\(model.engine.isVirtualNotch)\n"
             let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DynamicNotch-debug.txt")
             if let handle = try? FileHandle(forWritingTo: url) {
                 handle.seekToEndOfFile()

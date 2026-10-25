@@ -328,13 +328,11 @@ struct ClassifierTests {
     }
 
     @Test func appearanceClamping() {
-        let wild = NotchAppearance(style: .island, width: 9_999, height: -3, verticalOffset: .nan, horizontalOffset: -1e6, pitchBlack: false)
+        let wild = NotchAppearance(width: 9_999, height: -3, pitchBlack: false)
         let clamped = wild.clamped()
         #expect(clamped.width == NotchAppearance.widthRange.upperBound)
         #expect(clamped.height == NotchAppearance.heightRange.lowerBound)
-        #expect(clamped.verticalOffset == NotchAppearance.standard.verticalOffset)
-        #expect(clamped.horizontalOffset == NotchAppearance.horizontalOffsetRange.lowerBound)
-        #expect(clamped.style == .island)
         #expect(!clamped.pitchBlack)
+        #expect(NotchAppearance(width: .nan, height: .infinity).clamped() == .standard)
     }
 }

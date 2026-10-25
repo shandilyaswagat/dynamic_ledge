@@ -40,8 +40,18 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 Expanded content heights: Now Playing 140 · Timer 72 · Call 72 · Home 84 (144 with media) ·
 Drop 100 · Timer done 72. The strip beside the camera stays empty in expanded views.
 
-Displays without a notch get a virtual 180 pt notch at the top centre, drawn only while
-something is showing.
+## Displays without a notch
+
+External monitors (and Macs without a notch) get a virtual notch at the top centre: 180 pt wide,
+as tall as the menu bar but never under 32 pt, so everything sits exactly as it does on a
+MacBook. Nothing is drawn while nothing is happening; at rest the shape is retracted into the
+top edge of the screen.
+
+* Live activities and alerts grow out of the top edge the same way they grow out of the notch.
+* Resting the pointer on the notch's spot for the hover delay (0.4 s by default) slides the notch
+  down (notch + 20 wide, + 3 tall). Until then the menu bar underneath keeps its clicks.
+* Click it to open Home. With Hover chosen in Settings, it opens Home after another hover delay.
+* Moving away slides it back up into the edge.
 
 ## The nook: Home, Tray and Mirror
 
@@ -62,21 +72,7 @@ resizes it.
 | Notes body | one text area filling the body; the panel takes the keyboard only while this tab is open |
 | Focus | indigo (Focus) and green (Break) versions of the timer; same shapes as the orange timer |
 
-In the floating pill style the tabs sit in a 24 pt header row inside the pill instead.
 Medium and Small scale all of it.
-
-## Floating pill style (optional)
-
-| Element | Size | Corner |
-|---|---|---|
-| Idle pill | `width` × `height` | capsule |
-| Compact | `width + 2 × round(height × 1.15)` | capsule |
-| Minimal bubble | `height` circle, gap `max(6, height × 0.24)` | circle |
-| Alert | `max(compact + 70, 300)` × `height + 16` | capsule |
-| Expanded | width `clamp(width + 190, 360, 560)`, content + 14 above and below | 36, continuous |
-
-Top = notch (or menu bar) bottom + vertical offset; horizontally centred plus offset, never
-closer than 8 pt to a screen edge.
 
 ## Surface
 
@@ -117,11 +113,14 @@ Dark-mode system colours, since the surface is always black.
 
 | Moment | Animation |
 |---|---|
-| Appear / expand / alert | spring, duration 0.45–0.5, bounce 0.25–0.28 |
-| Hide | spring, duration 0.4, bounce 0.1 |
-| Settings slider changes | spring, duration 0.3, no bounce |
-| Hover lift | spring, duration 0.3, bounce 0.35 |
-| Content swap | old: fade + blur 6 + scale 1.04 out in 0.15 s; new: fade + blur 8 + scale 0.9 in 0.3 s after 0.06 s |
+| Compact / idle | spring, response 0.42, damping 0.76 |
+| Alert | spring, response 0.44, damping 0.74 |
+| Open (expanded, Home and panels, drop) | spring, response 0.48, damping 0.8 |
+| Hover swell / notch appearing on another display | spring, response 0.34, damping 0.72 |
+| Hide | spring, response 0.36, damping 0.92 (settles without a bounce) |
+| Settings slider changes | spring, response 0.3, critically damped |
+| Hover lift | spring, response 0.3, damping 0.68 |
+| Content swap | old: fade + blur 4 + scale 0.97 out in 0.12 s; new: fade + blur 6 + scale 0.92 → 1 in a 0.34 s smooth curve after 0.06 s. Both scale from the top edge, so content grows out of the notch |
 | Liquid pulse (bubble split) | strength 0 → 1 in 0.08 s, back to 0 over 0.6 s |
 | Now Playing bars | 4 capsules, Core Animation keyframe loops of 1.2–1.9 s; resting height 28 % when paused |
 | Timer done | bell swings ±16° |

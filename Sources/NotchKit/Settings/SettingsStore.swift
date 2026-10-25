@@ -58,13 +58,10 @@ public final class SettingsStore {
         didSet {
             // The layout engine clamps too, so out-of-range values can never reach the screen.
             let value = appearance.clamped()
-            defaults.set(value.style.rawValue, forKey: Key.style)
             defaults.set(value.pitchBlack, forKey: Key.pitchBlack)
             defaults.set(value.size.rawValue, forKey: Key.size)
             defaults.set(value.width, forKey: Key.width)
             defaults.set(value.height, forKey: Key.height)
-            defaults.set(value.verticalOffset, forKey: Key.verticalOffset)
-            defaults.set(value.horizontalOffset, forKey: Key.horizontalOffset)
         }
     }
 
@@ -135,12 +132,11 @@ public final class SettingsStore {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let standard = NotchAppearance.standard
+        // The floating pill style and its position settings are gone; forget what they saved.
+        for key in Key.retired { defaults.removeObject(forKey: key) }
         appearance = NotchAppearance(
-            style: defaults.string(forKey: Key.style).flatMap(NotchStyle.init(rawValue:)) ?? standard.style,
             width: defaults.object(forKey: Key.width) as? Double ?? standard.width,
             height: defaults.object(forKey: Key.height) as? Double ?? standard.height,
-            verticalOffset: defaults.object(forKey: Key.verticalOffset) as? Double ?? standard.verticalOffset,
-            horizontalOffset: defaults.object(forKey: Key.horizontalOffset) as? Double ?? standard.horizontalOffset,
             pitchBlack: defaults.object(forKey: Key.pitchBlack) as? Bool ?? standard.pitchBlack,
             size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size
         ).clamped()
@@ -205,13 +201,12 @@ public final class SettingsStore {
     }
 
     private enum Key {
-        static let style = "shape.style"
+        /// Settings from the floating pill style, removed in 1.3.3.
+        static let retired = ["shape.style", "shape.verticalOffset", "shape.horizontalOffset"]
         static let pitchBlack = "shape.pitchBlack"
         static let size = "shape.size"
         static let width = "shape.width"
         static let height = "shape.height"
-        static let verticalOffset = "shape.verticalOffset"
-        static let horizontalOffset = "shape.horizontalOffset"
         static let showWhenIdle = "behavior.showWhenIdle"
         static let notchOpenMode = "behavior.notchOpenMode"
         static let hoverDelay = "behavior.hoverDelay"

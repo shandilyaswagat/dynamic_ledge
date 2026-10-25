@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The black shapes behind the content: the main shape, the minimal bubble and, in island style
-/// while melting, a copy of the notch. Drawn in a Canvas so nearby shapes can merge like liquid.
+/// The black shapes behind the content: the main shape and the minimal bubble. Drawn in a Canvas
+/// so the two can merge like liquid while they move.
 struct IslandSurface: View, Animatable {
     var layout: IslandLayout
     /// Liquid pulse from the transition keyframes, 0…1.
@@ -16,18 +16,17 @@ struct IslandSurface: View, Animatable {
     }
 
     var body: some View {
-        let strength = liquid ? min(1, max(pulse, layout.gooBase)) : 0
+        let strength = liquid ? min(1, pulse) : 0
         let layout = layout
         let scale = displayScale
         Canvas(opaque: false, rendersAsynchronously: false) { context, _ in
             let main = IslandPath.path(in: layout.pill, topRadius: layout.topRadius, bottomRadius: layout.bottomRadius, flare: layout.flare)
-            // A shape fused to the notch stays solid while it moves and only vanishes once it is
-            // back inside the notch, instead of fading in and out like a floating pill.
-            let opacity = layout.isAttachedToTop ? min(1, layout.pillOpacity * 20) : layout.pillOpacity
+            // The shape stays solid while it moves and only vanishes once it is back inside the
+            // notch (or the top edge), instead of fading in and out.
+            let opacity = min(1, layout.pillOpacity * 20)
             guard opacity > 0.001 || layout.bubble.width > 0.5 else { return }
-            let fill = layout.isAttachedToTop ? Color.black : NotchColor.islandFill
-            let mainShading = GraphicsContext.Shading.color(fill.opacity(opacity))
-            let black = GraphicsContext.Shading.color(fill)
+            let mainShading = GraphicsContext.Shading.color(Color.black.opacity(opacity))
+            let black = GraphicsContext.Shading.color(Color.black)
             let hasBubble = layout.bubble.width > 0.5 && layout.bubble.height > 0.5
             let blur = GooMath.blurRadius(strength: strength)
 
@@ -52,15 +51,10 @@ struct IslandSurface: View, Animatable {
                     if hasBubble {
                         layer.fill(Path(ellipseIn: layout.bubble), with: black)
                     }
-                    if !layout.isAttachedToTop, let notch = layout.notch {
-                        layer.fill(Path(roundedRect: notch, cornerRadius: layout.notchRadius, style: .continuous), with: black)
-                    }
                 }
             }
             // The blur softens edges that touch the screen top; a crisp copy keeps them sharp.
-            if layout.isAttachedToTop {
-                context.fill(main, with: mainShading)
-            }
+            context.fill(main, with: mainShading)
         }
         .shadow(color: .black.opacity(0.35 * min(layout.shadow, 1)), radius: 18, y: 8)
         .allowsHitTesting(false)

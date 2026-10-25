@@ -63,6 +63,8 @@ public final class IslandModel {
     @ObservationIgnored private var alertTask: Task<Void, Never>?
     @ObservationIgnored private var collapseTask: Task<Void, Never>?
     @ObservationIgnored private var hoverExpandTask: Task<Void, Never>?
+    /// On a display without a notch, shows the notch once the pointer has rested on its spot.
+    @ObservationIgnored private var revealTask: Task<Void, Never>?
     /// Auto-collapse only starts once the pointer has been inside the expanded pill, so opening
     /// it from the menu bar doesn't collapse it while the pointer travels over.
     @ObservationIgnored private var pointerEnteredExpanded = false
@@ -175,10 +177,7 @@ public final class IslandModel {
     }
 
     public func engine(for metrics: ScreenMetrics) -> LayoutEngine {
-        var appearance = settings.appearance
-        // A display without a notch gets the floating island, not a pretend notch.
-        if metrics.notch == nil { appearance.style = .island }
-        return LayoutEngine(screen: metrics, appearance: appearance)
+        LayoutEngine(screen: metrics, appearance: settings.appearance)
     }
 
     /// Makes a display the one you're using. Ignored while something is open elsewhere, so a
@@ -190,6 +189,7 @@ public final class IslandModel {
             return true
         }
         guard expandTarget == nil, !isFileDragNear, !isDropTargeted, !isDocumentWindowDrag else { return false }
+        cancelReveal()
         setHovering(pill: false, notch: false)
         activeDisplayID = id
         screen = metrics
@@ -352,14 +352,29 @@ public final class IslandModel {
     public func pointerMoved(to point: CGPoint?) -> Bool {
         let current = presentation
         let engine = engine
-        let resting = engine.layout(for: current, home: homeContent, hovering: false)
-        let inside = point.map { point in
-            engine.interactiveRects(for: current, layout: resting).contains { $0.contains(point) }
-        } ?? false
-
-        if case .hidden = current {
-            setHovering(pill: false, notch: inside)
+        let inside: Bool
+        if current.isHidden {
+            // The usual state: no layout to work out, just the notch's spot.
+            inside = point.map(engine.notchHoverRect.contains) ?? false
         } else {
+            let resting = engine.layout(for: current, home: homeContent, hovering: false)
+            inside = point.map { point in
+                engine.interactiveRects(for: current, layout: resting).contains { $0.contains(point) }
+            } ?? false
+        }
+
+        // A display without a notch has nothing to see until the pointer rests on the notch's
+        // spot for the hover delay. Until then the menu bar underneath keeps its clicks.
+        let waitsForReveal = current.isHidden && engine.isVirtualNotch
+        if case .hidden = current {
+            if waitsForReveal {
+                setHovering(pill: false, notch: inside && isHoveringNotch)
+                if inside, !isHoveringNotch { scheduleReveal() } else if !inside { cancelReveal() }
+            } else {
+                setHovering(pill: false, notch: inside)
+            }
+        } else {
+            cancelReveal()
             setHovering(pill: inside, notch: false)
         }
 
@@ -375,7 +390,7 @@ public final class IslandModel {
 
         if settings.notchOpenMode == .hover, inside, case .compact(let primary, _) = current {
             scheduleHoverExpand(.activity(primary))
-        } else if settings.notchOpenMode == .hover, inside, current == .idle || current.isHidden {
+        } else if settings.notchOpenMode == .hover, inside, current == .idle || (current.isHidden && (!waitsForReveal || isHoveringNotch)) {
             // The tucked-away notch, or the resting pill (Show when idle, or while previewing a
             // size in Settings), opens Home.
             scheduleHoverExpand(.home)
@@ -384,7 +399,32 @@ public final class IslandModel {
             hoverExpandTask = nil
         }
 
-        return inside || isFileDragNear
+        let takesMouse = inside && (!waitsForReveal || isHoveringNotch)
+        return takesMouse || isFileDragNear
+    }
+
+    /// The pointer is on the spot of a hidden notch and it's about to appear.
+    public var isRevealPending: Bool { revealTask != nil }
+
+    private func scheduleReveal() {
+        guard revealTask == nil else { return }
+        revealTask = Task { [weak self] in
+            let ms = Int(((self?.settings.hoverDelay ?? 0.4) * 1000).rounded())
+            try? await Task.sleep(for: .milliseconds(max(50, ms)))
+            guard !Task.isCancelled, let self else { return }
+            self.revealTask = nil
+            guard self.presentation.isHidden else { return }
+            self.setHovering(pill: false, notch: true)
+            // With Hover, it then opens after the same delay, like the MacBook's notch does.
+            if self.settings.notchOpenMode == .hover {
+                self.scheduleHoverExpand(.home)
+            }
+        }
+    }
+
+    private func cancelReveal() {
+        revealTask?.cancel()
+        revealTask = nil
     }
 
     private func setHovering(pill: Bool, notch: Bool) {
@@ -427,6 +467,7 @@ public final class IslandModel {
     }
 
     public func expand(_ target: ExpandTarget) {
+        cancelReveal()
         hoverExpandTask?.cancel()
         collapseTask?.cancel()
         collapseTask = nil

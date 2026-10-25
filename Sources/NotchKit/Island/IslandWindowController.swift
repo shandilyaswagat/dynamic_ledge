@@ -285,7 +285,9 @@ public final class IslandWindowController {
         // something still needs to be switched off.
         let location = NSEvent.mouseLocation
         let nearWindow = panel.frame.insetBy(dx: -8, dy: -8).contains(location)
-        if !nearWindow, !isFileDragging, !model.isDocumentWindowDrag, panel.ignoresMouseEvents, !model.isHoveringPill, !model.isHoveringNotch {
+        // A pending reveal still needs to hear that the pointer left, however fast it went.
+        if !nearWindow, !isFileDragging, !model.isDocumentWindowDrag, panel.ignoresMouseEvents, !model.isHoveringPill,
+           !model.isHoveringNotch, !model.isRevealPending {
             return
         }
         let wantsMouse = model.pointerMoved(to: windowPoint())

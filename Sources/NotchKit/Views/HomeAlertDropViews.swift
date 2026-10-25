@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct AlertView: View {
     let model: IslandModel
     let alert: IslandAlert
-    /// Middle width kept clear for the camera in notch style.
+    /// Middle width kept clear for the camera.
     var cameraGap: CGFloat = 0
     @Environment(\.notchScale) private var s
 

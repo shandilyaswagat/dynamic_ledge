@@ -54,8 +54,9 @@ A few more handy bits: a mute button for your mic during calls, and (if you swit
 Settings) a heads-up when a download finishes.
 
 Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,
-have it follow your pointer, or show it on all your screens at once. Screens without a notch get a
-floating island.
+have it follow your pointer, or show it on all your screens at once. Screens without a notch get
+a notch too: it stays out of sight until something's going on, and you can bring it out by resting
+your pointer at the top centre of the screen for a moment.
 
 You can make it small, medium or large, whatever looks right on your screen.
 
@@ -115,8 +116,9 @@ You'll probably want to switch on **Open at login** in Settings so it's always r
 something to show, like music or a timer. Hover over the notch and it'll puff out a little. Click
 it to open it.
 
-**My Mac doesn't have a notch.** It still works. You'll get a small fake notch at the top of the
-screen whenever there's something to show.
+**My Mac doesn't have a notch.** It still works. You'll get a notch at the top centre of the
+screen whenever there's something to show. To open it, rest your pointer there for a moment until
+it slides down, then click.
 
 **My music isn't showing.** Play something and give it a second. The app uses a hidden bit of
 macOS to see what's playing. If Apple ever removes that in an update, music will stop showing up

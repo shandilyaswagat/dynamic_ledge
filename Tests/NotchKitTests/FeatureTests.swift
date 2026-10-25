@@ -254,25 +254,15 @@ struct NewFeatureLayoutTests {
         #expect(abs(above - below) <= 2, "the body doesn't hug the strip")
     }
 
-    @Test func floatingPillKeepsTheHeaderInside() {
-        var appearance = NotchAppearance.standard
-        appearance.style = .island
-        let layout = LayoutEngine(screen: .sample, appearance: appearance).layout(for: .home, home: HomeContent(), hovering: false)
-        #expect(layout.stripHeight == 0)
-        #expect(layout.content.height == IslandMetrics.ContentHeight.nook)
-    }
-
     @Test func everyTabFitsTheWindow() {
-        let bounds = CGRect(origin: .zero, size: engine.windowSize)
         let full = HomeContent(hasMedia: true, hasEvent: true, hasTimer: true, hasShortcuts: true)
-        for presentation in [IslandPresentation.home, .tray, .mirror] {
-            for style in NotchStyle.allCases {
-                var appearance = NotchAppearance.standard
-                appearance.style = style
-                appearance.verticalOffset = NotchAppearance.verticalOffsetRange.upperBound
-                let engine = LayoutEngine(screen: .sample, appearance: appearance)
+        let external = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        for screen in [ScreenMetrics.sample, external] {
+            let engine = LayoutEngine(screen: screen, appearance: .standard)
+            let bounds = CGRect(origin: .zero, size: engine.windowSize)
+            for presentation in [IslandPresentation.home, .tray, .mirror, .nook(.launcher)] {
                 let layout = engine.layout(for: presentation, home: full, hovering: false)
-                #expect(bounds.contains(layout.pill), "\(style) \(presentation)")
+                #expect(bounds.contains(layout.pill), "\(presentation)")
             }
         }
     }

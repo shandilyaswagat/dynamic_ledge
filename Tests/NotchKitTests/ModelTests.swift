@@ -29,7 +29,6 @@ struct SettingsStoreTests {
         let defaults = makeDefaults()
         let store = SettingsStore(defaults: defaults)
         store.appearance.width = 300
-        store.appearance.style = .island
         store.appearance.pitchBlack = false
         store.showWhenIdle = true
         store.display = .main
@@ -40,7 +39,6 @@ struct SettingsStoreTests {
 
         let reloaded = SettingsStore(defaults: defaults)
         #expect(reloaded.appearance.width == 300)
-        #expect(reloaded.appearance.style == .island)
         #expect(!reloaded.appearance.pitchBlack)
         #expect(reloaded.showWhenIdle)
         #expect(reloaded.display == .main)
@@ -53,13 +51,13 @@ struct SettingsStoreTests {
     @Test func badStoredValuesFallBack() {
         let defaults = makeDefaults()
         defaults.set(99_999.0, forKey: "shape.width")
-        defaults.set("sideways", forKey: "shape.style")
+        defaults.set("island", forKey: "shape.style")
         defaults.set("moon", forKey: "general.display")
         defaults.set(7.0, forKey: "nowPlaying.pausedLinger")
         defaults.set(2.5, forKey: "behavior.hoverDelay")
         let store = SettingsStore(defaults: defaults)
         #expect(store.appearance.width == NotchAppearance.widthRange.upperBound)
-        #expect(store.appearance.style == .notch)
+        #expect(defaults.object(forKey: "shape.style") == nil, "the old floating pill setting is forgotten")
         #expect(store.display == .automatic)
         #expect(store.pausedMediaLinger == 30)
         #expect(store.hoverDelay == 0.5)
@@ -197,7 +195,7 @@ struct IslandModelTests {
 
     @Test func hoveringTheNotchPeeksAndTakesTheMouse() throws {
         let model = makeModel()
-        let notch = try #require(model.engine.notchInWindow)
+        let notch = model.engine.notchInWindow
         #expect(model.pointerMoved(to: CGPoint(x: notch.midX, y: 10)))
         #expect(model.presentation == .hidden(peek: true))
         #expect(!model.pointerMoved(to: CGPoint(x: notch.midX, y: 200)))
@@ -207,7 +205,7 @@ struct IslandModelTests {
 
     @Test func clickModeNeverOpensOnlyFromHover() async throws {
         let model = makeModel()
-        let notch = try #require(model.engine.notchInWindow)
+        let notch = model.engine.notchInWindow
         #expect(model.settings.notchOpenMode == .click)
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
         try await Task.sleep(for: .milliseconds(550))
@@ -216,7 +214,7 @@ struct IslandModelTests {
 
     @Test func hoverModeOpensWithoutAClick() async throws {
         let model = makeModel()
-        let notch = try #require(model.engine.notchInWindow)
+        let notch = model.engine.notchInWindow
         model.settings.notchOpenMode = .hover
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
         for _ in 0..<60 where model.presentation != .home {
@@ -227,12 +225,64 @@ struct IslandModelTests {
 
     @Test func leavingBeforeHoverDelayDoesNotOpen() async throws {
         let model = makeModel()
-        let notch = try #require(model.engine.notchInWindow)
+        let notch = model.engine.notchInWindow
         model.settings.notchOpenMode = .hover
         _ = model.pointerMoved(to: CGPoint(x: notch.midX, y: 10))
         _ = model.pointerMoved(to: nil)
         try await Task.sleep(for: .milliseconds(300))
         #expect(model.presentation == .hidden(peek: false))
+    }
+
+    @Test func aScreenWithoutANotchShowsItOnlyAfterTheHoverDelay() async throws {
+        let model = makeModel()
+        model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        model.settings.hoverDelay = 0.1
+        let spot = CGPoint(x: model.engine.notchInWindow.midX, y: 8)
+        #expect(!model.pointerMoved(to: spot), "the menu bar keeps its clicks until the notch shows")
+        #expect(model.presentation == .hidden(peek: false))
+        for _ in 0..<60 where model.presentation != .hidden(peek: true) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(model.presentation == .hidden(peek: true))
+        #expect(model.pointerMoved(to: spot), "once it shows, it takes the click")
+        model.tapPill()
+        #expect(model.presentation == .home)
+        model.collapse()
+        _ = model.pointerMoved(to: CGPoint(x: 5, y: 500))
+        #expect(model.presentation == .hidden(peek: false))
+    }
+
+    @Test func leavingTheSpotEarlyShowsNothing() async throws {
+        let model = makeModel()
+        model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        model.settings.hoverDelay = 0.1
+        _ = model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 8))
+        #expect(model.isRevealPending, "the window keeps listening until the pointer leaves")
+        _ = model.pointerMoved(to: nil)
+        #expect(!model.isRevealPending)
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(model.presentation == .hidden(peek: false))
+    }
+
+    @Test func hoverModeOpensAScreenWithoutANotchAfterItShows() async throws {
+        let model = makeModel()
+        model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        model.settings.hoverDelay = 0.1
+        model.settings.notchOpenMode = .hover
+        _ = model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 8))
+        for _ in 0..<60 where model.presentation != .home {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(model.presentation == .home)
+    }
+
+    @Test func liveActivitiesShowOnAScreenWithoutANotch() {
+        let model = makeModel()
+        model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        model.startTimer(60)
+        #expect(model.presentation == .compact(primary: .timer, secondary: nil))
+        #expect(model.layout.pillOpacity == 1)
+        model.cancelTimer()
     }
 
     @Test func hoveringTheCompactShapeLiftsIt() {

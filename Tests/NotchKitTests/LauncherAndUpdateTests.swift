@@ -99,11 +99,11 @@ struct LauncherModelTests {
         model.keepAwake.turnOff()
     }
 
-    @Test func screensWithoutANotchGetTheIsland() {
+    @Test func screensWithoutANotchGetAVirtualNotch() {
         let model = makeModel()
         model.screen = ScreenMetrics(size: CGSize(width: 2560, height: 1440), notch: nil, menuBarHeight: 25)
-        #expect(model.engine.style == .island)
+        #expect(model.engine.isVirtualNotch)
         model.screen = .sample
-        #expect(model.engine.style == model.settings.appearance.style)
+        #expect(!model.engine.isVirtualNotch)
     }
 }

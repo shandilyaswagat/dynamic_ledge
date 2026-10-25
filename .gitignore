@@ -5,3 +5,6 @@ build/
 *.dmg
 xcuserdata/
 DerivedData/
+
+# Editor settings
+.idea/

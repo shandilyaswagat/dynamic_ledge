@@ -40,9 +40,10 @@ And when you click it, you get a little home base right under the notch:
 
 Drag files onto the notch and you can also AirDrop them straight from there.
 
-To add an open document, save it, then drag its window by the title bar to the notch and release
-over **Tray**. Enable Accessibility access for Dynamic Notch and approve Automation access if
-requested. The source app must expose the saved document location.
+Working on a document? Save it, then drag its window by the title bar onto the notch and let go
+over **Tray**. The first time, your Mac will ask you to allow Dynamic Notch in Accessibility (and
+sometimes Automation). Tray is a scratch space: it holds up to 30 things and clears when you quit
+the app, without ever touching your original files.
 
 
 Everything else lives behind the grid button at the top right: the timer, stopwatch, calendar,

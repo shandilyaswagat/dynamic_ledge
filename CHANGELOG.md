@@ -5,7 +5,11 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
-## [Unreleased]
+## [1.3.1] - 2026-10-25
+
+You can install this from Settings › About › Install and Relaunch. If your button says Download
+instead, grab this version by hand once and drag it into Applications. From then on, updates
+install right from Settings, and each one is checked before it's installed.
 
 ### Fixed
 - When a copy of the app can't update itself (for example a build you made yourself), the update
@@ -137,6 +141,7 @@ last one.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.1]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.1
 [1.3.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.0
 [1.2.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.2.0
 [1.1.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.1.0

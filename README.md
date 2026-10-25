@@ -135,9 +135,17 @@ It's never written to disk, and anything a password manager marks as private is 
 want it at all? Turn off Clipboard in Settings and it stops watching right away.
 
 **How do I update it?** It updates itself. When a new version is out, the notch lets you know;
-click it, or go to Settings › About, and hit **Install and Relaunch**. With Homebrew,
-`brew upgrade` works too. Prefer doing it by hand? Download the new version and drag it into
-Applications again. Replace the old one when it asks. Your settings stay put.
+click it, or go to Settings › About, and hit **Install and Relaunch**. Every update is checked
+before it's installed, so a tampered download can't get in. With Homebrew, run
+`brew upgrade --cask dynamic-notch`. Prefer doing it by hand? Download the new version and drag
+it into Applications again. Replace the old one when it asks. Your settings stay put.
+
+**The button says Download instead of Install and Relaunch.** Your copy can't update itself (for
+example, one you built yourself). Download [the latest version](https://github.com/shandilyaswagat/dynamic_notch/releases/latest/download/DynamicNotch.dmg)
+by hand once and drag it into Applications. From then on, updates install right from Settings.
+
+**It's asking for permissions again after an update.** That's macOS being careful, because the
+app isn't registered with Apple yet. Just allow them again.
 
 **How do I get rid of it?** Click the capsule icon in the menu bar and pick **Quit Dynamic Notch**,
 then drag the app from Applications to the Trash. If you want to clear out everything it saved too,

@@ -80,7 +80,12 @@ and identifier. Ad-hoc builds rely on the pinned release-signing key. Quarantine
 by the installer; normal macOS launch checks still apply.
 
 The first release with this protection must reach users through a trusted installation channel.
-Old installed versions do not gain signature verification until replaced. Plan key rotation by
+Old installed versions do not gain signature verification until replaced. For Dynamic Notch the
+key ships from 1.3.0 on. 1.2.0 still updates in place using the published `.sha256` file, so keep
+uploading it. From 1.3.0 on, every update installs from Settings › About only after passing the
+signature check. A build without a usable public key (for example a local build made before the
+key existed) labels its update button **Download** and opens the release page instead; those
+copies need one manual download. Plan key rotation by
 shipping a trusted update with the next public key before retiring the old signing key.
 
 ## Making a release now (ad-hoc Apple signature)

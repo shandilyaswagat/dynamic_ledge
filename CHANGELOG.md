@@ -28,6 +28,9 @@ last one.
   ends the call (Zoom asks you to confirm). The first time, macOS asks to let Dynamic Notch use
   Accessibility. Click the app's icon to jump to the call window instead.
 
+### Changed
+- **A new app icon:** a friendly little cloud on a soft purple tile.
+
 ## [1.3.4] - 2026-10-26
 
 ### Added

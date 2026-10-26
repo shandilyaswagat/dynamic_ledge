@@ -4,7 +4,8 @@ import Foundation
 public enum TimeFormatting {
     public static func clock(_ seconds: TimeInterval, roundingUp: Bool = false) -> String {
         guard seconds.isFinite else { return "0:00" }
-        let value = max(0, seconds)
+        // Some players report absurd lengths for live streams; Int() would crash on them.
+        let value = min(max(0, seconds), 999 * 3600)
         let total = Int(roundingUp ? value.rounded(.up) : value.rounded(.down))
         let hours = total / 3600
         let minutes = (total % 3600) / 60

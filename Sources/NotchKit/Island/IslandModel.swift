@@ -129,6 +129,7 @@ public final class IslandModel {
         hotKeys.onPress = { [weak self] item in self?.open(item) }
         // The permission dialog closes the notch; reopen it on the calendar so the user sees it worked.
         calendar.onGranted = { [weak self] in self?.showTab(.calendar) }
+        reminders.onGranted = { [weak self] in self?.showTab(.reminders) }
         updater.onAvailable = { [weak self] release in self?.receive(.updateAvailable(version: release.version.description)) }
         power.onAlert = { [weak self] alert in self?.receive(alert) }
         audioRoute.onAlert = { [weak self] alert in self?.receive(alert) }
@@ -787,6 +788,7 @@ public final class IslandModel {
 
     public func showTab(_ tab: HomeTab) {
         if tab == .home || tab == .calendar { calendar.refreshAccess() }
+        if tab == .reminders { reminders.refreshAccess() }
         if tab == .tray { tray.pruneMissing() }
         if tab == .mirror { camera.refresh() }
         expand(ExpandTarget(tab))

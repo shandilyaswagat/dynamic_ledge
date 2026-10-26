@@ -135,7 +135,9 @@ public final class TrayStore {
             representationTypes: .thumbnail
         )
         let id = item.id
-        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
+        // Quick Look answers on its own queue, so this closure isn't tied to the main actor
+        // (Swift would stop the app); only the image hops back.
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { @Sendable [weak self] representation, _ in
             guard let cgImage = representation?.cgImage else { return }
             let size = NSSize(width: cgImage.width, height: cgImage.height)
             let image = cgImage

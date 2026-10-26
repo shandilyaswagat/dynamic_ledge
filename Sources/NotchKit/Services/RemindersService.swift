@@ -51,8 +51,11 @@ public final class RemindersService {
     @ObservationIgnored private var store = EKEventStore()
     /// See CalendarService: macOS can report "not asked yet" for a while after the user allows it.
     @ObservationIgnored private var grantedThisSession = false
-    @ObservationIgnored private var observer: NSObjectProtocol?
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var isRunning = false
+
+    /// Called once access is granted, so the notch can show the list right away.
+    @ObservationIgnored public var onGranted: (() -> Void)?
 
     public init() {}
 
@@ -60,17 +63,32 @@ public final class RemindersService {
         guard !isRunning else { return }
         isRunning = true
         access = currentAccess()
-        // Any store, because the store is replaced once access is granted.
-        observer = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.reload() }
+        // Any store, because the store is replaced once access is granted. "Due today" moves
+        // at midnight, and a sleeping Mac can miss it, so those reload too.
+        let center = NotificationCenter.default
+        for name in [Notification.Name.EKEventStoreChanged, .NSCalendarDayChanged] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.reload() }
+            })
         }
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reload() }
+        })
         reload()
     }
 
     public func stop() {
         isRunning = false
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-        observer = nil
+        observers.forEach { NotificationCenter.default.removeObserver($0); NSWorkspace.shared.notificationCenter.removeObserver($0) }
+        observers.removeAll()
+    }
+
+    /// Picks up access turned on in System Settings while the app was running.
+    public func refreshAccess() {
+        let now = currentAccess()
+        guard now != access else { return }
+        if now == .granted { store = EKEventStore() }
+        reload()
     }
 
     public func requestAccess() {
@@ -85,6 +103,7 @@ public final class RemindersService {
             }
             if !granted, self.currentAccess() != .notAsked { self.openPrivacySettings() }
             self.reload()
+            if granted { self.onGranted?() }
         }
     }
 

@@ -55,15 +55,18 @@ public final class ShortcutsService {
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
             process.standardInput = FileHandle.nullDevice
-            process.terminationHandler = { finished in
-                let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
-                continuation.resume(returning: (finished.terminationStatus, String(decoding: data, as: UTF8.self)))
-            }
             do {
                 try process.run()
             } catch {
-                process.terminationHandler = nil
                 continuation.resume(returning: (-1, ""))
+                return
+            }
+            // Read until the tool closes its output, then wait. Waiting first could hang for good:
+            // a long list fills the pipe and the tool blocks until someone reads it.
+            DispatchQueue.global(qos: .userInitiated).async {
+                let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
+                process.waitUntilExit()
+                continuation.resume(returning: (process.terminationStatus, String(decoding: data, as: UTF8.self)))
             }
         }
     }

@@ -5,7 +5,7 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
-## [Unreleased]
+## [1.3.5] - 2026-10-27
 
 ### Fixed
 - Dynamic Notch no longer quits right after you allow Reminders access, and the notch reopens on
@@ -195,6 +195,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.5]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.5
 [1.3.4]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.4
 [1.3.3]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.3
 [1.3.2]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.2

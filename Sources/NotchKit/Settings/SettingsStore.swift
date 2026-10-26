@@ -143,10 +143,7 @@ public final class SettingsStore {
             height: defaults.object(forKey: Key.height) as? Double ?? standard.height,
             pitchBlack: defaults.object(forKey: Key.pitchBlack) as? Bool ?? standard.pitchBlack,
             size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size,
-            // Elongated isn't released yet: only debug builds can choose it.
-            nookLayout: Self.showsElongatedLayout
-                ? defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout
-                : standard.nookLayout
+            nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
@@ -203,15 +200,6 @@ public final class SettingsStore {
         guard favoriteShortcuts.count < Self.maximumFavoriteShortcuts else { return false }
         favoriteShortcuts.append(name)
         return true
-    }
-
-    /// The elongated layout ships in 1.4.0. Until then it's only in debug builds, for testing.
-    public static var showsElongatedLayout: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
     }
 
     public func resetAppearance() {

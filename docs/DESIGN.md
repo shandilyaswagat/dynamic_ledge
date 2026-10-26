@@ -74,9 +74,9 @@ resizes it.
 
 Medium and Small scale all of it.
 
-## Elongated layout (ships in 1.4.0)
+## Elongated layout (1.4.0)
 
-Not in release builds yet: only debug builds show the choice, in Settings › Appearance. Home, Tray and Clipboard stretch across the top of
+Chosen in Settings › Appearance. Home, Tray and Clipboard stretch across the top of
 the screen: as wide as the screen allows, up to 1240 pt, never closer than 40 pt to an edge, and
 as short as the standard nook (body 120). The grid and the panels opened from it (Timer,
 Calendar, Reminders, Notes, Mirror, Stats) keep their standard size, so the shape narrows as

@@ -173,18 +173,16 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
-            if SettingsStore.showsElongatedLayout {
-                Section {
-                    Picker("Home layout", selection: $settings.appearance.nookLayout) {
-                        Text("Standard").tag(NookLayout.standard)
-                        Text("Elongated").tag(NookLayout.elongated)
-                    }
-                    .pickerStyle(.segmented)
-                } footer: {
-                    Text("Elongated stretches Home, Tray and Clipboard across the top of the screen, with your widgets in one long row you can scroll sideways.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            Section {
+                Picker("Home layout", selection: $settings.appearance.nookLayout) {
+                    Text("Standard").tag(NookLayout.standard)
+                    Text("Elongated").tag(NookLayout.elongated)
                 }
+                .pickerStyle(.segmented)
+            } footer: {
+                Text("Elongated stretches Home, Tray and Clipboard across the top of the screen, with your widgets in one long row you can scroll sideways.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {

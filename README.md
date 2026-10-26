@@ -50,6 +50,11 @@ Everything else lives behind the grid button at the top right: the timer, stopwa
 today's reminders, a scratchpad, your camera mirror and Keep Awake (stops your Mac from
 sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 
+Like things wide? Pick **Elongated** in Settings › Appearance and Home stretches across the top
+of your screen, with everything in one long row you can scroll sideways: music you can scrub, a
+camera mirror, your week with one-click **Join** for Meet, Zoom, Teams and Webex calls, notes you
+can format, a wheel timer and a to-do list.
+
 Want to keep an eye on your Mac? Click the **Stats** tile in the grid to switch it on. Your memory and CPU show
 up beside the camera whenever nothing else is going on, and a click shows memory, CPU, free disk
 space and network speed. It's all read on your Mac and never leaves it.

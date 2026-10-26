@@ -5,6 +5,20 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+### Added
+- **Elongated layout.** Pick it in Settings › Appearance and Home stretches across the top of the
+  screen, with everything in one long row you can scroll sideways:
+  - Music with a handle you can drag to any point in the song.
+  - Mirror: click the circle to see yourself right there.
+  - Calendar: tap a day in the strip to see its events, and join Meet, Zoom, Teams or Webex calls
+    with one click.
+  - Notes you can format, right in the row.
+  - A timer with hour, minute and second wheels, plus 1 and 5 minute buttons.
+  - A to-do list: type a task, press Return, tick it off. It's kept on your Mac.
+  Tray and Clipboard go wide too.
+
 ## [1.3.4] - 2026-10-26
 
 ### Added

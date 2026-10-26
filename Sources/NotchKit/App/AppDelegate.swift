@@ -8,6 +8,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var islandWindows: IslandWindowManager?
     private var statusController: StatusItemController?
     private var settingsController: SettingsWindowController?
+    private var lockScreen: LockScreenController?
     #if DEBUG
     private var debugHooks: DebugHooks?
     #endif
@@ -35,11 +36,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         self.model = model
         self.settingsController = settingsController
         islandWindows = IslandWindowManager(model: model)
+        if LockScreenController.isAvailable { lockScreen = LockScreenController(model: model) }
         statusController = StatusItemController(model: model) { [weak settingsController] in settingsController?.show() }
         model.startServices()
 
         #if DEBUG
-        debugHooks = DebugHooks(model: model, settings: settingsController)
+        debugHooks = DebugHooks(model: model, settings: settingsController, lockScreen: lockScreen)
         #endif
     }
 
@@ -54,6 +56,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         model?.tray.removeAll()
         model?.stopServices()
         islandWindows?.tearDown()
+        lockScreen?.tearDown()
     }
 
     private func terminateIfAlreadyRunning() -> Bool {

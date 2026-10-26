@@ -89,6 +89,16 @@ struct GeneralSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if LockScreenController.isAvailable {
+                Section {
+                    Toggle("Show on Lock Screen", isOn: $settings.lockScreenEnabled)
+                } footer: {
+                    Text("While your Mac is locked, the notch shows your music with controls, a running timer, or charging. Anyone at your Mac can see it, so it's off until you turn it on.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Behavior") {
                 Toggle("Show when idle", isOn: $settings.showWhenIdle)
                 Picker("Open notch with", selection: $settings.notchOpenMode) {

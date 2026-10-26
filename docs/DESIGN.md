@@ -95,6 +95,19 @@ they open.
 Typing: the panel may take the keyboard while the elongated Home is open, but only takes it when
 you click into Notes or a new task, and it doesn't close on pointer exit while you type.
 
+## Lock Screen (1.4.0)
+
+Off by default (Settings › General). While the Mac is locked, the notch looks exactly as it does
+when unlocked: the compact activity beside the camera, drawn by the same layout engine and views,
+one at a time in this order: a running timer, music, the stopwatch, charging (the charging alert).
+It grows out of the notch with the compact spring when the Lock Screen appears. It's only for
+looking at: clicks go to the Lock Screen.
+
+It lives in its own window, made on lock and removed on unlock, moved into a private
+window-server space above the Lock Screen (SkyLight: SLSSpaceCreate, SLSSpaceSetAbsoluteLevel
+400, the level of notifications on the Lock Screen, SLSShowSpaces, SLSSpaceAddWindowsAndRemoveFromSpaces). The functions are looked up at run time;
+if a macOS update removes one, the switch disappears from Settings.
+
 ## Dropping files
 
 The drop view (both layouts) splits 60/40. Left: Files Tray, a 20 pt-radius box with a dashed

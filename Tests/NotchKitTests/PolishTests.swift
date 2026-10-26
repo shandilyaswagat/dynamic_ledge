@@ -451,3 +451,39 @@ struct CallHangupTests {
         }
     }
 }
+
+@Suite("Lock Screen")
+struct LockScreenTests {
+    private let charging = PowerSnapshot(hasBattery: true, level: 82, isOnAC: true, isCharging: true, isLowPowerMode: false)
+    private let onBattery = PowerSnapshot(hasBattery: true, level: 82, isOnAC: false, isCharging: false, isLowPowerMode: false)
+
+    @Test func showsTheMostTimeSensitiveThing() {
+        #expect(LockScreenContent.choose(timer: true, music: true, stopwatch: true, power: charging) == .timer)
+        #expect(LockScreenContent.choose(timer: false, music: true, stopwatch: true, power: charging) == .music)
+        #expect(LockScreenContent.choose(timer: false, music: false, stopwatch: true, power: charging) == .stopwatch)
+        #expect(LockScreenContent.choose(timer: false, music: false, stopwatch: false, power: charging) == .charging(level: 82, isCharging: true))
+    }
+
+    @Test func showsNothingWhenNothingIsGoingOn() {
+        #expect(LockScreenContent.choose(timer: false, music: false, stopwatch: false, power: onBattery) == nil)
+        #expect(LockScreenContent.choose(timer: false, music: false, stopwatch: false, power: nil) == nil)
+    }
+
+    @MainActor
+    @Test func offUntilAskedFor() {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        let store = SettingsStore(defaults: defaults)
+        #expect(!store.lockScreenEnabled)
+        store.lockScreenEnabled = true
+        #expect(SettingsStore(defaults: defaults).lockScreenEnabled)
+    }
+}
+
+@Suite("Lock Screen look")
+struct LockScreenLookTests {
+    @Test func looksLikeTheNotchWhenUnlocked() {
+        #expect(LockScreenContent.timer.presentation == .compact(primary: .timer, secondary: nil))
+        #expect(LockScreenContent.music.presentation == .compact(primary: .nowPlaying, secondary: nil))
+        #expect(LockScreenContent.charging(level: 80, isCharging: true).presentation == .alert(.charging(level: 80, isCharging: true)))
+    }
+}

@@ -100,6 +100,9 @@ public final class SettingsStore {
     /// Live memory and CPU beside the camera when nothing else is on, plus the Stats view.
     /// Off until asked for, since it keeps the notch showing.
     public var statsEnabled: Bool { didSet { defaults.set(statsEnabled, forKey: Key.stats) } }
+    /// Show music, a running timer or charging on the Lock Screen. Off until asked for: anyone at
+    /// the Mac can see it, and it relies on private window-server calls.
+    public var lockScreenEnabled: Bool { didSet { defaults.set(lockScreenEnabled, forKey: Key.lockScreen) } }
     /// ⌃⌥ shortcuts for the launcher's tiles.
     public var keyboardShortcutsEnabled: Bool { didSet { defaults.set(keyboardShortcutsEnabled, forKey: Key.keyboardShortcuts) } }
     /// Look for a new version on GitHub once a day.
@@ -176,6 +179,7 @@ public final class SettingsStore {
         downloadsEnabled = defaults.object(forKey: Key.downloads) as? Bool ?? false
         remindersEnabled = defaults.object(forKey: Key.reminders) as? Bool ?? true
         statsEnabled = defaults.object(forKey: Key.stats) as? Bool ?? false
+        lockScreenEnabled = defaults.object(forKey: Key.lockScreen) as? Bool ?? false
         keyboardShortcutsEnabled = defaults.object(forKey: Key.keyboardShortcuts) as? Bool ?? true
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
@@ -241,6 +245,7 @@ public final class SettingsStore {
         static let downloads = "alert.downloads"
         static let reminders = "home.reminders"
         static let stats = "home.stats"
+        static let lockScreen = "general.lockScreen"
         static let keyboardShortcuts = "general.keyboardShortcuts"
         static let checksForUpdates = "general.checksForUpdates"
         static let focusMinutes = "timer.focusMinutes"

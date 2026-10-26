@@ -37,7 +37,8 @@ Sources/
     ├── Island/
     │   ├── IslandModel             Single source of truth: state, gestures, alerts
     │   ├── IslandWindow            Non-activating panel + hosting view
-    │   └── IslandWindowController  Display choice, placement, pointer routing, drags
+    │   ├── IslandWindowController  Display choice, placement, pointer routing, drags
+    │   └── LockScreenController    The Lock Screen window: shown on lock, removed on unlock
     ├── Views/                    SwiftUI: surface (Canvas), compact, expanded, alerts, home
     ├── Settings/                 Settings store + toolbar-style settings window
     └── App/                      AppDelegate, menu bar item, debug hooks (debug builds only)

@@ -18,6 +18,10 @@ last one.
   - A timer with hour, minute and second wheels, plus 1 and 5 minute buttons.
   - A to-do list: type a task, press Return, tick it off. It's kept on your Mac.
   Tray and Clipboard go wide too.
+- **On the Lock Screen.** Turn on Show on Lock Screen in Settings › General and, while your Mac
+  is locked, the notch keeps showing a running timer, your music or charging beside the camera,
+  just as it looks when you're logged in. It's off until you turn it on, since anyone at your Mac
+  can see it.
 - **Update button.** When a new version is out, a blue Update button appears at the top right of
   the open notch, next to the grid and Settings. One click installs it and relaunches.
 - **Hang up from the notch.** On a Zoom, Teams or Webex call, the call view has a red button that

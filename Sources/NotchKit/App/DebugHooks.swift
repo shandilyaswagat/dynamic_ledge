@@ -10,11 +10,13 @@ import AppKit
 final class DebugHooks {
     private let model: IslandModel
     private let settings: SettingsWindowController
+    private let lockScreen: LockScreenController?
     private var observer: NSObjectProtocol?
 
-    init(model: IslandModel, settings: SettingsWindowController) {
+    init(model: IslandModel, settings: SettingsWindowController, lockScreen: LockScreenController?) {
         self.model = model
         self.settings = settings
+        self.lockScreen = lockScreen
         observer = DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("DynamicNotch.debug"),
             object: nil,
@@ -58,6 +60,7 @@ final class DebugHooks {
         case "hoverexpand": model.settings.notchOpenMode = parts.dropFirst().first != "off" ? .hover : .click
         case "reminders": model.showTab(.reminders)
         case "checkupdate": model.updater.check()
+        case "lockpreview": lockScreen?.preview(parts.dropFirst().first != "off")
         case "fakeupdate":
             let base = "https://github.com/shandilyaswagat/dynamic_notch/releases"
             model.updater.simulateAvailable(ReleaseInfo(version: SemanticVersion("9.9.9")!, diskImage: URL(string: base + "/download/v9.9.9/DynamicNotch.dmg")!, checksum: nil, signedManifest: URL(string: base + "/download/v9.9.9/DynamicNotch.update.json")!, page: URL(string: base)!))

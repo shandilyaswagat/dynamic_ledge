@@ -254,6 +254,16 @@ public final class IslandModel {
         ))
     }
 
+    /// What the Lock Screen shows while the Mac is locked, if anything.
+    public var lockScreenContent: LockScreenContent? {
+        LockScreenContent.choose(
+            timer: settings.timerEnabled && timer.isActive,
+            music: homeHasMedia,
+            stopwatch: settings.timerEnabled && stopwatch.isActive,
+            power: power.snapshot
+        )
+    }
+
     public var homeHasMedia: Bool {
         settings.nowPlayingEnabled && nowPlaying.info?.hasContent == true
     }

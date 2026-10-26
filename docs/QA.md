@@ -148,6 +148,7 @@ some events need real hardware. These paths are covered by unit tests at the mod
 - [ ] Keep Awake on: the display doesn't sleep; off: it does.
 - [ ] Settings › Appearance › Elongated: Home, Tray, Clipboard and the grid stretch across the top; scroll the widget row sideways; open Calendar from it and the shape narrows; back returns to the wide Home.
 - [ ] Elongated widgets: drag the music knob; click Mirror for the live circle; tap days in the strip; Join on an event with a Zoom/Meet link opens the call; type and format a note (B, I, U, A, colour) and see it kept in the Notes panel; spin the timer wheels, 1m/5m, start; add, tick and delete a to-do; while typing, moving the pointer away doesn't close the notch; Escape does.
+- [ ] Lock Screen: turn on Show on Lock Screen; start a timer, press ⌃⌘Q: the timer shows beside the camera exactly like when unlocked and keeps counting; with music instead: the artwork and bars; plugged in with nothing else: the charging alert; unlock: nothing is left on the desktop; turned off: nothing shows on lock.
 - [ ] Update pill: with an older build, Check Now in Settings › About; the blue Update pill appears left of the grid button in the open notch; click it to install and relaunch.
 - [ ] Hang up: on a Zoom, Teams and Webex call, open the call view; the red button ends the call (Zoom shows its leave prompt); on FaceTime or a browser call it isn't there and the app icon jumps to the call.
 - [ ] Grid: five tiles per row; scroll down to page 2 (Stats); the dots follow; clicking a dot jumps there.

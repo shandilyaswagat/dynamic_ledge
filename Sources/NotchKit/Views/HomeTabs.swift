@@ -56,6 +56,7 @@ struct NookContainer<Content: View>: View {
         case .reminders: "Reminders"
         case .notes: "Scratchpad"
         case .mirror: "Camera Mirror"
+        case .stats: "Stats"
         default: "Timer"
         }
     }
@@ -200,6 +201,7 @@ private struct NookTabButton: View {
         case .timers: "Timer"
         case .calendar: "Calendar"
         case .reminders: "Reminders"
+        case .stats: "Stats"
         case .launcher: "All Features"
         }
     }
@@ -214,6 +216,7 @@ private struct NookTabButton: View {
         case .timers: "timer"
         case .calendar: "calendar"
         case .reminders: "checklist"
+        case .stats: "gauge.with.dots.needle.33percent"
         case .launcher: "square.grid.2x2"
         }
     }
@@ -248,8 +251,16 @@ struct HomeBody: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
+        if model.settings.appearance.nookLayout == .elongated {
+            ElongatedHomeBody(model: model)
+        } else {
+            standard
+        }
+    }
+
+    private var standard: some View {
         let content = model.homeContent
-        HStack(alignment: .top, spacing: 14 * s) {
+        return HStack(alignment: .top, spacing: 14 * s) {
             if content.hasMedia {
                 MediaCard(service: model.nowPlaying)
                     .frame(width: IslandMetrics.Nook.mediaCardWidth * s)
@@ -323,7 +334,7 @@ private struct MediaCard: View {
     }
 }
 
-private struct MiniProgress: View {
+struct MiniProgress: View {
     let service: NowPlayingService
 
     var body: some View {

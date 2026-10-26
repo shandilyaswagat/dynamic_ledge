@@ -6,6 +6,9 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
     case timer
     case stopwatch
     case nowPlaying
+    /// Memory and CPU, when Stats is on and nothing else is happening. Never shares the notch:
+    /// any other activity replaces it.
+    case stats
 
     /// Lower comes first.
     public var priority: Int {
@@ -14,6 +17,7 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
         case .timer: 1
         case .stopwatch: 2
         case .nowPlaying: 3
+        case .stats: 4
         }
     }
 }
@@ -110,6 +114,8 @@ public enum HomeTab: String, CaseIterable, Sendable, Codable, Hashable {
     case timers
     case calendar
     case reminders
+    /// Memory, CPU, disk and network.
+    case stats
     /// The grid of everything the notch can do.
     case launcher
 

@@ -47,7 +47,7 @@ public final class HotKeys {
     nonisolated static func keyCode(_ key: Character) -> UInt32? {
         let codes: [Character: Int] = [
             "A": kVK_ANSI_A, "B": kVK_ANSI_B, "L": kVK_ANSI_L, "M": kVK_ANSI_M, "N": kVK_ANSI_N,
-            "O": kVK_ANSI_O, "R": kVK_ANSI_R, "S": kVK_ANSI_S, "W": kVK_ANSI_W, "Z": kVK_ANSI_Z,
+            "O": kVK_ANSI_O, "P": kVK_ANSI_P, "R": kVK_ANSI_R, "S": kVK_ANSI_S, "W": kVK_ANSI_W, "Z": kVK_ANSI_Z,
         ]
         return codes[key].map { UInt32($0) }
     }

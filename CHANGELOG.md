@@ -5,6 +5,22 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+### Added
+- **Stats.** Click the new Stats tile in the grid (or press ⌃⌥P, or use Settings › Home) and your
+  memory and CPU show beside the camera whenever nothing else is going on, turning yellow and
+  then red as your Mac gets busy. Click the tile again to turn it off. Click the numbers in the
+  notch to see memory, CPU, free disk space and network speed. Everything is read on your Mac and
+  never leaves it.
+- **Format your notes.** Notes has a colour dot and A, B, I and U at the bottom: bigger text, bold,
+  italic, underline and colours. Formatting is kept across launches.
+
+### Changed
+- The grid shows five tiles to a row and scrolls to more pages, with dots on the right.
+- Dragging files to the notch looks cleaner: a dashed blue Files Tray on the left, with the files
+  already in it peeking out, and a solid blue AirDrop on the right.
+
 ## [1.3.3] - 2026-10-25
 
 ### Changed

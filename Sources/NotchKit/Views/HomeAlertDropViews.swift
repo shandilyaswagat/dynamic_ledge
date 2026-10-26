@@ -260,47 +260,114 @@ struct DropView: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        HStack(spacing: 10 * s) {
-            if model.settings.trayEnabled {
-                zone(.tray, title: "Tray", targetedTitle: "Keep in Tray", symbol: "tray.and.arrow.down.fill", tint: .white)
-            }
-            if model.settings.airDropEnabled && !model.isDocumentWindowDrag {
-                zone(.airDrop, title: "AirDrop", targetedTitle: "Send with AirDrop", symbol: "dot.radiowaves.up.forward", tint: NotchColor.blue)
-            }
-
-        }
-        .padding(12 * s)
-
-    }
-
-    private func zone(_ zone: IslandModel.DropZone, title: LocalizedStringKey, targetedTitle: LocalizedStringKey, symbol: String, tint: Color) -> some View {
-        let targeted = model.targetedZone == zone
-        return ZStack {
-            RoundedRectangle(cornerRadius: 22 * s, style: .continuous)
-                .fill(tint.opacity(targeted ? 0.16 : 0.05))
-            RoundedRectangle(cornerRadius: 22 * s, style: .continuous)
-                .strokeBorder(tint.opacity(targeted ? 0.9 : 0.35), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
-            VStack(spacing: 8 * s) {
-                ZStack {
-                    Circle()
-                        .fill(tint.opacity(targeted ? 0.3 : 0.15))
-                        .frame(width: 40 * s, height: 40 * s)
-                    Image(systemName: symbol)
-                        .font(.system(size: 17 * s, weight: .semibold))
-                        .foregroundStyle(tint)
+        let tray = model.settings.trayEnabled
+        let airDrop = model.settings.airDropEnabled && !model.isDocumentWindowDrag
+        GeometryReader { geometry in
+            // The same split the drop itself uses, so a file lands where it looks like it will.
+            let gap = 10 * s
+            let edge = 12 * s
+            let trayWidth = tray && airDrop ? geometry.size.width * DropPolicy.trayShare - edge - gap / 2 : nil
+            HStack(spacing: gap) {
+                if tray {
+                    TrayDropZone(model: model, isTargeted: model.targetedZone == .tray)
+                        .frame(width: trayWidth)
+                        .frame(maxWidth: trayWidth == nil ? .infinity : nil)
                 }
-                .scaleEffect(targeted ? 1.1 : 1)
-                Text(targeted ? targetedTitle : title)
-                    .font(.system(size: 12 * s, weight: .semibold))
-                    .foregroundStyle(.white)
+                if airDrop {
+                    AirDropZone(isTargeted: model.targetedZone == .airDrop)
+                        .frame(maxWidth: .infinity)
+                }
             }
+            .padding(edge)
         }
-        .frame(maxWidth: .infinity)
-        .animation(.spring(duration: 0.3, bounce: 0.4), value: targeted)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .animation(.spring(duration: 0.3, bounce: 0.35), value: model.targetedZone)
     }
+}
 
+/// A dashed blue box with the files already in Tray peeking out on the right.
+private struct TrayDropZone: View {
+    let model: IslandModel
+    let isTargeted: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 20 * s, style: .continuous)
+        HStack(alignment: .center, spacing: 8 * s) {
+            VStack(alignment: .leading, spacing: 6 * s) {
+                Image(systemName: "tray.and.arrow.down.fill")
+                    .font(.system(size: 17 * s, weight: .semibold))
+                Text(isTargeted ? "Keep in Tray" : "Files Tray")
+                    .font(.system(size: 12 * s, weight: .semibold))
+                    .contentTransition(.opacity)
+            }
+            .foregroundStyle(NotchColor.blue)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(.bottom, 4 * s)
+            TrayPeek(model: model)
+        }
+        .padding(14 * s)
+        .background(shape.fill(NotchColor.blue.opacity(isTargeted ? 0.14 : 0.04)))
+        .overlay(shape.strokeBorder(NotchColor.blue.opacity(isTargeted ? 1 : 0.6), style: StrokeStyle(lineWidth: isTargeted ? 2 : 1.5, dash: [7, 5])))
+        .scaleEffect(isTargeted ? 1.02 : 1)
+        .contentShape(shape)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text("Files Tray"))
+    }
+}
+
+/// Up to four of the newest Tray files, as small icons in a square.
+private struct TrayPeek: View {
+    let model: IslandModel
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let items = Array(model.tray.items.suffix(4).reversed())
+        let size = 24 * s
+        if !items.isEmpty {
+            LazyVGrid(columns: [GridItem(.fixed(size), spacing: 5 * s), GridItem(.fixed(size), spacing: 5 * s)], spacing: 5 * s) {
+                ForEach(items) { item in
+                    Image(nsImage: model.tray.icon(for: item))
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: size, height: size)
+                }
+            }
+            .frame(width: size * 2 + 5 * s)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+/// A solid deep-blue box: drop here to send with AirDrop.
+private struct AirDropZone: View {
+    let isTargeted: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 20 * s, style: .continuous)
+        VStack(alignment: .leading, spacing: 6 * s) {
+            Image(systemName: "dot.radiowaves.up.forward")
+                .font(.system(size: 17 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.blue)
+                .symbolEffect(.variableColor.iterative, isActive: isTargeted)
+            Text(isTargeted ? "Send with AirDrop" : "AirDrop")
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .contentTransition(.opacity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .padding(14 * s)
+        .padding(.bottom, 4 * s)
+        .background(shape.fill(Color(red: 0.06, green: 0.22, blue: 0.36).opacity(isTargeted ? 1 : 0.85)))
+        .overlay(shape.strokeBorder(NotchColor.blue.opacity(isTargeted ? 0.9 : 0), lineWidth: 1.5))
+        .scaleEffect(isTargeted ? 1.02 : 1)
+        .contentShape(shape)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text("AirDrop"))
+    }
 }
 
 /// Thin level meter for volume and brightness.

@@ -23,6 +23,11 @@ public final class IslandModel {
     public let microphone = MicrophoneMute()
     public let downloads: DownloadsWatcher
     public let reminders = RemindersService()
+    public let stats = StatsService()
+    public let todos: TodoStore
+    /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
+    /// layout). The notch stays open while you type, even if the pointer wanders off.
+    public var isTypingInNook = false
     public let hotKeys = HotKeys()
     public let updater = Updater()
     let camera = CameraAccess()
@@ -84,7 +89,8 @@ public final class IslandModel {
         clipboard: ClipboardMonitor = ClipboardMonitor(),
         notes: NotesStore = NotesStore(),
         stopwatch: StopwatchService = StopwatchService(),
-        downloads: DownloadsWatcher = DownloadsWatcher()
+        downloads: DownloadsWatcher = DownloadsWatcher(),
+        todos: TodoStore = TodoStore()
     ) {
         self.settings = settings
         self.nowPlaying = nowPlaying
@@ -100,6 +106,7 @@ public final class IslandModel {
         self.notes = notes
         self.stopwatch = stopwatch
         self.downloads = downloads
+        self.todos = todos
         focusPanelMinutes = settings.focusMinutes
 
         calendar.onReminder = { [weak self] event in
@@ -141,6 +148,7 @@ public final class IslandModel {
         if settings.downloadsEnabled { downloads.start() }
         microphone.start()
         if settings.remindersEnabled { reminders.start() }
+        syncStatsSampling()
         if settings.keyboardShortcutsEnabled { hotKeys.register() }
         if settings.checksForUpdates { updater.startAutomaticChecks() }
         if !settings.hasShownWelcome {
@@ -163,6 +171,7 @@ public final class IslandModel {
         downloads.stop()
         microphone.stop()
         reminders.stop()
+        stats.stop()
         hotKeys.unregister()
         updater.stopAutomaticChecks()
         keepAwake.turnOff()
@@ -226,6 +235,8 @@ public final class IslandModel {
         if settings.timerEnabled, timer.isActive { active.insert(.timer) }
         if settings.timerEnabled, stopwatch.isActive { active.insert(.stopwatch) }
         if settings.nowPlayingEnabled, nowPlaying.isActivityVisible { active.insert(.nowPlaying) }
+        // Stats fills the notch only when nothing else is happening.
+        if settings.statsEnabled, active.isEmpty { active.insert(.stats) }
         return active
     }
 
@@ -293,7 +304,7 @@ public final class IslandModel {
             case .files: settings.trayEnabled
             case .scratchpad: settings.notesEnabled
             case .mirror: settings.mirrorEnabled
-            case .keepAwake: true
+            case .keepAwake, .stats: true
             }
         }
     }
@@ -305,6 +316,7 @@ public final class IslandModel {
         case .timer: timer.isActive
         case .stopwatch: stopwatch.isActive
         case .keepAwake: keepAwake.isOn
+        case .stats: settings.statsEnabled
         default: false
         }
     }
@@ -336,6 +348,11 @@ public final class IslandModel {
         case .mirror: showTab(.mirror)
         case .keepAwake:
             keepAwake.toggle()
+            Haptics.perform(enabled: settings.hapticsEnabled)
+        case .stats:
+            // A switch, like Keep Awake: memory and CPU beside the camera, on or off.
+            settings.statsEnabled.toggle()
+            syncStatsSampling()
             Haptics.perform(enabled: settings.hapticsEnabled)
         }
     }
@@ -389,7 +406,9 @@ public final class IslandModel {
         }
 
         if settings.notchOpenMode == .hover, inside, case .compact(let primary, _) = current {
-            scheduleHoverExpand(.activity(primary))
+            // Stats stands in for an empty notch, so hovering it opens Home like the bare notch
+            // does; clicking the numbers opens Stats.
+            scheduleHoverExpand(primary == .stats ? .home : .activity(primary))
         } else if settings.notchOpenMode == .hover, inside, current == .idle || (current.isHidden && (!waitsForReveal || isHoveringNotch)) {
             // The tucked-away notch, or the resting pill (Show when idle, or while previewing a
             // size in Settings), opens Home.
@@ -467,6 +486,8 @@ public final class IslandModel {
     }
 
     public func expand(_ target: ExpandTarget) {
+        // Stats opens as a panel in the nook, with the grid and Home a click away.
+        let target = target == .activity(.stats) ? .nook(.stats) : target
         cancelReveal()
         hoverExpandTask?.cancel()
         collapseTask?.cancel()
@@ -483,8 +504,10 @@ public final class IslandModel {
         collapseTask = nil
         pointerEnteredExpanded = false
         guard expandTarget != nil else { return }
+        isTypingInNook = false
         if expandTarget == .notes { notes.save() }
         expandTarget = nil
+        syncStatsSampling()
         pumpAlerts()
     }
 
@@ -503,7 +526,7 @@ public final class IslandModel {
             try? await Task.sleep(for: .milliseconds(900))
             guard !Task.isCancelled, let self else { return }
             self.collapseTask = nil
-            if !self.isHoveringPill {
+            if !self.isHoveringPill, !self.isTypingInNook {
                 self.collapse()
             }
         }
@@ -519,7 +542,8 @@ public final class IslandModel {
             switch (target, self.presentation) {
             case (.activity(let kind), .compact(let primary, _)) where self.isHoveringPill && primary == kind:
                 self.expand(target)
-            case (.home, .hidden) where self.isHoveringNotch, (.home, .idle) where self.isHoveringPill:
+            case (.home, .hidden) where self.isHoveringNotch, (.home, .idle) where self.isHoveringPill,
+                 (.home, .compact(.stats, _)) where self.isHoveringPill:
                 self.expand(.home)
                 self.pointerEnteredExpanded = true
             default:
@@ -800,7 +824,20 @@ public final class IslandModel {
         }
     }
 
+    /// Stats reads the system only while it's showing; music or a timer pushes it aside, and
+    /// then there's nothing to update.
+    private func syncStatsSampling() {
+        if !settings.statsEnabled {
+            stats.stop()
+        } else if activeActivities.contains(.stats) || expandTarget == .nook(.stats) {
+            stats.start()
+        } else {
+            stats.pause()
+        }
+    }
+
     private func reconcile() {
+        syncStatsSampling()
         let active = activeActivities
         if case .activity(let kind) = expandTarget, !active.contains(kind) {
             expandTarget = nil
@@ -821,6 +858,7 @@ public final class IslandModel {
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
             _ = settings.remindersEnabled
+            _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
             _ = settings.checksForUpdates
         } onChange: { [weak self] in
@@ -836,6 +874,8 @@ public final class IslandModel {
                 if case .clipboard = self.expandTarget, !self.settings.clipboardEnabled { self.collapse() }
                 if case .notes = self.expandTarget, !self.settings.notesEnabled { self.collapse() }
                 if self.settings.remindersEnabled { self.reminders.start() } else { self.reminders.stop() }
+                self.syncStatsSampling()
+                if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
                 if self.settings.downloadsEnabled {

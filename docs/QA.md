@@ -146,6 +146,11 @@ some events need real hardware. These paths are covered by unit tests at the mod
 - [ ] Two-finger swipe on music skips; pull down opens; push up closes.
 - [ ] Mute the mic during a real call; the other side can't hear you; unmute works.
 - [ ] Keep Awake on: the display doesn't sleep; off: it does.
+- [ ] (1.4.0, debug builds) Settings › Appearance › Elongated: Home, Tray, Clipboard and the grid stretch across the top; scroll the widget row sideways; open Calendar from it and the shape narrows; back returns to the wide Home.
+- [ ] (1.4.0, debug builds) Elongated widgets: drag the music knob; click Mirror for the live circle; tap days in the strip; Join on an event with a Zoom/Meet link opens the call; type and format a note (B, I, U, A, colour) and see it kept in the Notes panel; spin the timer wheels, 1m/5m, start; add, tick and delete a to-do; while typing, moving the pointer away doesn't close the notch; Escape does.
+- [ ] Grid: five tiles per row; scroll down to page 2 (Stats); the dots follow; clicking a dot jumps there.
+- [ ] Stats tile: click once and MEM/CPU appear beside the camera (tile shows its dot); click again and they go.
+- [ ] Settings › Home › Stats on: MEM and CPU show beside the camera; they match Activity Monitor roughly; a timer replaces them and they come back when it ends; click opens the Stats panel; turning Stats off hides it all.
 - [ ] Turn on Finished downloads, download a file: the heads-up shows, drag it out works.
 - [ ] Start Focus, let it run out (or set it short in a debug build): Break and Stop work.
 - [ ] Connect Calendar and allow access: next event shows; heads-up 5 minutes before.

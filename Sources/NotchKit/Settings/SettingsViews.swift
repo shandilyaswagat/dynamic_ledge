@@ -173,6 +173,20 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
+            if SettingsStore.showsElongatedLayout {
+                Section {
+                    Picker("Home layout", selection: $settings.appearance.nookLayout) {
+                        Text("Standard").tag(NookLayout.standard)
+                        Text("Elongated").tag(NookLayout.elongated)
+                    }
+                    .pickerStyle(.segmented)
+                } footer: {
+                    Text("Elongated stretches Home, Tray and Clipboard across the top of the screen, with your widgets in one long row you can scroll sideways.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
             } footer: {
@@ -298,6 +312,7 @@ struct HomeSettingsView: View {
                 IconToggle(title: "Reminders", detail: "Today's to-dos, ticked off from the notch", symbol: "checklist", color: .blue, isOn: $settings.remindersEnabled)
                 IconToggle(title: "Finished downloads", detail: "A heads-up when a file lands in Downloads. macOS asks for access once", symbol: "arrow.down.circle.fill", color: .blue, isOn: $settings.downloadsEnabled)
                 IconToggle(title: "Mirror", detail: "A quick camera preview before calls", symbol: "person.crop.square.fill", color: .purple, isOn: $settings.mirrorEnabled)
+                IconToggle(title: "Stats", detail: "Memory and CPU beside the camera when nothing else is on, plus disk and network in the grid", symbol: "gauge.with.dots.needle.33percent", color: .green, isOn: $settings.statsEnabled)
             } header: {
                 Text("Tabs")
             } footer: {

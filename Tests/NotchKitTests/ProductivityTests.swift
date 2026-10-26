@@ -128,7 +128,7 @@ struct NotesTests {
     @Test func survivesRelaunch() throws {
         let defaults = try #require(UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)"))
         let notes = NotesStore(defaults: defaults)
-        notes.text = "Buy milk"
+        notes.setText("Buy milk")
         notes.save()
         #expect(NotesStore(defaults: defaults).text == "Buy milk")
         notes.clear()
@@ -202,7 +202,7 @@ struct ProductivityModelTests {
 
     @Test func onlyThreeTabsSitInTheBar() {
         #expect(HomeTab.allCases.filter(\.isTab) == [.home, .tray, .clipboard])
-        #expect(HomeTab.allCases.filter(\.isPanel) == [.notes, .mirror, .timers, .calendar, .reminders])
+        #expect(HomeTab.allCases.filter(\.isPanel) == [.notes, .mirror, .timers, .calendar, .reminders, .stats])
     }
 
     @Test func nookTabsShareOneSize() {

@@ -20,9 +20,12 @@ enum DropPolicy {
         url.isFileURL || ["https", "http"].contains(url.scheme?.lowercased() ?? "")
     }
 
+    /// With both on, Tray takes this share of the width on the left and AirDrop the rest.
+    public static let trayShare: CGFloat = 0.6
+
     static func destination(at point: CGPoint, content: CGRect, tray: Bool, airDrop: Bool) -> FileDropDestination? {
         guard content.contains(point) else { return nil }
-        if tray && airDrop { return point.x < content.midX ? .tray : .airDrop }
+        if tray && airDrop { return point.x < content.minX + content.width * trayShare ? .tray : .airDrop }
         if tray { return .tray }
         if airDrop { return .airDrop }
         return nil

@@ -12,6 +12,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
     case scratchpad
     case mirror
     case keepAwake
+    case stats
 
     public var id: String { rawValue }
 
@@ -29,6 +30,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .scratchpad: "N"
         case .mirror: "W"
         case .keepAwake: "Z"
+        case .stats: "P"
         }
     }
 

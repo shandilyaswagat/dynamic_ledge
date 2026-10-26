@@ -50,6 +50,10 @@ Everything else lives behind the grid button at the top right: the timer, stopwa
 today's reminders, a scratchpad, your camera mirror and Keep Awake (stops your Mac from
 sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 
+Want to keep an eye on your Mac? Click the **Stats** tile in the grid to switch it on. Your memory and CPU show
+up beside the camera whenever nothing else is going on, and a click shows memory, CPU, free disk
+space and network speed. It's all read on your Mac and never leaves it.
+
 A few more handy bits: a mute button for your mic during calls, and (if you switch it on in
 Settings) a heads-up when a download finishes.
 

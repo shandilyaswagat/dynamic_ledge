@@ -195,9 +195,14 @@ public final class IslandWindowController {
     /// The panel never activates the app, so the app you were in stays in front.
     private func observeKeyboard() {
         let wantsKeyboard = isActive && model.presentation == .notes
+        // The elongated Home has Notes and To-dos inline: the panel may take the keyboard, but
+        // only once you click into one of them, so the app you were in keeps it until then.
+        let mayType = isActive && model.presentation == .home && model.settings.appearance.nookLayout == .elongated
         if wantsKeyboard {
             panel.acceptsKeyboard = true
             panel.makeKey()
+        } else if mayType {
+            panel.acceptsKeyboard = true
         } else {
             if panel.isKeyWindow {
                 panel.resignKey()
@@ -206,6 +211,7 @@ public final class IslandWindowController {
         }
         withObservationTracking {
             _ = isActive && model.presentation == .notes
+            _ = model.presentation == .home && model.settings.appearance.nookLayout == .elongated
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.observeKeyboard() }
         }

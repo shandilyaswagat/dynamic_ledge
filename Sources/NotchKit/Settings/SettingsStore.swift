@@ -60,6 +60,7 @@ public final class SettingsStore {
             let value = appearance.clamped()
             defaults.set(value.pitchBlack, forKey: Key.pitchBlack)
             defaults.set(value.size.rawValue, forKey: Key.size)
+            defaults.set(value.nookLayout.rawValue, forKey: Key.nookLayout)
             defaults.set(value.width, forKey: Key.width)
             defaults.set(value.height, forKey: Key.height)
         }
@@ -96,6 +97,9 @@ public final class SettingsStore {
     /// Show a heads-up when a download finishes. Off until asked for: macOS asks for Downloads access.
     public var downloadsEnabled: Bool { didSet { defaults.set(downloadsEnabled, forKey: Key.downloads) } }
     public var remindersEnabled: Bool { didSet { defaults.set(remindersEnabled, forKey: Key.reminders) } }
+    /// Live memory and CPU beside the camera when nothing else is on, plus the Stats view.
+    /// Off until asked for, since it keeps the notch showing.
+    public var statsEnabled: Bool { didSet { defaults.set(statsEnabled, forKey: Key.stats) } }
     /// ⌃⌥ shortcuts for the launcher's tiles.
     public var keyboardShortcutsEnabled: Bool { didSet { defaults.set(keyboardShortcutsEnabled, forKey: Key.keyboardShortcuts) } }
     /// Look for a new version on GitHub once a day.
@@ -138,7 +142,11 @@ public final class SettingsStore {
             width: defaults.object(forKey: Key.width) as? Double ?? standard.width,
             height: defaults.object(forKey: Key.height) as? Double ?? standard.height,
             pitchBlack: defaults.object(forKey: Key.pitchBlack) as? Bool ?? standard.pitchBlack,
-            size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size
+            size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size,
+            // Elongated isn't released yet: only debug builds can choose it.
+            nookLayout: Self.showsElongatedLayout
+                ? defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout
+                : standard.nookLayout
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
@@ -170,6 +178,7 @@ public final class SettingsStore {
         notesEnabled = defaults.object(forKey: Key.notes) as? Bool ?? true
         downloadsEnabled = defaults.object(forKey: Key.downloads) as? Bool ?? false
         remindersEnabled = defaults.object(forKey: Key.reminders) as? Bool ?? true
+        statsEnabled = defaults.object(forKey: Key.stats) as? Bool ?? false
         keyboardShortcutsEnabled = defaults.object(forKey: Key.keyboardShortcuts) as? Bool ?? true
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
@@ -196,6 +205,15 @@ public final class SettingsStore {
         return true
     }
 
+    /// The elongated layout ships in 1.4.0. Until then it's only in debug builds, for testing.
+    public static var showsElongatedLayout: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
     public func resetAppearance() {
         appearance = .standard
     }
@@ -205,6 +223,7 @@ public final class SettingsStore {
         static let retired = ["shape.style", "shape.verticalOffset", "shape.horizontalOffset"]
         static let pitchBlack = "shape.pitchBlack"
         static let size = "shape.size"
+        static let nookLayout = "shape.nookLayout"
         static let width = "shape.width"
         static let height = "shape.height"
         static let showWhenIdle = "behavior.showWhenIdle"
@@ -233,6 +252,7 @@ public final class SettingsStore {
         static let notes = "home.notes"
         static let downloads = "alert.downloads"
         static let reminders = "home.reminders"
+        static let stats = "home.stats"
         static let keyboardShortcuts = "general.keyboardShortcuts"
         static let checksForUpdates = "general.checksForUpdates"
         static let focusMinutes = "timer.focusMinutes"

@@ -2,21 +2,77 @@ import SwiftUI
 
 // MARK: Launcher
 
-/// Everything the notch can do as a grid of tiles, each with its ⌃⌥ shortcut.
+/// Everything the notch can do as a grid of tiles, each with its ⌃⌥ shortcut: five to a row,
+/// two rows to a page. More tiles make more pages, scrolled through with dots on the right.
 struct LauncherBody: View {
     let model: IslandModel
+    @State private var page: Int? = 0
+    @Environment(\.notchScale) private var s
+
+    nonisolated static let columns = 5
+    nonisolated static let rowsPerPage = 2
+
+    var body: some View {
+        let pages = Self.pages(model.launcherItems)
+        let gap = IslandMetrics.Nook.launcherGap * s
+        let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: Self.columns)
+        GeometryReader { geometry in
+            HStack(spacing: 10 * s) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(pages.indices, id: \.self) { index in
+                            LazyVGrid(columns: columns, spacing: gap) {
+                                ForEach(pages[index]) { item in
+                                    LauncherTile(model: model, item: item)
+                                }
+                            }
+                            .frame(height: geometry.size.height, alignment: .top)
+                            .id(index)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $page)
+                if pages.count > 1 {
+                    PageDots(count: pages.count, current: page ?? 0) { index in
+                        withAnimation(.smooth(duration: 0.35)) { page = index }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Tiles split into pages of ten.
+    nonisolated static func pages(_ items: [LauncherItem]) -> [[LauncherItem]] {
+        let size = columns * rowsPerPage
+        return stride(from: 0, to: max(items.count, 1), by: size).map { Array(items[$0..<min($0 + size, items.count)]) }
+    }
+}
+
+/// A dot per page, the current one bright, like the iPhone's page dots turned on their side.
+private struct PageDots: View {
+    let count: Int
+    let current: Int
+    let select: (Int) -> Void
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        let gap = IslandMetrics.Nook.launcherGap * s
-        let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: 5)
-        LazyVGrid(columns: columns, spacing: gap) {
-            ForEach(model.launcherItems) { item in
-                LauncherTile(model: model, item: item)
+        VStack(spacing: 8 * s) {
+            ForEach(0..<count, id: \.self) { index in
+                Button { select(index) } label: {
+                    Circle()
+                        .fill(Color.white.opacity(index == current ? 0.9 : 0.3))
+                        .frame(width: 6 * s, height: 6 * s)
+                        .frame(width: 14 * s, height: 14 * s)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel(Text("Page \(index + 1) of \(count)"))
             }
         }
-        .padding(.top, 4 * s)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .animation(.smooth(duration: 0.25), value: current)
+        .frame(maxHeight: .infinity)
     }
 }
 
@@ -90,6 +146,7 @@ private struct LauncherTile: View {
         case .scratchpad: "Scratchpad"
         case .mirror: "Camera Mirror"
         case .keepAwake: "Keep Awake"
+        case .stats: "Stats"
         }
     }
 
@@ -105,6 +162,7 @@ private struct LauncherTile: View {
         case .scratchpad: "note.text"
         case .mirror: "web.camera"
         case .keepAwake: live ? "cup.and.heat.waves.fill" : "cup.and.saucer"
+        case .stats: "gauge.with.dots.needle.33percent"
         }
     }
 
@@ -115,6 +173,7 @@ private struct LauncherTile: View {
         case .calendar: NotchColor.red
         case .reminders: NotchColor.blue
         case .keepAwake: NotchColor.yellow
+        case .stats: NotchColor.green
         default: .white
         }
     }
@@ -122,6 +181,7 @@ private struct LauncherTile: View {
     static func help(_ item: LauncherItem, live: Bool) -> String {
         switch item {
         case .keepAwake: live ? String(localized: "Your Mac won't sleep. Click to turn off.") : String(localized: "Stop your Mac from going to sleep")
+        case .stats: live ? String(localized: "Memory and CPU are showing in the notch. Click to turn off.") : String(localized: "Show memory and CPU in the notch")
         default: ""
         }
     }
@@ -180,7 +240,7 @@ struct RemindersPanelBody: View {
     }
 }
 
-private struct ReminderRow: View {
+struct ReminderRow: View {
     let item: ReminderItem
     let complete: () -> Void
     @State private var isDone = false

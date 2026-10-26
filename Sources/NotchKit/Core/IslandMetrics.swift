@@ -47,6 +47,10 @@ public enum IslandMetrics {
         public static let launcherBody: CGFloat = 170
         public static let launcherTile: CGFloat = 76
         public static let launcherGap: CGFloat = 10
+        /// Elongated layout: Home, Tray, Clipboard and the grid stretch across the top of the
+        /// screen, this wide at most, and never closer than `elongatedEdge` to either side.
+        public static let elongatedMaxWidth: CGFloat = 1240
+        public static let elongatedEdge: CGFloat = 40
     }
 
     /// Space between the notch strip and the content, and below the content.

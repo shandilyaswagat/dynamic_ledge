@@ -73,7 +73,7 @@ struct LauncherModelTests {
 
     @Test func tilesFollowSettings() {
         let model = makeModel()
-        #expect(model.launcherItems.count == LauncherItem.allCases.count)
+        #expect(model.launcherItems.count == LauncherItem.allCases.count, "Stats is always there, as a switch")
         model.settings.clipboardEnabled = false
         model.settings.mirrorEnabled = false
         #expect(!model.launcherItems.contains(.clipboard))

@@ -18,6 +18,16 @@ public enum NotchSize: String, CaseIterable, Sendable, Codable, Identifiable {
     }
 }
 
+/// How Home and its tabs are laid out when the notch opens.
+public enum NookLayout: String, CaseIterable, Sendable, Codable, Identifiable {
+    /// A compact panel: music on the left, rows beside it.
+    case standard
+    /// A long, short panel across the top of the screen with a row of widgets you scroll through.
+    case elongated
+
+    public var id: String { rawValue }
+}
+
 /// The user's size choices.
 public struct NotchAppearance: Equatable, Sendable, Codable {
     /// How far the shape reaches either side of the camera.
@@ -28,17 +38,20 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
     public var pitchBlack: Bool
     /// Small, medium or large. Width and thickness fine-tune on top of it.
     public var size: NotchSize
+    public var nookLayout: NookLayout
 
     public init(
         width: Double,
         height: Double,
         pitchBlack: Bool = true,
-        size: NotchSize = .large
+        size: NotchSize = .large,
+        nookLayout: NookLayout = .standard
     ) {
         self.width = width
         self.height = height
         self.pitchBlack = pitchBlack
         self.size = size
+        self.nookLayout = nookLayout
     }
 
     public static let standard = NotchAppearance(
@@ -57,7 +70,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
             width: Self.clamp(width, to: Self.widthRange, fallback: Self.standard.width),
             height: Self.clamp(height, to: Self.heightRange, fallback: Self.standard.height),
             pitchBlack: pitchBlack,
-            size: size
+            size: size,
+            nookLayout: nookLayout
         )
     }
 

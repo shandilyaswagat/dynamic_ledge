@@ -10,14 +10,20 @@ public struct CalendarEvent: Equatable, Sendable, Identifiable {
     public var end: Date
     public var color: ColorMath.RGB
     public var isAllDay: Bool
+    /// A Meet, Zoom, Teams or Webex link found in the event, for the Join button.
+    public var joinURL: URL?
+    public var joinProvider: MeetingLinks.Provider?
 
-    public init(id: String, title: String, start: Date, end: Date, color: ColorMath.RGB = .white, isAllDay: Bool = false) {
+    public init(id: String, title: String, start: Date, end: Date, color: ColorMath.RGB = .white, isAllDay: Bool = false,
+                joinURL: URL? = nil, joinProvider: MeetingLinks.Provider? = nil) {
         self.id = id
         self.title = title
         self.start = start
         self.end = end
         self.color = color
         self.isAllDay = isAllDay
+        self.joinURL = joinURL
+        self.joinProvider = joinProvider
     }
 
     public func isHappening(at date: Date) -> Bool {
@@ -194,13 +200,16 @@ public final class CalendarService {
         let fresh = store.events(matching: predicate)
             .filter { $0.status != .canceled && !Self.isDeclined($0) }
             .map { event in
-                CalendarEvent(
+                let join = MeetingLinks.joinLink(in: [event.url?.absoluteString, event.location, event.notes])
+                return CalendarEvent(
                     id: (event.calendarItemIdentifier) + "@" + String(event.startDate.timeIntervalSince1970),
                     title: event.title?.isEmpty == false ? event.title! : String(localized: "Event"),
                     start: event.startDate,
                     end: event.endDate,
                     color: Self.rgb(event.calendar?.color),
-                    isAllDay: event.isAllDay
+                    isAllDay: event.isAllDay,
+                    joinURL: join?.url,
+                    joinProvider: join?.provider
                 )
             }
             .sorted { $0.start < $1.start }

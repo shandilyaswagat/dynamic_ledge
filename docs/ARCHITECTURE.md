@@ -15,6 +15,8 @@ Sources/
     │   ├── PowerTransitions.swift  When to show charging / low-battery alerts
     │   ├── NowPlayingInfo.swift    Track model + media-helper message parsing
     │   ├── SystemClassifiers.swift Call apps, headphone symbols, liquid-effect maths
+    │   ├── SystemStats.swift       Stats readings: CPU, memory, network maths and labels
+    │   ├── MeetingLinks.swift      Finds Meet, Zoom, Teams and Webex links in events
     │   └── ColorMath.swift         Album-art tint
     ├── Services/                 System integrations
     │   ├── MediaBridgeClient       Runs and restarts the media helper; parses its output
@@ -26,8 +28,10 @@ Sources/
     │   ├── PowerMonitor            IOKit power-source notifications
     │   ├── TrayStore               Up to 30 session-only references; generated shortcuts cleaned on clear/exit
     │   ├── ClipboardMonitor        Copied text, in memory only; skips private copies
-    │   ├── NotesStore              The Notes scratchpad, saved to preferences
+    │   ├── NotesStore              The Notes scratchpad with its formatting (RTF), saved to preferences
+    │   ├── TodoStore               The elongated layout's to-do list, saved to preferences
     │   ├── CalendarService         EventKit: next event and 5-minute heads-ups
+    │   ├── StatsService            CPU, memory, disk and network every 2 s, only while Stats is on
     │   ├── ShortcutsService        Lists and runs Shortcuts through /usr/bin/shortcuts
     │   └── LevelMonitor            Volume (Core Audio) and brightness (DisplayServices) changes
     ├── Island/

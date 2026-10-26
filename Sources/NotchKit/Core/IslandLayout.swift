@@ -209,6 +209,25 @@ public struct LayoutEngine: Equatable, Sendable {
         max((IslandMetrics.Nook.width * scale).rounded(), compactBodyWidth + 40)
     }
 
+    /// Width of Home, Tray, Clipboard and the grid in the elongated layout: as wide as the
+    /// screen allows, up to a limit, so the widgets sit in one long row.
+    public var elongatedWidth: CGFloat {
+        let room = screen.size.width - 2 * (IslandMetrics.Nook.elongatedEdge + IslandMetrics.expandedFlare)
+        return max(nookWidth, min(room, (IslandMetrics.Nook.elongatedMaxWidth * scale).rounded()))
+    }
+
+    /// True when this view uses the long, short elongated panel: Home, Tray and Clipboard. The
+    /// grid and the panels opened from it (Timer, Calendar and the rest) keep their own size.
+    public func isElongated(_ presentation: IslandPresentation) -> Bool {
+        guard appearance.nookLayout == .elongated, let tab = presentation.homeTab else { return false }
+        return tab.isTab
+    }
+
+    /// The nook's width for a view: elongated or standard.
+    public func nookWidth(for presentation: IslandPresentation) -> CGFloat {
+        isElongated(presentation) ? elongatedWidth : nookWidth
+    }
+
     private func expandedHeight(content: CGFloat) -> CGFloat {
         notch.height + IslandMetrics.notchContentGap + content + (IslandMetrics.notchBottomPadding * scale).rounded()
     }
@@ -221,7 +240,7 @@ public struct LayoutEngine: Equatable, Sendable {
 
     private var widestContent: CGFloat {
         max(
-            max(expandedWidth, nookWidth) + 2 * IslandMetrics.expandedFlare,
+            max(expandedWidth, appearance.nookLayout == .elongated ? elongatedWidth : nookWidth) + 2 * IslandMetrics.expandedFlare,
             compactBodyWidth + 2 * (IslandMetrics.compactFlare + bubbleGap + bubbleDiameter + IslandMetrics.hoverGrowth.width),
             alertBodySize.width + 2 * IslandMetrics.compactFlare
         )
@@ -381,7 +400,7 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.cameraGap = cameraGap
         case .nook:
             // The tab header lives in the strip beside the camera; widgets sit below it.
-            let width = nookWidth
+            let width = nookWidth(for: presentation)
             let body = expandedContentHeight(for: presentation, home: home) ?? 0
             layout.pill = shape(body: width, height: expandedHeight(content: body), flare: IslandMetrics.expandedFlare)
             layout.flare = IslandMetrics.expandedFlare

@@ -74,6 +74,52 @@ resizes it.
 
 Medium and Small scale all of it.
 
+## Elongated layout (ships in 1.4.0)
+
+Not in release builds yet: only debug builds show the choice, in Settings › Appearance. Home, Tray and Clipboard stretch across the top of
+the screen: as wide as the screen allows, up to 1240 pt, never closer than 40 pt to an edge, and
+as short as the standard nook (body 120). The grid and the panels opened from it (Timer,
+Calendar, Reminders, Notes, Mirror, Stats) keep their standard size, so the shape narrows as
+they open.
+
+| Element | Large |
+|---|---|
+| Home | one row of widgets, scrolled sideways, split by 1 pt hairlines at 10 % white, 16 pt either side of each. Blue (`#0A84FF`) is the accent |
+| Music 290 | 62 pt artwork, bold title, artist, play/pause and next; a 4 pt bar with a white 10 pt knob (13 pt while dragging); elapsed left, remaining right |
+| Mirror 96 | an 84 pt circle at 9 % white, camera symbol and "Mirror"; a click shows the live, mirrored camera inside the circle |
+| Calendar 300 | the month in 22 pt bold; a strip of 7 days (2 back, 4 ahead); the chosen day 18 pt bold blue with its weekday above, weekends red, a dot under days with events, a blue tick under today; the day's events with a colour bar and a blue "Join" capsule for Meet, Zoom, Teams and Webex |
+| Notes 230 | a 12 pt-radius card at 8 % white; formatted text; colour dot bottom left; A (size), B, I, U bottom right |
+| Timer 250 | hours, minutes and seconds on wheels (22 pt rows, 3 visible, faded edges), clear on the left, 1m and 5m, a 34 pt blue play button; while running, a 34 pt light countdown with pause and cancel |
+| To-dos 230 | a "New task…" capsule; tasks with circles that fill blue when done, strike-through, delete on hover; kept on this Mac (up to 50) |
+
+Typing: the panel may take the keyboard while the elongated Home is open, but only takes it when
+you click into Notes or a new task, and it doesn't close on pointer exit while you type.
+
+## Dropping files
+
+The drop view (both layouts) splits 60/40. Left: Files Tray, a 20 pt-radius box with a dashed
+blue border (1.5 pt, 2 pt when targeted) at 4 % blue fill (14 % targeted), the tray symbol and
+"Files Tray" in blue at the bottom left, and up to four of the newest Tray files as 24 pt icons
+on the right. Right: AirDrop, a solid deep blue box (`#0F385C`), the AirDrop symbol in blue and
+"AirDrop" in white. The targeted box grows 2 % and says what will happen ("Keep in Tray",
+"Send with AirDrop"). The drop itself uses the same 60/40 split.
+
+## The grid
+
+Five tiles to a row, two rows to a page (body 170). More tiles make more pages: scroll
+vertically and it snaps a page at a time, with a column of 6 pt dots on the right (current at
+90 % white, others 30 %); click a dot to jump. The same in both layouts.
+
+## Stats
+
+Off by default. The Stats tile in the grid (⌃⌥P) switches it on and off, like Keep Awake, and
+shows the "on" dot while it's on; it's also in Settings › Home. When on and nothing else is live, the compact notch shows
+memory on the left and CPU on the right: a 0.55 × size bold caption ("MEM", "CPU") over the
+percentage. CPU is green under 70 %, yellow under 90 %, red above; memory follows macOS's memory
+pressure (normal, warning, critical) rather than the percentage. Numbers change without an
+animation, which would redraw them on the CPU every 2 s. The Stats panel has four tiles (Memory, CPU, Disk, Network) with a 22 pt rounded
+value, a detail line and a 4 pt bar in the same colours. Readings every 2 s; disk every minute.
+
 ## Surface
 
 * Pitch black (default): pure `#000000`, no shadow, no outline.

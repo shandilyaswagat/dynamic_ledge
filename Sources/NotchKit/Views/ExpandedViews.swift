@@ -102,9 +102,11 @@ private struct ProgressRow: View {
     }
 }
 
-private struct ScrubBar: View {
+struct ScrubBar: View {
     var progress: Double
     var isEnabled: Bool
+    /// A round handle at the play position, like the elongated layout's music widget.
+    var knob = false
     var onScrub: (Double, Bool) -> Void
     @State private var isDragging = false
     @Environment(\.notchScale) private var s
@@ -112,11 +114,21 @@ private struct ScrubBar: View {
     var body: some View {
         GeometryReader { geometry in
             let width = max(geometry.size.width, 1)
+            let clamped = min(max(progress, 0), 1)
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.white.opacity(0.2))
-                Capsule().fill(Color.white).frame(width: width * min(max(progress, 0), 1))
+                Capsule().fill(Color.white).frame(width: width * clamped)
             }
-            .frame(height: (isDragging ? 8 : 5) * s)
+            .frame(height: (knob ? 4 : (isDragging ? 8 : 5)) * s)
+            .overlay(alignment: .leading) {
+                if knob {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: (isDragging ? 13 : 10) * s, height: (isDragging ? 13 : 10) * s)
+                        .shadow(color: .black.opacity(0.3), radius: 2)
+                        .offset(x: width * clamped - (isDragging ? 6.5 : 5) * s)
+                }
+            }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(

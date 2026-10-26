@@ -118,43 +118,95 @@ private struct ClipboardCard: View {
 
 // MARK: Notes
 
-/// A quick scratchpad. Saved as you type; Escape or a click outside closes it.
+/// A quick scratchpad. Saved as you type, with formatting; Escape or a click outside closes it.
 struct NotesBody: View {
     let model: IslandModel
-    @FocusState private var isFocused: Bool
+    @State private var controller = RichTextController()
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        @Bindable var notes = model.notes
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
-                .fill(Color.white.opacity(0.07))
-            if notes.text.isEmpty {
-                Text("Jot something down…")
-                    .font(.system(size: 13 * s))
-                    .foregroundStyle(NotchColor.secondaryText)
-                    .padding(.horizontal, 12 * s)
-                    .padding(.vertical, 9 * s)
-                    .allowsHitTesting(false)
-            }
-            TextEditor(text: $notes.text)
-                .font(.system(size: 13 * s))
-                .foregroundStyle(.white)
-                .scrollContentBackground(.hidden)
-                .scrollIndicators(.never)
-                .padding(.horizontal, 7 * s)
-                .padding(.vertical, 9 * s)
-                .focused($isFocused)
-                .onKeyPress(.escape) {
-                    model.collapse()
-                    return .handled
+        NoteCard(model: model, controller: controller, fontSize: 13 * s, focusOnAppear: true)
+            .padding(.bottom, 2 * s)
+    }
+}
+
+/// The note in a soft grey card, with a colour dot and A, B, I and U along the bottom.
+struct NoteCard: View {
+    let model: IslandModel
+    let controller: RichTextController
+    let fontSize: CGFloat
+    var focusOnAppear = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                if model.notes.text.isEmpty {
+                    Text("Jot something down…")
+                        .font(.system(size: fontSize))
+                        .foregroundStyle(NotchColor.secondaryText)
+                        .padding(.horizontal, 7 * s)
+                        .padding(.vertical, 4 * s)
+                        .allowsHitTesting(false)
                 }
+                RichTextEditor(
+                    notes: model.notes,
+                    controller: controller,
+                    fontSize: fontSize,
+                    focusOnAppear: focusOnAppear,
+                    onFocus: { model.isTypingInNook = $0 },
+                    onEscape: { model.collapse() }
+                )
                 .accessibilityLabel(Text("Notes"))
+            }
+            HStack(spacing: 2 * s) {
+                Button { controller.nextColor() } label: {
+                    Circle()
+                        .fill(controller.colorIndex == 0 ? NotchColor.blue : controller.currentColor)
+                        .frame(width: 11 * s, height: 11 * s)
+                        .frame(width: 22 * s, height: 22 * s)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .help("Text colour")
+                Spacer(minLength: 0)
+                FormatButton(label: "A", help: "Bigger text") { controller.toggleSize() }
+                FormatButton(label: "B", weight: .heavy, help: "Bold") { controller.toggleBold() }
+                FormatButton(label: "I", italic: true, help: "Italic") { controller.toggleItalic() }
+                FormatButton(label: "U", underline: true, help: "Underline") { controller.toggleUnderline() }
+            }
+            .padding(.horizontal, 4 * s)
+            .padding(.bottom, 3 * s)
         }
-        .padding(.bottom, 2 * s)
-        .onAppear {
-            // The panel takes the keyboard a moment after the tab opens.
-            Task { @MainActor in isFocused = true }
+        .padding(.top, 6 * s)
+        .padding(.horizontal, 4 * s)
+        .background(RoundedRectangle(cornerRadius: 12 * s, style: .continuous).fill(Color.white.opacity(0.08)))
+    }
+}
+
+private struct FormatButton: View {
+    let label: String
+    var weight: Font.Weight = .semibold
+    var italic = false
+    var underline = false
+    let help: LocalizedStringKey
+    let action: () -> Void
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 11 * s, weight: weight))
+                .italic(italic)
+                .underline(underline)
+                .foregroundStyle(.white.opacity(0.75))
+                .frame(width: 22 * s, height: 22 * s)
+                .background(Circle().fill(Color.white.opacity(isHovering ? 0.14 : 0)))
+                .contentShape(Circle())
         }
+        .buttonStyle(PressableButtonStyle())
+        .onHover { isHovering = $0 }
+        .help(help)
     }
 }

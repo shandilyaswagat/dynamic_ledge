@@ -5,6 +5,11 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+### Fixed
+- Dynamic Notch no longer quits right after you allow Reminders access.
+
 ## [1.3.4] - 2026-10-26
 
 ### Added

@@ -42,7 +42,11 @@ public final class IslandModel {
     public var screen: ScreenMetrics = .sample
     public private(set) var activeDisplayID: UInt32 = 0
     public private(set) var alerts = AlertQueue()
-    public private(set) var expandTarget: ExpandTarget?
+    public private(set) var expandTarget: ExpandTarget? {
+        // Stats reads more while its panel is open, and starts reading when it's opened from the
+        // grid while something else is in the notch.
+        didSet { if expandTarget != oldValue { syncStatsSampling() } }
+    }
     public private(set) var preferredPrimary: ActivityKind?
     public private(set) var isHoveringPill = false
     public private(set) var isHoveringNotch = false
@@ -416,9 +420,8 @@ public final class IslandModel {
         }
 
         if settings.notchOpenMode == .hover, inside, case .compact(let primary, _) = current {
-            // Stats stands in for an empty notch, so hovering it opens Home like the bare notch
-            // does; clicking the numbers opens Stats.
-            scheduleHoverExpand(primary == .stats ? .home : .activity(primary))
+            // Like any activity, hovering Stats opens Stats.
+            scheduleHoverExpand(.activity(primary))
         } else if settings.notchOpenMode == .hover, inside, current == .idle || (current.isHidden && (!waitsForReveal || isHoveringNotch)) {
             // The tucked-away notch, or the resting pill (Show when idle, or while previewing a
             // size in Settings), opens Home.
@@ -552,8 +555,7 @@ public final class IslandModel {
             switch (target, self.presentation) {
             case (.activity(let kind), .compact(let primary, _)) where self.isHoveringPill && primary == kind:
                 self.expand(target)
-            case (.home, .hidden) where self.isHoveringNotch, (.home, .idle) where self.isHoveringPill,
-                 (.home, .compact(.stats, _)) where self.isHoveringPill:
+            case (.home, .hidden) where self.isHoveringNotch, (.home, .idle) where self.isHoveringPill:
                 self.expand(.home)
                 self.pointerEnteredExpanded = true
             default:
@@ -835,11 +837,16 @@ public final class IslandModel {
     }
 
     /// Stats reads the system only while it's showing; music or a timer pushes it aside, and
-    /// then there's nothing to update.
+    /// then there's nothing to update. Disk and network are read only while the panel (or the
+    /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
-        if !settings.statsEnabled {
+        guard settings.statsEnabled else {
             stats.stop()
-        } else if activeActivities.contains(.stats) || expandTarget == .nook(.stats) {
+            return
+        }
+        let detailed = expandTarget == .nook(.stats) || (expandTarget == .home && settings.appearance.nookLayout == .elongated)
+        stats.detailed = detailed
+        if detailed || activeActivities.contains(.stats) {
             stats.start()
         } else {
             stats.pause()

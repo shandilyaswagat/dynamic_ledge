@@ -33,6 +33,11 @@ last one.
 
 ### Changed
 - **A new app icon:** a friendly little cloud on a soft purple tile.
+- **Stats uses even less.** With the notch closed it reads just memory and CPU, and it stops
+  reading while your display is asleep.
+
+### Fixed
+- With Open on Hover, hovering over Stats now opens Stats instead of Home.
 
 ## [1.3.4] - 2026-10-26
 

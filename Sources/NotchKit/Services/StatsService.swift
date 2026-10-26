@@ -1,5 +1,5 @@
+import AppKit
 import Darwin
-import Foundation
 import Observation
 
 /// Reads CPU, memory, disk and network every couple of seconds, only while Stats is switched on.
@@ -15,16 +15,70 @@ public final class StatsService {
     @ObservationIgnored private var lastTicks: StatsMath.CPUTicks?
     @ObservationIgnored private var lastNetwork: (received: UInt64, sent: UInt64, at: Date)?
     @ObservationIgnored private var lastDiskCheck = Date.distantPast
+    /// Something is showing Stats; the timer runs only while this is true and the screen is on.
+    @ObservationIgnored private var wanted = false
+    @ObservationIgnored private var screenAsleep = false
+
+    /// Also read disk and network, for the panel. The notch itself shows only memory and CPU.
+    @ObservationIgnored public var detailed = false {
+        didSet {
+            guard detailed != oldValue else { return }
+            // Start network over, so the first rate isn't an average over the time it was off.
+            lastNetwork = nil
+            if detailed, timer != nil { sample() }
+        }
+    }
 
     static let interval: TimeInterval = 2
     /// Asked for once: every `mach_host_self()` call hands out a port right that must be released.
     private static let host = mach_host_self()
+    private static let pageSize = UInt64(getpagesize())
+    private static let memoryTotal = ProcessInfo.processInfo.physicalMemory
 
-    public init() {}
+    public init() {
+        // No one sees the numbers while the display sleeps, so don't read them.
+        let center = NSWorkspace.shared.notificationCenter
+        center.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.setScreenAsleep(true) }
+        }
+        center.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.setScreenAsleep(false) }
+        }
+    }
 
     public var isRunning: Bool { timer != nil }
 
     public func start() {
+        wanted = true
+        schedule()
+    }
+
+    /// Stops reading for a while (something else is in the notch) but keeps the last counters,
+    /// so the first reading after resuming is already a real one.
+    public func pause() {
+        wanted = false
+        schedule()
+    }
+
+    public func stop() {
+        pause()
+        lastTicks = nil
+        lastNetwork = nil
+        hasReading = false
+    }
+
+    private func setScreenAsleep(_ asleep: Bool) {
+        screenAsleep = asleep
+        schedule()
+    }
+
+    private func schedule() {
+        let run = wanted && !screenAsleep
+        if !run {
+            timer?.invalidate()
+            timer = nil
+            return
+        }
         guard timer == nil else { return }
         sample()
         let timer = Timer(timeInterval: Self.interval, repeats: true) { [weak self] _ in
@@ -33,21 +87,6 @@ public final class StatsService {
         timer.tolerance = 0.5
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
-    }
-
-    /// Stops reading for a while (something else is in the notch) but keeps the last counters,
-    /// so the first reading after resuming is already a real one.
-    public func pause() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    public func stop() {
-        timer?.invalidate()
-        timer = nil
-        lastTicks = nil
-        lastNetwork = nil
-        hasReading = false
     }
 
     private func sample() {
@@ -65,8 +104,8 @@ public final class StatsService {
             next.memoryUsed = memory
         }
         next.memoryPressure = Self.memoryPressure()
-        next.memoryTotal = ProcessInfo.processInfo.physicalMemory
-        if let network = Self.networkBytes() {
+        next.memoryTotal = Self.memoryTotal
+        if detailed, let network = Self.networkBytes() {
             if let last = lastNetwork {
                 let seconds = now.timeIntervalSince(last.at)
                 next.networkIn = StatsMath.rate(from: last.received, to: network.received, seconds: seconds)
@@ -75,7 +114,7 @@ public final class StatsService {
             lastNetwork = (network.received, network.sent, now)
         }
         // Free space barely moves; once a minute is plenty.
-        if now.timeIntervalSince(lastDiskCheck) > 60, let disk = Self.disk() {
+        if detailed, now.timeIntervalSince(lastDiskCheck) > 60, let disk = Self.disk() {
             next.diskFree = disk.free
             next.diskTotal = disk.total
             lastDiskCheck = now
@@ -114,7 +153,7 @@ public final class StatsService {
             }
         }
         guard result == KERN_SUCCESS else { return nil }
-        let page = UInt64(getpagesize())
+        let page = pageSize
         let app = UInt64(info.internal_page_count) - min(UInt64(info.internal_page_count), UInt64(info.purgeable_count))
         return (app + UInt64(info.wire_count) + UInt64(info.compressor_page_count)) * page
     }

@@ -422,7 +422,7 @@ struct StatsSamplingTests {
         #expect(!model.stats.isRunning)
     }
 
-    @Test func hoveringStatsOpensHome() async throws {
+    @Test func hoveringStatsOpensStats() async throws {
         let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
         let model = IslandModel(settings: SettingsStore(defaults: defaults), tray: TrayStore(folder: nil), notes: NotesStore(defaults: defaults))
         model.screen = .sample
@@ -431,10 +431,13 @@ struct StatsSamplingTests {
         model.settings.hoverDelay = 0.1
         let pill = model.layout.pill
         _ = model.pointerMoved(to: CGPoint(x: pill.midX, y: pill.midY))
-        for _ in 0..<60 where model.presentation != .home {
+        for _ in 0..<60 where model.presentation != .nook(.stats) {
             try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(model.presentation == .home)
+        #expect(model.presentation == .nook(.stats))
+        #expect(model.stats.detailed, "the panel reads disk and network")
+        model.collapse()
+        #expect(!model.stats.detailed, "the notch reads just memory and CPU")
     }
 }
 

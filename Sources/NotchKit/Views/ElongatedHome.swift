@@ -246,7 +246,7 @@ private struct CalendarWidget: View {
                     }
                     switch calendar.access {
                     case .granted:
-                        DayEvents(events: events(on: day, from: calendar.events, now: context.date), now: context.date) { event in
+                        DayEvents(events: CalendarRules.events(on: day, in: calendar.events, at: context.date), now: context.date) { event in
                             calendar.open(event)
                             model.collapse()
                         }
@@ -262,14 +262,6 @@ private struct CalendarWidget: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.top, 4 * s)
         }
-    }
-
-    private func events(on day: Date, from events: [CalendarEvent], now: Date) -> [CalendarEvent] {
-        let calendar = Calendar.current
-        return events
-            .filter { calendar.isDate($0.start, inSameDayAs: day) || ($0.start < day && $0.end > day) }
-            .filter { !calendar.isDate(day, inSameDayAs: now) || $0.end > now }
-            .sorted { $0.isAllDay != $1.isAllDay ? $0.isAllDay : $0.start < $1.start }
     }
 }
 

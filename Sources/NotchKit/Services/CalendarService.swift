@@ -193,10 +193,8 @@ public final class CalendarService {
             scheduleReminder()
             return
         }
-        let now = Date()
-        // The coming week, so the Calendar panel has something to show on a quiet day.
-        let start = Calendar.current.startOfDay(for: now)
-        let predicate = store.predicateForEvents(withStart: start, end: start.addingTimeInterval(8 * 24 * 3600), calendars: nil)
+        let range = CalendarRules.loadRange(at: Date())
+        let predicate = store.predicateForEvents(withStart: range.start, end: range.end, calendars: nil)
         let fresh = store.events(matching: predicate)
             .filter { $0.status != .canceled && !Self.isDeclined($0) }
             .map { event in
@@ -270,6 +268,27 @@ extension CalendarRules {
                 }
                 .prefix(limit)
         )
+    }
+
+    /// The days the app reads: all of this month, so any day in the month grid can be opened, and
+    /// at least the coming week and the two days before today for the day strip.
+    public static func loadRange(at date: Date, calendar: Calendar = .current) -> (start: Date, end: Date) {
+        let today = calendar.startOfDay(for: date)
+        let monthStart = calendar.dateInterval(of: .month, for: date)?.start ?? today
+        let monthEnd = calendar.dateInterval(of: .month, for: date)?.end ?? today
+        let weekStart = calendar.date(byAdding: .day, value: -2, to: today) ?? today
+        let weekEnd = calendar.date(byAdding: .day, value: 8, to: today) ?? today
+        return (min(monthStart, weekStart), max(monthEnd, weekEnd))
+    }
+
+    /// The events on one day, all-day ones first. On today, the ones already over are left out.
+    public static func events(on day: Date, in events: [CalendarEvent], at date: Date, calendar: Calendar = .current) -> [CalendarEvent] {
+        let start = calendar.startOfDay(for: day)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        return events
+            .filter { $0.start < end && $0.end > start }
+            .filter { !calendar.isDate(day, inSameDayAs: date) || $0.end > date }
+            .sorted { $0.isAllDay != $1.isAllDay ? $0.isAllDay : $0.start < $1.start }
     }
 
     /// "10:30 – 11:00 AM", "Now · until 11:00 AM" or "All day".

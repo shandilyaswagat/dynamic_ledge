@@ -28,6 +28,9 @@ last one.
   ends the call (Zoom asks you to confirm). The first time, macOS asks to let Dynamic Notch use
   Accessibility. Click the app's icon to jump to the call window instead.
 
+- **Click any date in the Calendar.** In the Calendar's month, click a day to see its events;
+  click today or the same day again to go back to what's coming up.
+
 ### Changed
 - **A new app icon:** a friendly little cloud on a soft purple tile.
 

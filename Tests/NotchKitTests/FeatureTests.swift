@@ -403,3 +403,36 @@ struct NewFeatureModelTests {
         #expect(SettingsStore(defaults: defaults).favoriteShortcuts == ["A", "C", "D"])
     }
 }
+
+@Suite struct CalendarDayTests {
+    private let calendar = Calendar(identifier: .gregorian)
+
+    private func date(_ day: Int, _ hour: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 10, day: day, hour: hour))!
+    }
+
+    @Test func eventsOnADayIncludeAllDayFirstAndSpanningOnes() {
+        let events = [
+            CalendarEvent(id: "late", title: "Late", start: date(28, 15), end: date(28, 16)),
+            CalendarEvent(id: "allday", title: "All", start: date(28), end: date(29), isAllDay: true),
+            CalendarEvent(id: "trip", title: "Trip", start: date(27, 9), end: date(29, 9)),
+            CalendarEvent(id: "other", title: "Other", start: date(30, 9), end: date(30, 10)),
+        ]
+        let ids = CalendarRules.events(on: date(28, 12), in: events, at: date(26, 9), calendar: calendar).map(\.id)
+        #expect(ids == ["allday", "trip", "late"])
+    }
+
+    @Test func todayLeavesOutFinishedEvents() {
+        let events = [
+            CalendarEvent(id: "done", title: "Done", start: date(26, 8), end: date(26, 9)),
+            CalendarEvent(id: "next", title: "Next", start: date(26, 14), end: date(26, 15)),
+        ]
+        #expect(CalendarRules.events(on: date(26), in: events, at: date(26, 10), calendar: calendar).map(\.id) == ["next"])
+    }
+
+    @Test func loadRangeCoversTheMonthAndTheComingWeek() {
+        let range = CalendarRules.loadRange(at: date(26, 10), calendar: calendar)
+        #expect(range.start == date(1))
+        #expect(range.end == calendar.date(from: DateComponents(year: 2026, month: 11, day: 3))!)
+    }
+}

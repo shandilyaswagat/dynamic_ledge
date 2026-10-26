@@ -38,6 +38,7 @@ last one.
 
 ### Fixed
 - With Open on Hover, hovering over Stats now opens Stats instead of Home.
+- Dynamic Notch no longer quits right after you allow Reminders access.
 
 ## [1.3.4] - 2026-10-26
 

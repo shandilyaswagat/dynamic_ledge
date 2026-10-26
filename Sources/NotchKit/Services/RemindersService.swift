@@ -120,7 +120,9 @@ public final class RemindersService {
         }
         let endOfToday = Calendar.current.startOfDay(for: Date()).addingTimeInterval(24 * 3600)
         let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: endOfToday, calendars: nil)
-        store.fetchReminders(matching: predicate) { reminders in
+        // EventKit calls back on a background queue, so this closure must not be tied to the main
+        // actor (Swift stops the app if it is); only the result hops back.
+        store.fetchReminders(matching: predicate) { @Sendable reminders in
             let fresh = (reminders ?? []).map { reminder in
                 ReminderItem(
                     id: reminder.calendarItemIdentifier,

@@ -5,7 +5,7 @@ Every release of Dynamic Notch, newest first. The format follows
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
-## [Unreleased]
+## [1.3.4] - 2026-10-26
 
 ### Added
 - **Stats.** Click the new Stats tile in the grid (or press ⌃⌥P, or use Settings › Home) and your
@@ -184,6 +184,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.4]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.4
 [1.3.3]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.3
 [1.3.2]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.2
 [1.3.1]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.1

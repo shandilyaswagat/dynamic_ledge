@@ -437,3 +437,17 @@ struct StatsSamplingTests {
         #expect(model.presentation == .home)
     }
 }
+
+@Suite("Hanging up")
+struct CallHangupTests {
+    @Test func onlyAppsWithADocumentedShortcut() throws {
+        let teams = try #require(CallHangup.shortcut(for: "com.microsoft.teams2"))
+        #expect(teams.flags.contains(.maskCommand) && teams.flags.contains(.maskShift))
+        #expect(CallHangup.shortcut(for: "com.microsoft.teams") == teams)
+        #expect(try #require(CallHangup.shortcut(for: "us.zoom.xos")).asksToConfirm)
+        #expect(CallHangup.shortcut(for: "Cisco-Systems.Spark") != nil)
+        for app in ["com.apple.FaceTime", "com.google.Chrome", "com.apple.Safari", "com.tinyspeck.slackmacgap", nil] as [String?] {
+            #expect(CallHangup.shortcut(for: app) == nil, "\(app ?? "nil") gets no hang-up button")
+        }
+    }
+}

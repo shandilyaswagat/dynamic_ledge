@@ -43,6 +43,13 @@ public final class Updater {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String).flatMap(SemanticVersion.init)
     }
 
+    #if DEBUG
+    /// Debug builds: pretend a release is out, to see how the notch announces it.
+    public func simulateAvailable(_ release: ReleaseInfo) {
+        state = .available(release)
+    }
+    #endif
+
     public var availableRelease: ReleaseInfo? {
         if case .available(let release) = state { return release }
         return nil

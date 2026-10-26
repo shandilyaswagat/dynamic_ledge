@@ -58,6 +58,9 @@ final class DebugHooks {
         case "hoverexpand": model.settings.notchOpenMode = parts.dropFirst().first != "off" ? .hover : .click
         case "reminders": model.showTab(.reminders)
         case "checkupdate": model.updater.check()
+        case "fakeupdate":
+            let base = "https://github.com/shandilyaswagat/dynamic_notch/releases"
+            model.updater.simulateAvailable(ReleaseInfo(version: SemanticVersion("9.9.9")!, diskImage: URL(string: base + "/download/v9.9.9/DynamicNotch.dmg")!, checksum: nil, signedManifest: URL(string: base + "/download/v9.9.9/DynamicNotch.update.json")!, page: URL(string: base)!))
         case "stopwatch": model.stopwatch.start()
         case "awake": model.keepAwake.toggle()
         case "download": model.receive(.download(URL(fileURLWithPath: parts.dropFirst().first ?? "/tmp/Report.pdf")))

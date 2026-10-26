@@ -163,7 +163,15 @@ struct CallExpandedView: View {
         if let session = model.calls.session {
             let tint = session.isCall ? NotchColor.green : NotchColor.orange
             HStack(spacing: 12 * s) {
-                AppIconView(icon: model.calls.appIcon, symbol: session.isCall ? "phone.fill" : "mic.fill", tint: tint, size: 46 * s)
+                // The app's icon brings its window forward.
+                Button {
+                    model.calls.showApp()
+                    model.collapse()
+                } label: {
+                    AppIconView(icon: model.calls.appIcon, symbol: session.isCall ? "phone.fill" : "mic.fill", tint: tint, size: 46 * s)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .help("Show \(session.appName)")
                 VStack(alignment: .leading, spacing: 2 * s) {
                     Text(session.appName)
                         .font(.system(size: 15 * s, weight: .semibold))
@@ -201,9 +209,19 @@ struct CallExpandedView: View {
                         .foregroundStyle(NotchColor.orange)
                         .accessibilityLabel(Text("Microphone in use"))
                 }
-                CircleButton(symbol: "arrow.up.forward", size: 44 * s, foreground: .white, background: tint, label: "Show \(session.appName)") {
-                    model.calls.showApp()
-                    model.collapse()
+                if model.calls.canHangUp {
+                    // The app's own hang-up shortcut, sent for you; red like the phone's end button.
+                    CircleButton(symbol: "phone.down.fill", size: 44 * s, foreground: .white, background: NotchColor.red, label: "End Call") {
+                        if model.calls.hangUp() { model.collapse() }
+                    }
+                    .help(CallHangup.shortcut(for: session.bundleIdentifier)?.asksToConfirm == true
+                          ? "Leave the call (\(session.appName) asks you to confirm)"
+                          : "End the call")
+                } else {
+                    CircleButton(symbol: "arrow.up.forward", size: 44 * s, foreground: .white, background: tint, label: "Show \(session.appName)") {
+                        model.calls.showApp()
+                        model.collapse()
+                    }
                 }
             }
             .padding(.horizontal, 20 * s)

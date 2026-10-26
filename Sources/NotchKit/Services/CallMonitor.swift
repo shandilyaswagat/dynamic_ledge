@@ -1,4 +1,5 @@
 import AppKit
+@preconcurrency import ApplicationServices
 import CoreAudio
 import CoreMediaIO
 import Darwin
@@ -57,6 +58,35 @@ public final class CallMonitor {
     public func showApp() {
         guard let pid = session?.processIdentifier, let app = NSRunningApplication(processIdentifier: pid) else { return }
         app.activate()
+    }
+
+    /// The call app has a documented hang-up shortcut, so the notch can end the call for you.
+    public var canHangUp: Bool {
+        CallHangup.shortcut(for: session?.bundleIdentifier) != nil && session?.processIdentifier != nil
+    }
+
+    /// Sends the call app its own hang-up shortcut. Sending keys to another app needs
+    /// Accessibility access; the first time, macOS asks for it and nothing is sent.
+    @discardableResult
+    public func hangUp() -> Bool {
+        guard let session, let pid = session.processIdentifier,
+              let shortcut = CallHangup.shortcut(for: session.bundleIdentifier) else { return false }
+        guard AXIsProcessTrusted() else {
+            DocumentWindowDrag.requestAccess()
+            return false
+        }
+        // The shortcut goes to the app's meeting window, so bring it forward first.
+        NSRunningApplication(processIdentifier: pid)?.activate()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            let source = CGEventSource(stateID: .hidSystemState)
+            for isDown in [true, false] {
+                guard let event = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: isDown) else { continue }
+                event.flags = shortcut.flags
+                event.postToPid(pid)
+            }
+        }
+        return true
     }
 
     // MARK: Listening

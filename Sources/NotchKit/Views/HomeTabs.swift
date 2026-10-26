@@ -35,6 +35,7 @@ struct NookContainer<Content: View>: View {
                 Color.clear
                     .frame(width: cameraGap + 12 * s)
                 HStack(spacing: 4 * s) {
+                    UpdatePill(model: model)
                     LauncherButton(model: model, isOpen: tab == .launcher)
                     SettingsButton(model: model)
                 }
@@ -102,6 +103,56 @@ struct BackToHomeButton: View {
         .onHover { isHovering = $0 }
         .help("Home")
         .accessibilityLabel(Text("Back to Home"))
+    }
+}
+
+/// Shows up beside the grid button when a new version is out: one click installs it and
+/// relaunches (or opens the download page when this copy can't update itself).
+private struct UpdatePill: View {
+    let model: IslandModel
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let updater = model.updater
+        Group {
+            switch updater.state {
+            case .available(let release):
+                let installs = updater.canInstallInPlace(release)
+                Button { updater.install(release) } label: {
+                    Label(installs ? "Update" : "Download", systemImage: "arrow.down.circle.fill")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 11 * s, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9 * s)
+                        .frame(height: 22 * s)
+                        .background(Capsule().fill(NotchColor.blue))
+                        .brightness(isHovering ? 0.08 : 0)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .onHover { isHovering = $0 }
+                .help(installs
+                      ? "Version \(release.version.description) is out. Click to install it and relaunch."
+                      : "Version \(release.version.description) is out. Click to download it.")
+                .accessibilityLabel(Text("Update to version \(release.version.description)"))
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            case .installing:
+                HStack(spacing: 5 * s) {
+                    ProgressView().controlSize(.mini)
+                    Text("Updating…")
+                }
+                .font(.system(size: 11 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.secondaryText)
+                .padding(.horizontal, 9 * s)
+                .frame(height: 22 * s)
+                .background(Capsule().fill(NotchColor.buttonFill))
+                .transition(.opacity)
+            default:
+                EmptyView()
+            }
+        }
+        .animation(.spring(duration: 0.35, bounce: 0.3), value: updater.state)
     }
 }
 

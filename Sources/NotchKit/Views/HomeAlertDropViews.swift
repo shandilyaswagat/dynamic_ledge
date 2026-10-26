@@ -321,7 +321,8 @@ private struct TrayPeek: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        let items = Array(model.tray.items.suffix(4).reversed())
+        // The Tray keeps the newest first.
+        let items = Array(model.tray.items.prefix(4))
         let size = 24 * s
         if !items.isEmpty {
             LazyVGrid(columns: [GridItem(.fixed(size), spacing: 5 * s), GridItem(.fixed(size), spacing: 5 * s)], spacing: 5 * s) {

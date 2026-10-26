@@ -490,3 +490,24 @@ struct LockScreenLookTests {
         #expect(LockScreenContent.charging(level: 80, isCharging: true).presentation == .alert(.charging(level: 80, isCharging: true)))
     }
 }
+
+@Suite("Hardening")
+struct HardeningTests {
+    @Test func absurdTrackLengthsDontCrashTheClock() {
+        #expect(TimeFormatting.clock(1e300) == "999:00:00")
+        #expect(TimeFormatting.remaining(elapsed: 0, duration: .greatestFiniteMagnitude) == "-999:00:00")
+        #expect(TimeFormatting.clock(-5) == "0:00")
+    }
+
+    @MainActor @Test func trayKeepsTheNewestFirst() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let files = (1...6).map { folder.appendingPathComponent("file\($0).txt") }
+        for file in files { try Data("x".utf8).write(to: file) }
+        let tray = TrayStore(folder: folder)
+        for file in files { tray.add([file]) }
+        // The drop view's preview shows the first four: the most recent ones.
+        #expect(tray.items.prefix(4).map(\.url.lastPathComponent) == ["file6.txt", "file5.txt", "file4.txt", "file3.txt"])
+    }
+}

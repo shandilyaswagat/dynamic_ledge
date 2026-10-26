@@ -27,7 +27,6 @@ last one.
 - **Hang up from the notch.** On a Zoom, Teams or Webex call, the call view has a red button that
   ends the call (Zoom asks you to confirm). The first time, macOS asks to let Dynamic Notch use
   Accessibility. Click the app's icon to jump to the call window instead.
-
 - **Click any date in the Calendar.** In the Calendar's month, click a day to see its events;
   click today or the same day again to go back to what's coming up.
 
@@ -38,7 +37,13 @@ last one.
 
 ### Fixed
 - With Open on Hover, hovering over Stats now opens Stats instead of Home.
-- Dynamic Notch no longer quits right after you allow Reminders access.
+- Dynamic Notch no longer quits right after you allow Reminders access, and the notch reopens on
+  your list once you do.
+- Reminders notices access you turn on in System Settings, and shows tomorrow's to-dos after
+  midnight without waiting for a change.
+- The Tray preview in the drop view shows your four newest files, not the four oldest.
+- A long list of Shortcuts can no longer leave the list stuck loading.
+- A live stream reporting a nonsense length can no longer crash the music time display.
 
 ## [1.3.4] - 2026-10-26
 

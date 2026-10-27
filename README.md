@@ -1,13 +1,26 @@
 <p align="center">
-  <img src="Support/AppIcon-1024.png" width="128" alt="Dynamic Ledge icon">
+  <img src="Support/AppIcon-1024.png" width="160" alt="Dynamic Ledge icon: a little cloud on a purple tile">
 </p>
 
 <h1 align="center">Dynamic Ledge</h1>
 
 <p align="center">
-  The iPhone's Dynamic Island, but for your MacBook's notch. (It was called Dynamic Notch until 1.4.0.)<br>
-  <b><a href="https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg">Download it here</a></b> (free, needs macOS 14 or newer)
+  The iPhone's Dynamic Island, but for your MacBook's notch.
 </p>
+
+<p align="center">
+  <a href="https://github.com/shandilyaswagat/dynamic_ledge/releases/latest"><img src="https://img.shields.io/github/v/release/shandilyaswagat/dynamic_ledge?label=version&color=8b5cf6" alt="Latest version"></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-111111?logo=apple" alt="macOS 14 or newer">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="GPL-3.0 license"></a>
+  <img src="https://img.shields.io/badge/price-free-2ea44f" alt="Free">
+</p>
+
+<p align="center">
+  <b><a href="https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg">Download it here</a></b>
+  &nbsp;·&nbsp; or with Homebrew: <code>brew install --cask shandilyaswagat/tap/dynamic-ledge</code>
+</p>
+
+<p align="center"><sub>Called Dynamic Notch until 1.4.0. Same app, new name.</sub></p>
 
 ---
 
@@ -32,7 +45,7 @@ And when you click it, you get a little home base right under the notch:
 - **Home** with your music, next event, quick timers, a Focus timer and your favourite Shortcuts.
   Tap the timer for any length, Pomodoro or a stopwatch, and tap your next event to see the month
   (click any day in it to see what's on)
-- **Tray**, a handy spot to drop files you'll need again in a minute. Drag files onto the notch
+- **Files Tray**, a handy spot to drop files you'll need again in a minute. Drag files onto the notch
   to put them there, and drag them back out when you're ready
 - **Clipboard**, the last few things you copied. Click one to copy it again. Passwords are
   skipped and nothing is saved
@@ -47,9 +60,9 @@ over **Tray**. The first time, your Mac will ask you to allow Dynamic Ledge in A
 sometimes Automation). Tray is a scratch space: it holds up to 30 things and clears when you quit
 the app, without ever touching your original files.
 
-Everything else lives behind the grid button at the top right: the timer, stopwatch, calendar,
-today's reminders, a scratchpad, your camera mirror and Keep Awake (stops your Mac from
-sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
+Everything else lives behind the grid button at the top right: music, the timer, stopwatch,
+calendar, today's reminders, a scratchpad, your camera mirror, Stats and Keep Awake (stops your
+Mac from sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 
 Next to Home at the top left sit up to three shortcuts of your own. They start as Files and
 Clipboard, and Files shows how many things are in your Tray. To change them, open the
@@ -97,7 +110,8 @@ That's it, no extra steps. Otherwise, download it yourself:
 Heads up: I haven't paid Apple for a developer account yet, so the first time you open the app
 your Mac will grumble about it. You only have to deal with this once and it takes about a minute.
 
-1. Download [DynamicNotch.dmg](https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg) and open it.
+1. Download [DynamicNotch.dmg](https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg)
+   (the file keeps the app's old name, so older versions can still update) and open it.
 2. Drag **Dynamic Ledge** into your **Applications** folder.
 3. Go to Applications and double-click **Dynamic Ledge**. Your Mac will say it couldn't open it.
    Just hit **Done**.
@@ -189,7 +203,18 @@ Applications folder, and keeps all your settings. Homebrew moves you to the new 
 
 ## What's new
 
-Check the [changelog](CHANGELOG.md) to see what changed in each version.
+**1.4.0**, the biggest update yet:
+
+- A new name, **Dynamic Ledge**, and a new icon
+- Your own shortcuts beside Home (hold a feature in the grid to pick them)
+- The **Elongated** layout, with Home stretched across the top of your screen
+- Your timer, music or charging on the **Lock Screen** (off until you turn it on)
+- **Hang Up** for Zoom, Teams, Webex and WhatsApp calls, right from the notch
+- An **Update** button in the notch when a new version is out
+- Click any date in the Calendar to see that day
+- Now free software under the GNU GPL
+
+Everything that changed in each version is in the [changelog](CHANGELOG.md).
 
 ## Want to build it yourself?
 

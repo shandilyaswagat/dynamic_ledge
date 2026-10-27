@@ -53,6 +53,7 @@ move across on their own.
   reading while your display is asleep.
 
 ### Fixed
+- The hang-up button now recognizes WhatsApp’s Leave call control, and prevents lingering background microphone use from keeping the notch in a call state after hanging up.
 - With Open on Hover, hovering over Stats now opens Stats instead of Home.
 - Home no longer spills past its edges when music is playing; the Focus button drops its label
   when there isn't room.

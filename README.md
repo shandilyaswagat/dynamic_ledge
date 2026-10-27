@@ -83,8 +83,8 @@ space and network speed. It's all read on your Mac and never leaves it.
 
 A few more handy bits: a mute button for your mic during calls, a red **Hang Up** button for
 Teams, Zoom, Webex and WhatsApp calls, and (if you switch it on in Settings) a heads-up when a
-download finishes. The first time you use Hang Up, macOS asks for Accessibility access. For
-WhatsApp it presses WhatsApp's own End call button; if it can't find it, the call stays on and the
+download finishes. The first time you use Hang Up, macOS asks for Accessibility access. WhatsApp
+uses its accessible Leave call or End call control; if it can't find it, the call stays on and the
 notch tells you.
 
 Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,

@@ -443,6 +443,14 @@ struct StatsSamplingTests {
 
 @Suite("Hanging up")
 struct CallHangupTests {
+    @Test func recognizesWhatsAppCallControlsWithoutMatchingOtherButtons() {
+        #expect(CallHangup.isWhatsAppEndCallLabel("\u{200E}leave call"))
+        #expect(CallHangup.isWhatsAppEndCallLabel(" End call "))
+        #expect(CallHangup.isWhatsAppEndCallLabel("\u{200F}LEAVE CALL\u{200E}"))
+        #expect(!CallHangup.isWhatsAppEndCallLabel("Start call"))
+        #expect(!CallHangup.isWhatsAppEndCallLabel("Leave call feedback"))
+    }
+
     @Test func usesOnlySafeAppSpecificHangUpRoutes() throws {
         let teams = try #require(CallHangup.shortcut(for: "com.microsoft.teams2"))
         #expect(teams.flags.contains(.maskCommand) && teams.flags.contains(.maskShift))

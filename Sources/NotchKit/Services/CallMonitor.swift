@@ -97,6 +97,10 @@ public final class CallMonitor {
                 hangUpMessage = String(localized: "Couldn’t send the hang-up command.")
                 return .failed
             }
+            if !shortcut.asksToConfirm {
+                self.session = nil
+                self.candidate = nil
+            }
         case .accessibilityButton:
             // Walking another app's window can take a while if it's busy; never on the main
             // thread, or the notch would freeze with it.
@@ -105,6 +109,8 @@ public final class CallMonitor {
                 hangUpMessage = String(localized: "Couldn’t find WhatsApp’s End call button.")
                 return .failed
             }
+            self.session = nil
+            self.candidate = nil
         }
         return .sent
     }
@@ -128,22 +134,40 @@ public final class CallMonitor {
     }
 
     /// WhatsApp documents an End call button but no keyboard shortcut. Search only WhatsApp's
-    /// tree, require that exact label, and press it once after the user asks to hang up. Runs
-    /// off the main thread, with a short timeout per element and a cap on the whole search.
+    /// tree, require a known call-ending label, and press it once after the user asks to hang up.
+    /// Runs off the main thread, with a short timeout per element and a cap on the whole search.
     nonisolated private static func pressWhatsAppEndCall(in pid: pid_t) -> Bool {
         let application = AXUIElementCreateApplication(pid)
         let deadline = Date().addingTimeInterval(3)
-        var pending: [(element: AXUIElement, depth: Int)] = [(application, 0)]
+        AXUIElementSetMessagingTimeout(application, 0.25)
+
+        // Query windows directly so call windows are searched before diving into chat lists.
+        var windowsRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsRef)
+        let windows = (windowsRef as? [AXUIElement]) ?? children(of: application)
+
+        // Prioritize windows whose title indicates an active call.
+        let sortedRoots = windows.sorted { w1, w2 in
+            let t1 = (attribute(w1, kAXTitleAttribute) as? String ?? "").localizedCaseInsensitiveContains("call")
+            let t2 = (attribute(w2, kAXTitleAttribute) as? String ?? "").localizedCaseInsensitiveContains("call")
+            if t1 != t2 { return t1 }
+            return false
+        }
+
+        var queue: [(element: AXUIElement, depth: Int)] = sortedRoots.map { ($0, 0) }
         var inspected = 0
-        while let current = pending.popLast(), inspected < 300, Date() < deadline {
+        while !queue.isEmpty, inspected < 500, Date() < deadline {
+            let current = queue.removeFirst()
             inspected += 1
             let element = current.element
             AXUIElementSetMessagingTimeout(element, 0.25)
-            if hasEndCallLabel(element), supportsPress(element), AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
-                return true
+            if hasEndCallLabel(element), supportsPress(element) {
+                if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+                    return true
+                }
             }
             guard current.depth < 8 else { continue }
-            pending.append(contentsOf: children(of: element).map { ($0, current.depth + 1) })
+            queue.append(contentsOf: children(of: element).map { ($0, current.depth + 1) })
         }
         return false
     }
@@ -151,8 +175,7 @@ public final class CallMonitor {
     nonisolated private static func hasEndCallLabel(_ element: AXUIElement) -> Bool {
         [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute].contains { key in
             guard let value = attribute(element, key) as? String else { return false }
-            return value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-                .trimmingCharacters(in: .whitespacesAndNewlines) == "end call"
+            return CallHangup.isWhatsAppEndCallLabel(value)
         }
     }
 
@@ -160,6 +183,21 @@ public final class CallMonitor {
         var actions: CFArray?
         return AXUIElementCopyActionNames(element, &actions) == .success &&
             (actions as? [String])?.contains(kAXPressAction as String) == true
+    }
+
+    private static func isWhatsAppCallActive(in pid: pid_t?) -> Bool {
+        guard let pid else { return false }
+        let application = AXUIElementCreateApplication(pid)
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let windows = windowsRef as? [AXUIElement] else { return false }
+        for window in windows {
+            if let title = attribute(window, kAXTitleAttribute) as? String,
+               title.localizedCaseInsensitiveContains("call") {
+                return true
+            }
+        }
+        return false
     }
 
     nonisolated private static func children(of element: AXUIElement) -> [AXUIElement] {
@@ -243,7 +281,24 @@ public final class CallMonitor {
 
         let name = user.app?.localizedName ?? String(localized: "Microphone")
         let identifier = user.app?.bundleIdentifier ?? user.bundleIdentifier
-        let isCall = CallClassifier.isCallApp(identifier) || cameraOn
+        let isCall: Bool
+        if identifier == "net.whatsapp.WhatsApp" || identifier == "desktop.WhatsApp" {
+            let callActive = cameraOn || Self.isWhatsAppCallActive(in: user.app?.processIdentifier ?? user.pid)
+            if !callActive {
+                candidate = nil
+                if session != nil {
+                    session = nil
+                    appIcon = nil
+                    inactiveSince = nil
+                    hangUpMessage = nil
+                }
+                schedulePoll(after: nil)
+                return
+            }
+            isCall = true
+        } else {
+            isCall = CallClassifier.isCallApp(identifier) || cameraOn
+        }
         let key = identifier ?? name
 
         if var current = session, current.key == key {

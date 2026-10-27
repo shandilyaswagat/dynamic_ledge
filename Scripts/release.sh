@@ -45,25 +45,25 @@ awk -v version="$VERSION" '
 cat >> "$NOTES" <<'EOF'
 
 ### Installing
-Download **DynamicNotch.dmg** below, open it and drag Dynamic Notch into Applications. The first
+Download **DynamicNotch.dmg** below, open it and drag Dynamic Ledge into Applications. The first
 time you open it, macOS will ask you to confirm in System Settings › Privacy & Security
-(click **Open Anyway**). The [README](https://github.com/shandilyaswagat/dynamic_notch#installing-it)
+(click **Open Anyway**). The [README](https://github.com/shandilyaswagat/dynamic_ledge#installing-it)
 walks through it step by step.
 
 Updating? Just replace the old app in Applications. Your settings are kept.
 EOF
 
-echo "› Releasing Dynamic Notch $VERSION"
+echo "› Releasing Dynamic Ledge $VERSION"
 ./Scripts/check.sh
 ./Scripts/make-dmg.sh
 
 swift Scripts/sign-update.swift sign "$UPDATE_SIGNING_KEY_FILE" build/DynamicNotch.dmg "$VERSION" "${BUNDLE_ID:-com.rectircle.DynamicNotch}" "build/ReleaseInfo.plist"
 
-git tag -a "$TAG" -m "Dynamic Notch $VERSION"
+git tag -a "$TAG" -m "Dynamic Ledge $VERSION"
 git push origin main "$TAG"
 # Also publish a plain checksum for manual verification and Homebrew.
 SHA="$(shasum -a 256 build/DynamicNotch.dmg | awk '{print $1}')"
 echo "$SHA" > build/DynamicNotch.dmg.sha256
-gh release create "$TAG" build/DynamicNotch.dmg build/DynamicNotch.dmg.sha256 build/DynamicNotch.update.json --title "Dynamic Notch $VERSION" --notes-file "$NOTES"
+gh release create "$TAG" build/DynamicNotch.dmg build/DynamicNotch.dmg.sha256 build/DynamicNotch.update.json --title "Dynamic Ledge $VERSION" --notes-file "$NOTES"
 echo "✓ Released $TAG"
 ./Scripts/update-cask.sh "$VERSION" "$SHA" || echo "! Couldn't update the Homebrew cask; run Scripts/update-cask.sh $VERSION $SHA"

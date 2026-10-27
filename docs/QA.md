@@ -141,7 +141,7 @@ some events need real hardware. These paths are covered by unit tests at the mod
 - [ ] Reminders: Connect, tick one off, it's done in the Reminders app.
 - [ ] With an external display chosen in Settings: nothing shows at rest; rest the pointer at the top centre and the notch slides down after the hover delay; click opens Home; move away and it slides back up. A running timer shows there as a notch.
 - [ ] Updates: with an older build installed, Settings › About › Check Now offers the new version and Install and Relaunch works.
-- [ ] Homebrew: `brew install --cask shandilyaswagat/tap/dynamic-notch` installs and opens without the Open Anyway step.
+- [ ] Homebrew: `brew install --cask shandilyaswagat/tap/dynamic-ledge` installs and opens without the Open Anyway step.
 - [ ] Timer panel: drag the ruler both ways; it follows the pointer and settles on a minute.
 - [ ] Two-finger swipe on music skips; pull down opens; push up closes.
 - [ ] Mute the mic during a real call; the other side can't hear you; unmute works.

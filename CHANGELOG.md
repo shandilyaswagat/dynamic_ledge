@@ -1,11 +1,16 @@
 # Changelog
 
-Every release of Dynamic Notch, newest first. The format follows
+Every release of Dynamic Ledge (called Dynamic Notch until 1.4.0), newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
 ## [Unreleased]
+
+**Dynamic Notch is now Dynamic Ledge.** Same app, new name. Updating from Dynamic Notch keeps all
+your settings, and the app renames itself in your Applications folder the first time it opens.
+With Homebrew, it's now `brew install --cask shandilyaswagat/tap/dynamic-ledge`; existing installs
+move across on their own.
 
 ### Added
 - **Your own shortcuts.** Beside Home at the top left of the open notch, keep up to three
@@ -32,15 +37,15 @@ last one.
   the open notch, next to the grid and Settings. One click installs it and relaunches.
 - **Hang up from the notch.** On a Zoom, Teams, Webex or WhatsApp call, the call view has a red
   button that ends the call (Zoom asks you to confirm). The first time, macOS asks to let Dynamic
-  Notch use Accessibility. Click the app's icon to jump to the call window instead.
+  Ledge use Accessibility. Click the app's icon to jump to the call window instead.
 - **Click any date in the Calendar.** In the Calendar's month, click a day to see its events;
   click today or the same day again to go back to what's coming up.
 - **Turn the camera off in Mirror.** A button in Mirror turns the camera preview off and back on.
-- **A first look.** The very first time you open Dynamic Notch, Home opens for a few seconds so
+- **A first look.** The very first time you open Dynamic Ledge, Home opens for a few seconds so
   you can see it's running.
 
 ### Changed
-- **Free software.** Dynamic Notch is now licensed under the GNU General Public License, version 3
+- **Free software.** Dynamic Ledge is now licensed under the GNU General Public License, version 3
   or later: you can use, study, share and change it, and changed versions you share stay free too.
 - **A new app icon:** a friendly little cloud on a soft purple tile.
 - **A roomier Tray:** more space between files, and the remove button sits clear of the top edge.
@@ -248,12 +253,12 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
-[1.3.5]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.5
-[1.3.4]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.4
-[1.3.3]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.3
-[1.3.2]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.2
-[1.3.1]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.1
-[1.3.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.0
-[1.2.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.2.0
-[1.1.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.1.0
-[1.0.0]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.0.0
+[1.3.5]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.5
+[1.3.4]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.4
+[1.3.3]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.3
+[1.3.2]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.2
+[1.3.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.1
+[1.3.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.0
+[1.2.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.2.0
+[1.1.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.1.0
+[1.0.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.0.0

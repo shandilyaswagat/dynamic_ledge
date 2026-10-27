@@ -36,7 +36,7 @@ struct IslandRootView: View {
         // tucked away. This keeps Voice Control and automation able to open the same Home view
         // that a click on the notch opens without changing the panel's mouse routing.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("Dynamic Notch"))
+        .accessibilityLabel(Text("Dynamic Ledge"))
         .accessibilityAction(named: Text("Open Home")) { model.showTab(.home) }
     }
 }
@@ -100,7 +100,7 @@ struct IslandContentLayer: View {
         .contextMenu { IslandContextMenu(model: model, presentation: presentation) }
         .position(x: layout.pill.midX, y: layout.pill.midY)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("Dynamic Notch"))
+        .accessibilityLabel(Text("Dynamic Ledge"))
     }
 
     private var hasBubble: Bool {
@@ -224,7 +224,7 @@ struct IslandContextMenu: View {
         Button("All Features") { model.showTab(.launcher) }
         Button(model.keepAwake.isOn ? "Stop Keeping Awake" : "Keep Mac Awake") { model.keepAwake.toggle() }
         Button("Settings…") { model.onOpenSettings?() }
-        Button("Quit Dynamic Notch") { NSApp.terminate(nil) }
+        Button("Quit Dynamic Ledge") { NSApp.terminate(nil) }
     }
 }
 

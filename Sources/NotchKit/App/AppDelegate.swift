@@ -25,6 +25,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         if terminateIfAlreadyRunning() {
             return
         }
+        // 1.3.x updates leave the file named "Dynamic Notch.app"; give it the new name first.
+        if AppRename.renameAndRelaunchIfNeeded() {
+            return
+        }
+        AppRename.finishIfRenamed()
 
         let settings = SettingsStore()
         let model = IslandModel(settings: settings)

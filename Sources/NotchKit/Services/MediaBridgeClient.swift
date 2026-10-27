@@ -77,7 +77,7 @@ final class MediaBridgeClient {
     nonisolated static func unquarantinedCopy(of library: URL, in folder: URL? = nil, fileManager: FileManager = .default) -> URL? {
         guard
             let folder = folder ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-                .appendingPathComponent("Dynamic Notch", isDirectory: true),
+                .appendingPathComponent("Dynamic Ledge", isDirectory: true),
             let bytes = try? Data(contentsOf: library)
         else { return nil }
         let copy = folder.appendingPathComponent(libraryName)

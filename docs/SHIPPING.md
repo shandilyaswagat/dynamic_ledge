@@ -1,6 +1,6 @@
 # Shipping
 
-Dynamic Notch is distributed as a DMG on GitHub Releases, outside the Mac App Store (the Now
+Dynamic Ledge (called Dynamic Notch until 1.4.0) is distributed as a DMG on GitHub Releases, outside the Mac App Store (the Now
 Playing helper uses a private macOS framework, which App Review does not allow).
 
 There are two stages:
@@ -13,6 +13,22 @@ There are two stages:
 
 Release assets are always named `DynamicNotch.dmg`, so the README's link
 `releases/latest/download/DynamicNotch.dmg` always points to the newest version.
+
+### Names that stay from Dynamic Notch
+
+The app was renamed from Dynamic Notch to Dynamic Ledge in 1.4.0. A few hidden names keep the old
+spelling on purpose, and must not change:
+
+- The bundle id `com.rectircle.DynamicNotch`. Updates check that the new app has the same id, and
+  macOS keeps settings, permissions and Open at Login by it.
+- The release files `DynamicNotch.dmg`, `DynamicNotch.dmg.sha256` and `DynamicNotch.update.json`.
+  Apps from 1.3.x and earlier look for exactly these names when they check for updates.
+- The executable and Swift targets (`DynamicNotch`, `NotchKit`), which nobody sees.
+
+Updating from 1.3.x puts the new version where the old one was, still named
+`Dynamic Notch.app`; on its first launch the app renames itself to `Dynamic Ledge.app` and
+reopens (`AppRename`). The Homebrew cask was renamed to `dynamic-ledge`, and the tap's
+`cask_renames.json` moves existing installs across.
 
 ## Versions and the changelog
 
@@ -56,7 +72,7 @@ installed by this updater. An empty public-key file disables in-app installation
 Generate the production key on a protected signing machine, outside this repository:
 
 ```bash
-swift Scripts/sign-update.swift generate /secure/location/dynamic-notch-update.key
+swift Scripts/sign-update.swift generate /secure/location/dynamic-ledge-update.key
 ```
 
 The command creates a private key with mode 0600 and prints only the public key. Put that public
@@ -65,7 +81,7 @@ never commit it, upload it as a release asset, or store it beside releases. Rest
 secrets with approval controls independent of the GitHub release account. Do not regenerate keys
 for each release: existing installations pin the public key shipped in their app.
 
-Set `UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key` when running
+Set `UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-ledge-update.key` when running
 `Scripts/release.sh`. After building the final DMG (including notarization/stapling), the script
 signs a manifest and publishes `DynamicNotch.update.json` alongside the image.
 The packaging script writes `build/ReleaseInfo.plist` from the exact staged app before removing
@@ -80,7 +96,7 @@ and identifier. Ad-hoc builds rely on the pinned release-signing key. Quarantine
 by the installer; normal macOS launch checks still apply.
 
 The first release with this protection must reach users through a trusted installation channel.
-Old installed versions do not gain signature verification until replaced. For Dynamic Notch the
+Old installed versions do not gain signature verification until replaced. For Dynamic Ledge the
 key ships from 1.3.0 on. 1.2.0 still updates in place using the published `.sha256` file, so keep
 uploading it. From 1.3.0 on, every update installs from Settings › About only after passing the
 signature check. A build without a usable public key (for example a local build made before the
@@ -96,7 +112,7 @@ shipping a trusted update with the next public key before retiring the old signi
 3. Run:
 
    ```bash
-   UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key ./Scripts/release.sh
+   UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-ledge-update.key ./Scripts/release.sh
    ```
 
 The script stops if you're not on main, local main doesn't match GitHub, the working tree isn't
@@ -111,7 +127,7 @@ at the new version (`Scripts/update-cask.sh`, from `packaging/homebrew/`).
 Everything inside a downloaded app carries macOS's quarantine flag. Opening the app with **Open
 Anyway** approves the app, but the Now Playing helper is loaded by `/usr/bin/perl`, which would
 trigger a second, separate warning for the library and fail. So on launch the app writes its own
-copy of the helper to `~/Library/Application Support/Dynamic Notch/` (a copy the app writes has no
+copy of the helper to `~/Library/Application Support/Dynamic Ledge/` (a copy the app writes has no
 quarantine flag and keeps the library's signature) and loads that.
 
 ## Moving to signed and notarized releases
@@ -125,7 +141,7 @@ quarantine flag and keeps the library's signature) and loads that.
 3. A notarization profile stored in the keychain:
 
    ```bash
-   xcrun notarytool store-credentials dynamic-notch --apple-id you@example.com --team-id TEAMID
+   xcrun notarytool store-credentials dynamic-ledge --apple-id you@example.com --team-id TEAMID
    ```
 
    It asks for an app-specific password (appleid.apple.com › Sign-In and Security).
@@ -136,7 +152,7 @@ quarantine flag and keeps the library's signature) and loads that.
 Same as above, with your identity and notarization profile set:
 
 ```bash
-UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-notch-update.key SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=dynamic-notch ./Scripts/release.sh
+UPDATE_SIGNING_KEY_FILE=/secure/location/dynamic-ledge-update.key SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=dynamic-ledge ./Scripts/release.sh
 ```
 
 `make-dmg.sh` then signs the helper library and the app with hardened runtime, the camera and

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Dynamic Notch</string>
+	<string>Dynamic Ledge</string>
 	<key>CFBundleExecutable</key>
 	<string>DynamicNotch</string>
 	<key>CFBundleIconFile</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Dynamic Notch</string>
+	<string>Dynamic Ledge</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -33,17 +33,17 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Dynamic Notch shows your next event in the notch and gives you a heads-up before it starts.</string>
+	<string>Dynamic Ledge shows your next event in the notch and gives you a heads-up before it starts.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Dynamic Notch shows your next event in the notch and gives you a heads-up before it starts.</string>
+	<string>Dynamic Ledge shows your next event in the notch and gives you a heads-up before it starts.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Dynamic Notch shows today's to-dos in the notch so you can tick them off.</string>
+	<string>Dynamic Ledge shows today's to-dos in the notch so you can tick them off.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>Dynamic Notch shows today's to-dos in the notch so you can tick them off.</string>
+	<string>Dynamic Ledge shows today's to-dos in the notch so you can tick them off.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Mirror shows your camera so you can check how you look before a call. Nothing is recorded.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Dynamic Notch reads the saved document or web address of the window you drop into Tray.</string>
+	<string>Dynamic Ledge reads the saved document or web address of the window you drop into Tray.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Swagat Shandilya and contributors. Free software under the GNU GPL, version 3 or later.</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>

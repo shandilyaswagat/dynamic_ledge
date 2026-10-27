@@ -28,7 +28,7 @@ public final class Updater {
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private let log = Logger(subsystem: Log.subsystem, category: "updates")
 
-    public static let latestRelease = URL(string: "https://api.github.com/repos/shandilyaswagat/dynamic_notch/releases/latest")!
+    public static let latestRelease = URL(string: "https://api.github.com/repos/shandilyaswagat/dynamic_ledge/releases/latest")!
     static let checkInterval: TimeInterval = 24 * 3600
     /// The app bundle is small. A firm cap prevents untrusted release metadata from making the
     /// updater consume arbitrary memory or storage before signature verification.

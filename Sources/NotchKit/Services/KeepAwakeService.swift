@@ -25,7 +25,7 @@ public final class KeepAwakeService {
             let status = IOPMAssertionCreateWithName(
                 kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
                 IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                "Dynamic Notch: Keep Awake" as CFString,
+                "Dynamic Ledge: Keep Awake" as CFString,
                 &id
             )
             guard status == kIOReturnSuccess else { return }

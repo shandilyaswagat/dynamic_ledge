@@ -1,6 +1,6 @@
 # Developer docs
 
-Everything here is for people who want to build, change or ship Dynamic Notch. If you only want
+Everything here is for people who want to build, change or ship Dynamic Ledge. If you only want
 to use the app, see the [main README](../README.md).
 
 | Doc | What's in it |
@@ -17,15 +17,15 @@ to use the app, see the [main README](../README.md).
 Needs Swift 6 (Xcode 16 or later). Built and tested with Xcode 26.4 on macOS 27.
 
 ```bash
-git clone https://github.com/shandilyaswagat/dynamic_notch.git
+git clone https://github.com/shandilyaswagat/dynamic_ledge.git
 ```
 
 ```bash
-cd dynamic_notch && ./Scripts/build-app.sh
+cd dynamic_ledge && ./Scripts/build-app.sh
 ```
 
 ```bash
-open "build/Dynamic Notch.app"
+open "build/Dynamic Ledge.app"
 ```
 
 `CONFIG=debug ./Scripts/build-app.sh` builds a debug app that also accepts the debug commands

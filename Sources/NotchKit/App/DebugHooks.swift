@@ -63,7 +63,7 @@ final class DebugHooks {
         case "checkupdate": model.updater.check()
         case "lockpreview": lockScreen?.preview(parts.dropFirst().first != "off")
         case "fakeupdate":
-            let base = "https://github.com/shandilyaswagat/dynamic_notch/releases"
+            let base = "https://github.com/shandilyaswagat/dynamic_ledge/releases"
             model.updater.simulateAvailable(ReleaseInfo(version: SemanticVersion("9.9.9")!, diskImage: URL(string: base + "/download/v9.9.9/DynamicNotch.dmg")!, checksum: nil, signedManifest: URL(string: base + "/download/v9.9.9/DynamicNotch.update.json")!, page: URL(string: base)!))
         case "stopwatch": model.stopwatch.start()
         case "awake": model.keepAwake.toggle()

@@ -18,7 +18,7 @@ final class IslandPanel: NSPanel {
         ignoresMouseEvents = true
         acceptsMouseMovedEvents = true
         animationBehavior = .none
-        setAccessibilityLabel("Dynamic Notch")
+        setAccessibilityLabel("Dynamic Ledge")
     }
 
     /// True while a view in the panel needs typing (Notes).

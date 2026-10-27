@@ -103,7 +103,7 @@ reliable way to do it.
 
 ## 5. What the paid notch apps charge for (researched for 1.1.0)
 
-| Feature | Sold in | Dynamic Notch |
+| Feature | Sold in | Dynamic Ledge |
 |---|---|---|
 | Now Playing with controls | NotchNook ($25), Alcove ($14), DynamicLake Pro ($14–17), MediaMate (~$7) | ✅ since 1.0 |
 | File tray / shelf | NotchNook (Tray), DynamicLake (DynaClip, DynaDrop) | ✅ 1.1 |
@@ -144,7 +144,7 @@ A second look, past the four big paid apps, at what free and newer notch apps ad
 
 **Picked for 1.2.0**, because almost every newer app has them and they fit a small, quiet nook:
 
-| Feature | Seen in | Dynamic Notch |
+| Feature | Seen in | Dynamic Ledge |
 |---|---|---|
 | Clipboard history | Atoll, NotchNest, Itchy, NotchBox, NotchDodo | ✅ Text only, last 20, memory only, private copies skipped |
 | Quick notes | NotchNest, Itchy, NotchBox, Crest | ✅ One scratchpad, saved as you type |

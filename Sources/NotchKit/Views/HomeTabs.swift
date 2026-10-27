@@ -497,7 +497,7 @@ private struct CalendarRow: View {
                 Spacer(minLength: 8 * s)
                 Button("Allow Access") { calendar.openPrivacySettings() }
                     .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-                    .help("Turn on Dynamic Notch in Privacy & Security › Calendars")
+                    .help("Turn on Dynamic Ledge in Privacy & Security › Calendars")
             case .granted:
                 // Always shown once connected, even on a free day, and always opens the month.
                 Button { model.showTab(.calendar) } label: {
@@ -880,7 +880,7 @@ struct MirrorBody: View {
                 ? "Camera preview is turned off."
                 : "Check how you look before a call. The camera turns off when you close this."
         case .notAsked: "Check how you look before a call."
-        case .denied: "Camera access is off for Dynamic Notch."
+        case .denied: "Camera access is off for Dynamic Ledge."
         case .noCamera: "No camera found."
         }
     }

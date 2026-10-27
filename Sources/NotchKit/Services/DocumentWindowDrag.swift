@@ -158,7 +158,7 @@ final class DocumentWindowDrag {
             process.waitUntilExit()
             _ = errors.fileHandleForReading.readDataToEndOfFile()
             guard process.terminationStatus == 0 else {
-                return Resolution(message: "Could not read this open document. Enable Dynamic Notch access to the document app in macOS Automation settings, then try again.")
+                return Resolution(message: "Could not read this open document. Enable Dynamic Ledge access to the document app in macOS Automation settings, then try again.")
             }
             let value = String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
             if let url = localURL(value), FileManager.default.fileExists(atPath: url.path) { return Resolution(url: url) }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds a universal release app and packages it as build/DynamicNotch.dmg.
+# Builds a universal release app and packages it as build/DynamicNotch.dmg. The file keeps its
+# old name on purpose: apps from 1.3.x and earlier look for exactly this name to update.
 #
 #   SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"   required for distribution
 #   NOTARY_PROFILE=profile-name   a `xcrun notarytool store-credentials` profile; when set,
@@ -16,13 +17,13 @@ STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 # Assemble and sign outside synced folders so File Provider cannot reattach Finder metadata
 # between signing and packaging. The disk image preserves the signed bundle unchanged.
-APP_OUTPUT="$STAGING/Dynamic Notch.app" "$ROOT/Scripts/build-app.sh"
+APP_OUTPUT="$STAGING/Dynamic Ledge.app" "$ROOT/Scripts/build-app.sh"
 mkdir -p "$ROOT/build"
 
 echo "› Packaging ${DMG}…"
 ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
-hdiutil create -volname "Dynamic Notch" -srcfolder "$STAGING" -ov -format UDZO -quiet "$DMG"
+hdiutil create -volname "Dynamic Ledge" -srcfolder "$STAGING" -ov -format UDZO -quiet "$DMG"
 
 if [[ "${SIGN_IDENTITY:--}" != "-" ]]; then
     codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
@@ -39,5 +40,5 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
     spctl --assess --type open --context context:primary-signature --verbose "$DMG"
 fi
 
-cp "$STAGING/Dynamic Notch.app/Contents/Info.plist" "$ROOT/build/ReleaseInfo.plist"
+cp "$STAGING/Dynamic Ledge.app/Contents/Info.plist" "$ROOT/build/ReleaseInfo.plist"
 echo "✓ $DMG"

@@ -87,9 +87,9 @@ struct UpdateKeyTests {
 
     @Test func installsInPlaceOnlyWithAKeyAndASignedRelease() throws {
         let key = Data(repeating: 7, count: 32).base64EncodedString()
-        let app = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Dynamic Notch.app")
-        let page = try #require(URL(string: "https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v9.0.0"))
-        let image = try #require(URL(string: "https://github.com/shandilyaswagat/dynamic_notch/releases/download/v9.0.0/DynamicNotch.dmg"))
+        let app = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Dynamic Ledge.app")
+        let page = try #require(URL(string: "https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v9.0.0"))
+        let image = try #require(URL(string: "https://github.com/shandilyaswagat/dynamic_ledge/releases/download/v9.0.0/DynamicNotch.dmg"))
         var release = ReleaseInfo(version: try #require(SemanticVersion("9.0.0")), diskImage: image, checksum: nil,
                                   signedManifest: image.deletingLastPathComponent().appendingPathComponent("DynamicNotch.update.json"),
                                   page: page)

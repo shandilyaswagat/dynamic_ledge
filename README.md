@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="Support/AppIcon-1024.png" width="128" alt="Dynamic Notch icon">
+  <img src="Support/AppIcon-1024.png" width="128" alt="Dynamic Ledge icon">
 </p>
 
-<h1 align="center">Dynamic Notch</h1>
+<h1 align="center">Dynamic Ledge</h1>
 
 <p align="center">
-  The iPhone's Dynamic Island, but for your MacBook's notch.<br>
-  <b><a href="https://github.com/shandilyaswagat/dynamic_notch/releases/latest/download/DynamicNotch.dmg">Download it here</a></b> (free, needs macOS 14 or newer)
+  The iPhone's Dynamic Island, but for your MacBook's notch. (It was called Dynamic Notch until 1.4.0.)<br>
+  <b><a href="https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg">Download it here</a></b> (free, needs macOS 14 or newer)
 </p>
 
 ---
@@ -43,7 +43,7 @@ And when you click it, you get a little home base right under the notch:
 Drag files onto the notch and you can also AirDrop them straight from there.
 
 Working on a document? Save it, then drag its window by the title bar onto the notch and let go
-over **Tray**. The first time, your Mac will ask you to allow Dynamic Notch in Accessibility (and
+over **Tray**. The first time, your Mac will ask you to allow Dynamic Ledge in Accessibility (and
 sometimes Automation). Tray is a scratch space: it holds up to 30 things and clears when you quit
 the app, without ever touching your original files.
 
@@ -89,7 +89,7 @@ daily check for a new version, which you can turn off in Settings. All of this i
 **The easy way, if you use [Homebrew](https://brew.sh):**
 
 ```bash
-brew install --cask shandilyaswagat/tap/dynamic-notch
+brew install --cask shandilyaswagat/tap/dynamic-ledge
 ```
 
 That's it, no extra steps. Otherwise, download it yourself:
@@ -97,12 +97,12 @@ That's it, no extra steps. Otherwise, download it yourself:
 Heads up: I haven't paid Apple for a developer account yet, so the first time you open the app
 your Mac will grumble about it. You only have to deal with this once and it takes about a minute.
 
-1. Download [DynamicNotch.dmg](https://github.com/shandilyaswagat/dynamic_notch/releases/latest/download/DynamicNotch.dmg) and open it.
-2. Drag **Dynamic Notch** into your **Applications** folder.
-3. Go to Applications and double-click **Dynamic Notch**. Your Mac will say it couldn't open it.
+1. Download [DynamicNotch.dmg](https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg) and open it.
+2. Drag **Dynamic Ledge** into your **Applications** folder.
+3. Go to Applications and double-click **Dynamic Ledge**. Your Mac will say it couldn't open it.
    Just hit **Done**.
 4. Open **System Settings**, go to **Privacy & Security** and scroll down a bit. You'll see a line
-   saying Dynamic Notch was blocked. Click **Open Anyway**, type your password (or use Touch ID)
+   saying Dynamic Ledge was blocked. Click **Open Anyway**, type your password (or use Touch ID)
    and click **Open Anyway** one more time.
 5. That's it. The notch will say hi to you by name with a little wave, and a capsule icon shows
    up in your menu bar.
@@ -111,7 +111,7 @@ If you're comfortable with Terminal, you can skip steps 3 and 4. After dragging 
 Applications, run this and then open the app like normal:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Dynamic Notch.app"
+xattr -dr com.apple.quarantine "/Applications/Dynamic Ledge.app"
 ```
 
 ## Using it
@@ -163,20 +163,24 @@ want it at all? Turn off Clipboard in Settings and it stops watching right away.
 **How do I update it?** It updates itself. When a new version is out, the notch lets you know;
 click it, or go to Settings › About, and hit **Install and Relaunch**. Every update is checked
 before it's installed, so a tampered download can't get in. With Homebrew, run
-`brew upgrade --cask dynamic-notch`. Prefer doing it by hand? Download the new version and drag
+`brew upgrade --cask dynamic-ledge`. Prefer doing it by hand? Download the new version and drag
 it into Applications again. Replace the old one when it asks. Your settings stay put.
 
 **The button says Download instead of Install and Relaunch.** Your copy can't update itself (for
-example, one you built yourself). Download [the latest version](https://github.com/shandilyaswagat/dynamic_notch/releases/latest/download/DynamicNotch.dmg)
+example, one you built yourself). Download [the latest version](https://github.com/shandilyaswagat/dynamic_ledge/releases/latest/download/DynamicNotch.dmg)
 by hand once and drag it into Applications. From then on, updates install right from Settings.
 
 **It's asking for permissions again after an update.** That's macOS being careful, because the
 app isn't registered with Apple yet. Just allow them again.
 
-**How do I get rid of it?** Click the capsule icon in the menu bar and pick **Quit Dynamic Notch**,
+**How do I get rid of it?** Click the capsule icon in the menu bar and pick **Quit Dynamic Ledge**,
 then drag the app from Applications to the Trash. If you want to clear out everything it saved too,
-delete `~/Library/Application Support/Dynamic Notch` and
+delete `~/Library/Application Support/Dynamic Ledge` (or `Dynamic Notch`, from older versions) and
 `~/Library/Preferences/com.rectircle.DynamicNotch.plist`.
+
+**Why did Dynamic Notch become Dynamic Ledge?** Same app, new name, from 1.4.0. If you had
+Dynamic Notch, it updates to Dynamic Ledge like any other update, renames itself in your
+Applications folder, and keeps all your settings. Homebrew moves you to the new name on its own.
 
 ## What you need
 
@@ -193,7 +197,7 @@ Build steps and notes on how it all fits together are in the [docs folder](docs/
 
 ## License
 
-Dynamic Notch is free software, © 2026 Swagat Shandilya and contributors. You can use it, share it
+Dynamic Ledge is free software, © 2026 Swagat Shandilya and contributors. You can use it, share it
 and change it under the [GNU General Public License, version 3](LICENSE) or (at your choice) any
 later version. If you share a changed version, it has to stay free under the same license, with
 its source code available.

@@ -31,8 +31,8 @@ struct VersionTests {
     }
 
     @Test func neverReplacesATranslocatedCopy() {
-        #expect(!Updater.canReplace(URL(fileURLWithPath: "/private/var/folders/x/AppTranslocation/ABC/d/Dynamic Notch.app")))
-        #expect(!Updater.canReplace(URL(fileURLWithPath: "/Volumes/Dynamic Notch/Dynamic Notch.app")))
+        #expect(!Updater.canReplace(URL(fileURLWithPath: "/private/var/folders/x/AppTranslocation/ABC/d/Dynamic Ledge.app")))
+        #expect(!Updater.canReplace(URL(fileURLWithPath: "/Volumes/Dynamic Ledge/Dynamic Ledge.app")))
     }
 }
 
@@ -226,5 +226,32 @@ struct LauncherModelTests {
         #expect(model.engine.isVirtualNotch)
         model.screen = .sample
         #expect(!model.engine.isVirtualNotch)
+    }
+}
+
+@Suite("Renaming to Dynamic Ledge")
+struct AppRenameTests {
+    private func folder() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    @Test func anUpdatedOldCopyGetsTheNewName() throws {
+        let apps = try folder()
+        defer { try? FileManager.default.removeItem(at: apps) }
+        let old = apps.appendingPathComponent("Dynamic Notch.app")
+        #expect(AppRename.destination(for: old) == apps.appendingPathComponent("Dynamic Ledge.app"))
+    }
+
+    @Test func leavesEverythingElseAlone() throws {
+        let apps = try folder()
+        defer { try? FileManager.default.removeItem(at: apps) }
+        #expect(AppRename.destination(for: apps.appendingPathComponent("Dynamic Ledge.app")) == nil, "already renamed")
+        #expect(AppRename.destination(for: URL(fileURLWithPath: "/Volumes/Dynamic Notch/Dynamic Notch.app")) == nil, "disk image")
+
+        let old = apps.appendingPathComponent("Dynamic Notch.app")
+        try FileManager.default.createDirectory(at: apps.appendingPathComponent("Dynamic Ledge.app"), withIntermediateDirectories: true)
+        #expect(AppRename.destination(for: old) == nil, "never over another copy")
     }
 }

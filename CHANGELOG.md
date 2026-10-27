@@ -5,7 +5,7 @@ Every release of Dynamic Ledge (called Dynamic Notch until 1.4.0), newest first.
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
-## [Unreleased]
+## [1.4.0] - 2026-10-27
 
 **Dynamic Notch is now Dynamic Ledge.** Same app, new name. Updating from Dynamic Notch keeps all
 your settings, and the app renames itself in your Applications folder the first time it opens.
@@ -253,6 +253,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.4.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.0
 [1.3.5]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.5
 [1.3.4]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.4
 [1.3.3]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.3

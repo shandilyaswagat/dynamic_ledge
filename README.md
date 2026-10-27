@@ -216,10 +216,6 @@ Applications folder, and keeps all your settings. Homebrew moves you to the new 
 
 Everything that changed in each version is in the [changelog](CHANGELOG.md).
 
-## Want to build it yourself?
-
-Build steps and notes on how it all fits together are in the [docs folder](docs/README.md).
-
 ## License
 
 Dynamic Ledge is free software, © 2026 Swagat Shandilya and contributors. You can use it, share it

@@ -98,7 +98,10 @@ public final class CallMonitor {
                 return .failed
             }
         case .accessibilityButton:
-            guard Self.pressWhatsAppEndCall(in: pid) else {
+            // Walking another app's window can take a while if it's busy; never on the main
+            // thread, or the notch would freeze with it.
+            let pressed = await Task.detached(priority: .userInitiated) { Self.pressWhatsAppEndCall(in: pid) }.value
+            guard pressed else {
                 hangUpMessage = String(localized: "Couldn’t find WhatsApp’s End call button.")
                 return .failed
             }
@@ -125,15 +128,17 @@ public final class CallMonitor {
     }
 
     /// WhatsApp documents an End call button but no keyboard shortcut. Search only WhatsApp's
-    /// tree, require that exact label, and press it once after the user asks to hang up.
-    private static func pressWhatsAppEndCall(in pid: pid_t) -> Bool {
+    /// tree, require that exact label, and press it once after the user asks to hang up. Runs
+    /// off the main thread, with a short timeout per element and a cap on the whole search.
+    nonisolated private static func pressWhatsAppEndCall(in pid: pid_t) -> Bool {
         let application = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(application, 0.5)
+        let deadline = Date().addingTimeInterval(3)
         var pending: [(element: AXUIElement, depth: Int)] = [(application, 0)]
         var inspected = 0
-        while let current = pending.popLast(), inspected < 300 {
+        while let current = pending.popLast(), inspected < 300, Date() < deadline {
             inspected += 1
             let element = current.element
+            AXUIElementSetMessagingTimeout(element, 0.25)
             if hasEndCallLabel(element), supportsPress(element), AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
                 return true
             }
@@ -143,7 +148,7 @@ public final class CallMonitor {
         return false
     }
 
-    private static func hasEndCallLabel(_ element: AXUIElement) -> Bool {
+    nonisolated private static func hasEndCallLabel(_ element: AXUIElement) -> Bool {
         [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute].contains { key in
             guard let value = attribute(element, key) as? String else { return false }
             return value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
@@ -151,17 +156,17 @@ public final class CallMonitor {
         }
     }
 
-    private static func supportsPress(_ element: AXUIElement) -> Bool {
+    nonisolated private static func supportsPress(_ element: AXUIElement) -> Bool {
         var actions: CFArray?
         return AXUIElementCopyActionNames(element, &actions) == .success &&
             (actions as? [String])?.contains(kAXPressAction as String) == true
     }
 
-    private static func children(of element: AXUIElement) -> [AXUIElement] {
+    nonisolated private static func children(of element: AXUIElement) -> [AXUIElement] {
         (attribute(element, kAXChildrenAttribute) as? [AXUIElement]) ?? []
     }
 
-    private static func attribute(_ element: AXUIElement, _ key: String) -> CFTypeRef? {
+    nonisolated private static func attribute(_ element: AXUIElement, _ key: String) -> CFTypeRef? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, key as CFString, &value) == .success else { return nil }
         return value

@@ -12,7 +12,11 @@ last one.
   Tap the plus badge on available features to add up to three quick-access shortcuts in the top-left
   corner beside Home. Features you have already selected show a checkmark to prevent duplicates.
   In edit mode, tap a minus badge to remove a shortcut, or drag them to reorder. Home always stays
-  first, and your shortcuts and their order are remembered whenever you restart the app.
+  first, and your shortcuts and their order are remembered whenever you restart the app. A
+  shortcut for something you've switched off in Settings is hidden until you switch it back on,
+  and the Files shortcut shows how many files are in the Tray.
+- **A first look.** The very first time you open Dynamic Notch, Home opens for a few seconds so
+  you can see it's running.
 - **Elongated layout.** Pick it in Settings › Appearance and Home stretches across the top of the
   screen, with everything in one long row you can scroll sideways:
   - Music with a handle you can drag to any point in the song.
@@ -57,6 +61,8 @@ last one.
 - Files tray item spacing and close button clearance: widened spacing between files and inset the
   remove button so it no longer feels congested against the top notch strip.
 - Voice Control and assistive tools now interact reliably with Dynamic Notch even while tucked away.
+- Home no longer spills past its edges when music is playing; the Focus button drops its label
+  when there isn't room.
 
 ## [1.3.4] - 2026-10-26
 

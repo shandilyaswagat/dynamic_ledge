@@ -13,7 +13,7 @@ struct LauncherBody: View {
     nonisolated static let columns = 5
     nonisolated static let rowsPerPage = 2
 
-    private var selected: [LauncherItem] { model.settings.featureShortcuts }
+    private var selected: [LauncherItem] { model.featureShortcuts }
     private var atCapacity: Bool { selected.count >= SettingsStore.maximumFeatureShortcuts }
 
     var body: some View {
@@ -195,7 +195,7 @@ private struct LauncherTile: View {
                     case .second:
                         if isEditing {
                             if !isSelected && !atCapacity {
-                                model.settings.addFeatureShortcut(item)
+                                model.addFeatureShortcut(item)
                                 Haptics.perform(enabled: model.settings.hapticsEnabled)
                             }
                         } else {
@@ -212,7 +212,7 @@ private struct LauncherTile: View {
         .accessibilityAction {
             if isEditing {
                 if !isSelected && !atCapacity {
-                    model.settings.addFeatureShortcut(item)
+                    model.addFeatureShortcut(item)
                 }
             } else {
                 model.open(item)

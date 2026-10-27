@@ -201,147 +201,38 @@ private struct LauncherButton: View {
     }
 }
 
-/// A row of tabs. The selected tab shows its name when there's room; if there isn't, every tab
-/// is just an icon, so the row never runs into the camera.
-private struct NookTabs: View {
-    let model: IslandModel
-    let tabs: [HomeTab]
-    let selected: HomeTab
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            row(showsTitle: true)
-            row(showsTitle: false)
-        }
-    }
-
-    private func row(showsTitle: Bool) -> some View {
-        HStack(spacing: 4) {
-            ForEach(tabs, id: \.self) { tab in
-                NookTabButton(model: model, tab: tab, isSelected: tab == selected, showsTitle: showsTitle)
-            }
-        }
-        .fixedSize()
-    }
-}
-
-private struct NookTabButton: View {
-    let model: IslandModel
-    let tab: HomeTab
-    let isSelected: Bool
-    let showsTitle: Bool
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        Button {
-            model.showTab(tab)
-        } label: {
-            HStack(spacing: 4 * s) {
-                Image(systemName: Self.symbol(tab))
-                    .font(.system(size: 11 * s, weight: .semibold))
-                if isSelected, showsTitle {
-                    Text(Self.title(tab))
-                        .font(.system(size: 11 * s, weight: .semibold))
-                }
-                if tab == .tray, !model.tray.items.isEmpty {
-                    Text("\(model.tray.items.count)")
-                        .font(.system(size: 9 * s, weight: .bold))
-                        .monospacedDigit()
-                        .foregroundStyle(isSelected ? .black : .white)
-                        .padding(.horizontal, 4 * s)
-                        .background(Capsule().fill(isSelected ? Color.white : NotchColor.buttonFill))
-                }
-            }
-            .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
-            .padding(.horizontal, 8 * s)
-            .frame(height: 22 * s)
-            .background(Capsule().fill(isSelected ? NotchColor.buttonFill : Color.clear))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(PressableButtonStyle())
-        .help(Text(Self.title(tab)))
-        .accessibilityLabel(Text(Self.title(tab)))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    static func title(_ tab: HomeTab) -> LocalizedStringKey {
-        switch tab {
-        case .home: "Home"
-        case .tray: "Tray"
-        case .clipboard: "Clipboard"
-        case .notes: "Notes"
-        case .mirror: "Mirror"
-        case .timers: "Timer"
-        case .calendar: "Calendar"
-        case .reminders: "Reminders"
-        case .stats: "Stats"
-        case .launcher: "All Features"
-        case .shortcutEditor: "Shortcuts"
-        }
-    }
-
-    static func symbol(_ tab: HomeTab) -> String {
-        switch tab {
-        case .home: "house.fill"
-        case .tray: "tray.full.fill"
-        case .clipboard: "doc.on.clipboard.fill"
-        case .notes: "note.text"
-        case .mirror: "person.crop.square.fill"
-        case .timers: "timer"
-        case .calendar: "calendar"
-        case .reminders: "checklist"
-        case .stats: "gauge.with.dots.needle.33percent"
-        case .launcher: "square.grid.2x2"
-        case .shortcutEditor: "square.grid.2x2"
-        }
-    }
-}
-
 /// The permanent Home button and up to three saved feature shortcuts in the top-left corner.
+/// In edit mode they can be removed, or dragged sideways to reorder them.
 private struct FeatureShortcutBar: View {
     let model: IslandModel
     let selectedTab: HomeTab
+    /// The shortcut being dragged, kept here so reordering never waits on the pasteboard.
+    @State private var dragging: LauncherItem?
     @Environment(\.notchScale) private var s
 
-    private var shortcuts: [LauncherItem] {
-        model.settings.featureShortcuts
-    }
-
     var body: some View {
+        let shortcuts = model.featureShortcuts
+        let isEditing = model.isEditingShortcuts
         HStack(spacing: 3 * s) {
-            HomeShortcutButton(
-                isSelected: selectedTab == .home && !model.isEditingShortcuts,
-                action: {
-                    if model.isEditingShortcuts {
-                        model.isEditingShortcuts = false
-                    }
-                    model.showTab(.home)
-                }
-            )
+            HomeShortcutButton(isSelected: selectedTab == .home && !isEditing) {
+                model.isEditingShortcuts = false
+                model.showTab(.home)
+            }
             ForEach(Array(shortcuts.enumerated()), id: \.element) { index, item in
                 CustomShortcutButton(
                     item: item,
-                    index: index,
-                    totalCount: shortcuts.count,
-                    isSelected: isCurrentFeature(item) && !model.isEditingShortcuts,
-                    isEditing: model.isEditingShortcuts,
+                    isSelected: isCurrentFeature(item) && !isEditing,
+                    isEditing: isEditing,
+                    badge: item == .files && !isEditing ? model.tray.items.count : 0,
                     onTap: {
-                        if model.isEditingShortcuts {
-                            model.settings.removeFeatureShortcut(item)
-                            Haptics.perform(enabled: model.settings.hapticsEnabled)
-                        } else {
-                            model.open(item)
-                        }
+                        if isEditing { remove(item) } else { model.open(item) }
                     },
-                    onRemove: {
-                        model.settings.removeFeatureShortcut(item)
-                        Haptics.perform(enabled: model.settings.hapticsEnabled)
-                    },
-                    onMove: { source, destination in
-                        model.settings.moveFeatureShortcut(from: source, to: destination)
-                    },
-                    model: model
+                    onRemove: { remove(item) },
+                    moveLeft: index > 0 ? { model.settings.moveFeatureShortcut(item, to: shortcuts[index - 1]) } : nil,
+                    moveRight: index < shortcuts.count - 1 ? { model.settings.moveFeatureShortcut(item, to: shortcuts[index + 1]) } : nil
                 )
+                .modifier(ShortcutDrag(isEnabled: isEditing, item: item) { dragging = item })
+                .onDrop(of: [.text], delegate: ShortcutBarDropDelegate(target: item, model: model, dragging: $dragging))
             }
         }
         .padding(2 * s)
@@ -349,6 +240,11 @@ private struct FeatureShortcutBar: View {
         .contentShape(Capsule())
         .accessibilityIdentifier("feature-shortcuts")
         .animation(.spring(duration: 0.3, bounce: 0.2), value: shortcuts)
+    }
+
+    private func remove(_ item: LauncherItem) {
+        model.settings.removeFeatureShortcut(item)
+        Haptics.perform(enabled: model.settings.hapticsEnabled)
     }
 
     private func isCurrentFeature(_ item: LauncherItem) -> Bool {
@@ -393,14 +289,14 @@ private struct HomeShortcutButton: View {
 
 private struct CustomShortcutButton: View {
     let item: LauncherItem
-    let index: Int
-    let totalCount: Int
     let isSelected: Bool
     let isEditing: Bool
+    /// A count shown on the icon: how many files are in the Tray.
+    let badge: Int
     let onTap: () -> Void
     let onRemove: () -> Void
-    let onMove: (Int, Int) -> Void
-    let model: IslandModel
+    let moveLeft: (() -> Void)?
+    let moveRight: (() -> Void)?
     @State private var isHovering = false
     @Environment(\.notchScale) private var s
 
@@ -418,6 +314,7 @@ private struct CustomShortcutButton: View {
             .onHover { isHovering = $0 }
             .help(isEditing ? "Remove \(item.title)" : item.title)
             .accessibilityLabel(Text(item.title))
+            .accessibilityValue(Text(badge > 0 ? "\(badge)" : ""))
             .accessibilityAddTraits(isSelected ? .isSelected : [])
 
             if isEditing {
@@ -432,54 +329,69 @@ private struct CustomShortcutButton: View {
                 .buttonStyle(PlainButtonStyle())
                 .offset(x: 3 * s, y: -3 * s)
                 .accessibilityLabel(Text("Remove \(item.title)"))
+            } else if badge > 0 {
+                Text("\(badge)")
+                    .font(.system(size: 8 * s, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3 * s)
+                    .frame(minWidth: 12 * s, minHeight: 12 * s)
+                    .background(Capsule().fill(NotchColor.blue))
+                    .offset(x: 3 * s, y: -2 * s)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
-        .onDrag {
-            NSItemProvider(object: item.rawValue as NSString)
-        }
-        .onDrop(of: [.text], delegate: ShortcutBarDropDelegate(item: item, model: model))
-        .accessibilityAction(named: Text("Move Left")) {
-            if index > 0 { onMove(index, index - 1) }
-        }
-        .accessibilityAction(named: Text("Move Right")) {
-            if index < totalCount - 1 { onMove(index, index + 1) }
-        }
+        .accessibilityAction(named: Text("Move Left")) { moveLeft?() }
+        .accessibilityAction(named: Text("Move Right")) { moveRight?() }
         .accessibilityAction(named: Text("Remove")) { onRemove() }
     }
 }
 
-private struct ShortcutBarDropDelegate: DropDelegate {
+/// Shortcuts can be dragged only while editing; otherwise a drag would carry the feature's name
+/// out as text into whatever app it's dropped on.
+private struct ShortcutDrag: ViewModifier {
+    let isEnabled: Bool
     let item: LauncherItem
-    let model: IslandModel
+    let onStart: () -> Void
 
-    func performDrop(info: DropInfo) -> Bool {
-        guard model.isEditingShortcuts else { return false }
-        guard let itemProvider = info.itemProviders(for: [.text]).first else { return false }
-        itemProvider.loadObject(ofClass: NSString.self) { string, _ in
-            guard let rawValue = string as? String else { return }
-            DispatchQueue.main.async {
-                guard let source = model.settings.featureShortcuts.firstIndex(where: { $0.rawValue == rawValue }),
-                      let dest = model.settings.featureShortcuts.firstIndex(of: item),
-                      source != dest else { return }
-                model.settings.moveFeatureShortcut(from: source, to: dest)
-                Haptics.perform(enabled: model.settings.hapticsEnabled)
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.onDrag {
+                onStart()
+                return NSItemProvider(object: item.rawValue as NSString)
             }
+        } else {
+            content
         }
-        return true
+    }
+}
+
+/// Reorders live as the dragged shortcut passes over another, like the iPhone's Home Screen.
+/// Moving happens once, on entering; letting go only finishes the drag.
+private struct ShortcutBarDropDelegate: DropDelegate {
+    let target: LauncherItem
+    let model: IslandModel
+    @Binding var dragging: LauncherItem?
+
+    func validateDrop(info: DropInfo) -> Bool {
+        model.isEditingShortcuts && dragging != nil
     }
 
     func dropEntered(info: DropInfo) {
-        guard model.isEditingShortcuts else { return }
-        guard let itemProvider = info.itemProviders(for: [.text]).first else { return }
-        itemProvider.loadObject(ofClass: NSString.self) { string, _ in
-            guard let rawValue = string as? String else { return }
-            DispatchQueue.main.async {
-                guard let source = model.settings.featureShortcuts.firstIndex(where: { $0.rawValue == rawValue }),
-                      let dest = model.settings.featureShortcuts.firstIndex(of: item),
-                      source != dest else { return }
-                model.settings.moveFeatureShortcut(from: source, to: dest)
-            }
-        }
+        guard model.isEditingShortcuts, let dragging, dragging != target else { return }
+        model.settings.moveFeatureShortcut(dragging, to: target)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard dragging != nil else { return false }
+        dragging = nil
+        Haptics.perform(enabled: model.settings.hapticsEnabled)
+        return true
     }
 }
 
@@ -762,16 +674,28 @@ private struct TimerPresetsRow: View {
                     .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s, width: 40 * s))
                     .accessibilityLabel(Text("Start \(TimeFormatting.spoken(preset)) timer"))
             }
-            Button {
-                model.startSession(.focus)
-            } label: {
+            // Beside the music card there isn't always room for the word; the icon stays.
+            ViewThatFits(in: .horizontal) {
+                focusButton(showsTitle: true)
+                focusButton(showsTitle: false)
+            }
+        }
+    }
+
+    private func focusButton(showsTitle: Bool) -> some View {
+        Button {
+            model.startSession(.focus)
+        } label: {
+            if showsTitle {
                 Label("Focus", systemImage: TimerMode.focus.symbol)
                     .labelStyle(.titleAndIcon)
+            } else {
+                Image(systemName: TimerMode.focus.symbol)
             }
-            .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s))
-            .help("Focus for \(model.settings.focusMinutes) minutes, then take a \(model.settings.breakMinutes) minute break")
-            .accessibilityLabel(Text("Start a \(model.settings.focusMinutes) minute focus session"))
         }
+        .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s))
+        .help("Focus for \(model.settings.focusMinutes) minutes, then take a \(model.settings.breakMinutes) minute break")
+        .accessibilityLabel(Text("Start a \(model.settings.focusMinutes) minute focus session"))
     }
 
     /// "5m", "10m": short enough that the row fits beside the music card.

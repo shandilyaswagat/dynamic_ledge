@@ -77,7 +77,6 @@ struct TimerPanelModelTests {
         model.showTab(.timers)
         #expect(model.presentation == .nook(.timers))
         #expect(model.presentation.homeTab?.isPanel == true)
-        #expect(!model.homeTabs.contains(.timers))
         model.showTab(.home)
         #expect(model.presentation == .home)
     }

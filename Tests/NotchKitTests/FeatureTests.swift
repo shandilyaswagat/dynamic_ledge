@@ -358,13 +358,44 @@ struct NewFeatureModelTests {
         #expect(model.presentation == .hidden(peek: false))
     }
 
-    @Test func tabsFollowSettings() {
+    @Test func shortcutsFollowSettings() {
         let model = makeModel()
-        #expect(model.homeTabs == [.home, .tray, .clipboard])
+        #expect(model.featureShortcuts == [.files, .clipboard])
         model.settings.mirrorEnabled = false
         model.settings.clipboardEnabled = false
         model.settings.notesEnabled = false
-        #expect(model.homeTabs == [.home, .tray])
+        #expect(model.featureShortcuts == [.files])
+        model.settings.clipboardEnabled = true
+        #expect(model.featureShortcuts == [.files, .clipboard], "comes back when switched on")
+    }
+
+    @Test func firstLaunchHomeClosesByItself() async throws {
+        let model = makeModel()
+        model.showHomeBriefly(for: 0.05)
+        #expect(model.presentation == .home)
+        for _ in 0..<50 where model.presentation == .home {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.presentation != .home)
+    }
+
+    @Test func aHiddenShortcutMakesRoom() {
+        let model = makeModel()
+        model.settings.featureShortcuts = [.files, .clipboard, .calendar]
+        model.settings.clipboardEnabled = false
+        #expect(model.featureShortcuts == [.files, .calendar])
+        #expect(model.addFeatureShortcut(.stats))
+        #expect(model.settings.featureShortcuts == [.files, .calendar, .stats])
+        #expect(!model.addFeatureShortcut(.timer), "three visible is the limit")
+    }
+
+    @Test func movingByFeatureLandsOnTheTarget() {
+        let model = makeModel()
+        model.settings.featureShortcuts = [.files, .clipboard, .calendar]
+        model.settings.moveFeatureShortcut(.files, to: .calendar)
+        #expect(model.settings.featureShortcuts == [.clipboard, .calendar, .files])
+        model.settings.moveFeatureShortcut(.files, to: .clipboard)
+        #expect(model.settings.featureShortcuts == [.files, .clipboard, .calendar])
     }
 
     @Test func homeRowsFollowSettings() {

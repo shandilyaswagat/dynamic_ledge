@@ -247,6 +247,15 @@ public final class SettingsStore {
         return true
     }
 
+    /// Moves a shortcut to where another one is, by feature rather than position, so hidden
+    /// shortcuts in between don't throw it off.
+    @discardableResult
+    public func moveFeatureShortcut(_ item: LauncherItem, to target: LauncherItem) -> Bool {
+        guard let source = featureShortcuts.firstIndex(of: item),
+              let destination = featureShortcuts.firstIndex(of: target) else { return false }
+        return moveFeatureShortcut(from: source, to: destination)
+    }
+
     @discardableResult
     public func moveFeatureShortcut(from source: Int, to destination: Int) -> Bool {
         var selection = FeatureShortcutSelection(items: featureShortcuts)

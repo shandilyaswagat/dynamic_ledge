@@ -38,11 +38,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         islandWindows = IslandWindowManager(model: model)
         if LockScreenController.isAvailable { lockScreen = LockScreenController(model: model) }
         statusController = StatusItemController(model: model) { [weak settingsController] in settingsController?.show() }
+        let isFirstLaunch = !settings.hasShownWelcome
         model.startServices()
-        // Launching from Finder or a freshly mounted DMG must give immediate feedback. The
-        // notch can still collapse after the normal pointer-exit delay, but Home is visible
-        // when the app starts instead of appearing to do nothing in the background.
-        model.showTab(.home)
+        // The first launch (from Finder or a fresh DMG) shows Home for a moment, so the app
+        // doesn't seem to do nothing. Later launches, including at login, stay out of the way.
+        if isFirstLaunch { model.showHomeBriefly() }
 
         #if DEBUG
         debugHooks = DebugHooks(model: model, settings: settingsController, lockScreen: lockScreen)

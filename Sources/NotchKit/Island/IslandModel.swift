@@ -301,12 +301,35 @@ public final class IslandModel {
         )
     }
 
-    /// Tabs shown at the top of the Home view.
-    public var homeTabs: [HomeTab] {
-        var tabs: [HomeTab] = [.home]
-        if settings.trayEnabled { tabs.append(.tray) }
-        if settings.clipboardEnabled { tabs.append(.clipboard) }
-        return tabs
+    /// The saved shortcuts beside Home whose feature is switched on, in order. One switched off
+    /// in Settings is hidden, and comes back when it's switched on again.
+    public var featureShortcuts: [LauncherItem] {
+        let available = launcherItems
+        return settings.featureShortcuts.filter(available.contains)
+    }
+
+    /// Adds a shortcut. When every slot is taken but some belong to switched-off features, the
+    /// hidden one makes room, since the user can only see and count the visible ones.
+    @discardableResult
+    public func addFeatureShortcut(_ item: LauncherItem) -> Bool {
+        guard featureShortcuts.count < SettingsStore.maximumFeatureShortcuts else { return false }
+        var saved = settings.featureShortcuts
+        if saved.count >= SettingsStore.maximumFeatureShortcuts, let hidden = saved.lastIndex(where: { !launcherItems.contains($0) }) {
+            saved.remove(at: hidden)
+            settings.featureShortcuts = saved
+        }
+        return settings.addFeatureShortcut(item)
+    }
+
+    /// Opens Home on the very first launch, so a new user sees the app start, and closes it
+    /// again after a few seconds unless they've moved onto it.
+    public func showHomeBriefly(for seconds: Double = 6) {
+        showTab(.home)
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard let self, self.expandTarget == .home, !self.pointerEnteredExpanded, !self.isHoveringPill else { return }
+            self.collapse()
+        }
     }
 
     /// Tiles in the launcher grid: everything that's switched on.

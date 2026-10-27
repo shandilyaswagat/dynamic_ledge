@@ -18,7 +18,6 @@ struct NookContainer<Content: View>: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        let tabs = model.homeTabs
         VStack(spacing: 0) {
             // Each side of the camera gets exactly half of what's left, so nothing can slide
             // under the camera however many tabs are on.
@@ -26,18 +25,40 @@ struct NookContainer<Content: View>: View {
                 Group {
                     if tab.isPanel {
                         PanelTitle(model: model, title: Self.panelTitle(tab))
-                            .padding(.leading, -6 * s)
+                            // Calendar and the other panels keep a dedicated leading slot for
+                            // the Home control, rather than squeezing it against the title.
+                            .frame(minWidth: 112 * s, alignment: .leading)
+                            .padding(.leading, 2 * s)
                     } else {
-                        NookTabs(model: model, tabs: tabs, selected: tab)
+                        FeatureShortcutBar(model: model, selectedTab: tab)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Color.clear
                     .frame(width: cameraGap + 12 * s)
                 HStack(spacing: 4 * s) {
-                    UpdatePill(model: model)
-                    LauncherButton(model: model, isOpen: tab == .launcher)
-                    SettingsButton(model: model)
+                    if model.isEditingShortcuts {
+                        Button {
+                            model.isEditingShortcuts = false
+                            if tab == .shortcutEditor {
+                                model.showTab(.launcher)
+                            }
+                        } label: {
+                            Text("Done")
+                                .font(.system(size: 11 * s, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10 * s)
+                                .frame(height: 22 * s)
+                                .background(Capsule().fill(NotchColor.blue))
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                        .accessibilityLabel(Text("Done editing shortcuts"))
+                    } else {
+                        UpdatePill(model: model)
+                        LauncherButton(model: model, isOpen: tab == .launcher)
+                        SettingsButton(model: model)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -58,6 +79,7 @@ struct NookContainer<Content: View>: View {
         case .notes: "Scratchpad"
         case .mirror: "Camera Mirror"
         case .stats: "Stats"
+        case .shortcutEditor: "Shortcuts"
         default: "Timer"
         }
     }
@@ -254,6 +276,7 @@ private struct NookTabButton: View {
         case .reminders: "Reminders"
         case .stats: "Stats"
         case .launcher: "All Features"
+        case .shortcutEditor: "Shortcuts"
         }
     }
 
@@ -269,6 +292,193 @@ private struct NookTabButton: View {
         case .reminders: "checklist"
         case .stats: "gauge.with.dots.needle.33percent"
         case .launcher: "square.grid.2x2"
+        case .shortcutEditor: "square.grid.2x2"
+        }
+    }
+}
+
+/// The permanent Home button and up to three saved feature shortcuts in the top-left corner.
+private struct FeatureShortcutBar: View {
+    let model: IslandModel
+    let selectedTab: HomeTab
+    @Environment(\.notchScale) private var s
+
+    private var shortcuts: [LauncherItem] {
+        model.settings.featureShortcuts
+    }
+
+    var body: some View {
+        HStack(spacing: 3 * s) {
+            HomeShortcutButton(
+                isSelected: selectedTab == .home && !model.isEditingShortcuts,
+                action: {
+                    if model.isEditingShortcuts {
+                        model.isEditingShortcuts = false
+                    }
+                    model.showTab(.home)
+                }
+            )
+            ForEach(Array(shortcuts.enumerated()), id: \.element) { index, item in
+                CustomShortcutButton(
+                    item: item,
+                    index: index,
+                    totalCount: shortcuts.count,
+                    isSelected: isCurrentFeature(item) && !model.isEditingShortcuts,
+                    isEditing: model.isEditingShortcuts,
+                    onTap: {
+                        if model.isEditingShortcuts {
+                            model.settings.removeFeatureShortcut(item)
+                            Haptics.perform(enabled: model.settings.hapticsEnabled)
+                        } else {
+                            model.open(item)
+                        }
+                    },
+                    onRemove: {
+                        model.settings.removeFeatureShortcut(item)
+                        Haptics.perform(enabled: model.settings.hapticsEnabled)
+                    },
+                    onMove: { source, destination in
+                        model.settings.moveFeatureShortcut(from: source, to: destination)
+                    },
+                    model: model
+                )
+            }
+        }
+        .padding(2 * s)
+        .background(Capsule().fill(Color.white.opacity(0.055)))
+        .contentShape(Capsule())
+        .accessibilityIdentifier("feature-shortcuts")
+        .animation(.spring(duration: 0.3, bounce: 0.2), value: shortcuts)
+    }
+
+    private func isCurrentFeature(_ item: LauncherItem) -> Bool {
+        switch item {
+        case .nowPlaying: model.presentation == .expanded(.nowPlaying)
+        case .timer: selectedTab == .timers && model.timerPanelMode == .timer
+        case .stopwatch: selectedTab == .timers && model.timerPanelMode == .stopwatch
+        case .calendar: selectedTab == .calendar
+        case .reminders: selectedTab == .reminders
+        case .clipboard: selectedTab == .clipboard
+        case .files: selectedTab == .tray
+        case .scratchpad: selectedTab == .notes
+        case .mirror: selectedTab == .mirror
+        case .keepAwake: model.keepAwake.isOn
+        case .stats: selectedTab == .stats
+        }
+    }
+}
+
+private struct HomeShortcutButton: View {
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "house.fill")
+                .font(.system(size: 11 * s, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
+                .frame(width: 24 * s, height: 22 * s)
+                .background(Circle().fill(isSelected ? NotchColor.buttonFill : (isHovering ? Color.white.opacity(0.08) : Color.clear)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .onHover { isHovering = $0 }
+        .help("Home")
+        .accessibilityLabel(Text("Home"))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct CustomShortcutButton: View {
+    let item: LauncherItem
+    let index: Int
+    let totalCount: Int
+    let isSelected: Bool
+    let isEditing: Bool
+    let onTap: () -> Void
+    let onRemove: () -> Void
+    let onMove: (Int, Int) -> Void
+    let model: IslandModel
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Button(action: onTap) {
+                Image(systemName: item.symbolName)
+                    .font(.system(size: 11 * s, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
+                    .frame(width: 24 * s, height: 22 * s)
+                    .background(Circle().fill(isSelected ? NotchColor.buttonFill : (isHovering ? Color.white.opacity(0.08) : Color.clear)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .onHover { isHovering = $0 }
+            .help(isEditing ? "Remove \(item.title)" : item.title)
+            .accessibilityLabel(Text(item.title))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+
+            if isEditing {
+                Button(action: onRemove) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 10 * s, weight: .bold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, NotchColor.red)
+                        .frame(width: 14 * s, height: 14 * s)
+                        .background(Circle().fill(Color.black.opacity(0.8)))
+                }
+                .buttonStyle(PlainButtonStyle())
+                .offset(x: 3 * s, y: -3 * s)
+                .accessibilityLabel(Text("Remove \(item.title)"))
+            }
+        }
+        .onDrag {
+            NSItemProvider(object: item.rawValue as NSString)
+        }
+        .onDrop(of: [.text], delegate: ShortcutBarDropDelegate(item: item, model: model))
+        .accessibilityAction(named: Text("Move Left")) {
+            if index > 0 { onMove(index, index - 1) }
+        }
+        .accessibilityAction(named: Text("Move Right")) {
+            if index < totalCount - 1 { onMove(index, index + 1) }
+        }
+        .accessibilityAction(named: Text("Remove")) { onRemove() }
+    }
+}
+
+private struct ShortcutBarDropDelegate: DropDelegate {
+    let item: LauncherItem
+    let model: IslandModel
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard model.isEditingShortcuts else { return false }
+        guard let itemProvider = info.itemProviders(for: [.text]).first else { return false }
+        itemProvider.loadObject(ofClass: NSString.self) { string, _ in
+            guard let rawValue = string as? String else { return }
+            DispatchQueue.main.async {
+                guard let source = model.settings.featureShortcuts.firstIndex(where: { $0.rawValue == rawValue }),
+                      let dest = model.settings.featureShortcuts.firstIndex(of: item),
+                      source != dest else { return }
+                model.settings.moveFeatureShortcut(from: source, to: dest)
+                Haptics.perform(enabled: model.settings.hapticsEnabled)
+            }
+        }
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard model.isEditingShortcuts else { return }
+        guard let itemProvider = info.itemProviders(for: [.text]).first else { return }
+        itemProvider.loadObject(ofClass: NSString.self) { string, _ in
+            guard let rawValue = string as? String else { return }
+            DispatchQueue.main.async {
+                guard let source = model.settings.featureShortcuts.firstIndex(where: { $0.rawValue == rawValue }),
+                      let dest = model.settings.featureShortcuts.firstIndex(of: item),
+                      source != dest else { return }
+                model.settings.moveFeatureShortcut(from: source, to: dest)
+            }
         }
     }
 }
@@ -637,19 +847,22 @@ struct TrayBody: View {
             }
             .padding(.bottom, 2 * s)
         } else {
-            HStack(alignment: .center, spacing: 8 * s) {
+            HStack(alignment: .center, spacing: 12 * s) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6 * s) {
+                    HStack(spacing: 12 * s) {
                         ForEach(items) { item in
                             TrayItemView(model: model, item: item)
                         }
                     }
+                    .padding(.horizontal, 4 * s)
+                    .padding(.top, 8 * s)
+                    .padding(.bottom, 6 * s)
                 }
                 Button {
                     model.tray.removeAll()
                 } label: {
                     Image(systemName: "xmark.bin.fill")
-                        .font(.system(size: 12 * s, weight: .semibold))
+                        .font(.system(size: 13 * s, weight: .semibold))
                         .foregroundStyle(NotchColor.secondaryText)
                         .frame(width: 28 * s, height: 28 * s)
                         .background(Circle().fill(NotchColor.buttonFill))
@@ -675,25 +888,34 @@ struct TrayItemView: View {
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 52 * s, height: 52 * s)
+                .frame(width: 48 * s, height: 48 * s)
             Text(item.name)
                 .font(.system(size: 10 * s, weight: .medium))
                 .foregroundStyle(.white.opacity(0.85))
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(width: 70 * s)
+                .frame(width: 72 * s)
         }
-        .padding(6 * s)
+        .padding(.horizontal, 8 * s)
+        .padding(.vertical, 8 * s)
         .background(RoundedRectangle(cornerRadius: 12 * s, style: .continuous).fill(Color.white.opacity(isHovering ? 0.12 : 0)))
         .overlay(alignment: .topTrailing) {
             if isHovering {
                 Button { model.tray.remove(item.id) } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14 * s))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, Color(white: 0.35))
+                    ZStack {
+                        Circle()
+                            .fill(Color.black.opacity(0.75))
+                            .frame(width: 18 * s, height: 18 * s)
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 15 * s))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, Color(white: 0.35))
+                    }
+                    .frame(width: 22 * s, height: 22 * s)
+                    .contentShape(Circle())
                 }
                 .buttonStyle(PressableButtonStyle())
+                .padding([.top, .trailing], 3 * s)
                 .accessibilityLabel(Text("Remove \(item.name)"))
             }
         }
@@ -730,11 +952,11 @@ struct MirrorBody: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
                     .fill(Color.white.opacity(0.07))
-                if model.camera.state == .granted {
+                if model.camera.state == .granted && !model.camera.isCameraOff {
                     CameraPreview()
                         .clipShape(RoundedRectangle(cornerRadius: 16 * s, style: .continuous))
                 } else {
-                    Image(systemName: "person.crop.square.fill")
+                    Image(systemName: model.camera.isCameraOff ? "camera.slash.fill" : "person.crop.square.fill")
                         .font(.system(size: 28 * s, weight: .medium))
                         .foregroundStyle(NotchColor.secondaryText)
                 }
@@ -742,20 +964,30 @@ struct MirrorBody: View {
             // 16:9, the shape of a video call.
             .aspectRatio(16 / 9, contentMode: .fit)
             VStack(alignment: .leading, spacing: 8 * s) {
-                Text(Self.message(model.camera.state))
+                Text(Self.message(model.camera.state, isOff: model.camera.isCameraOff))
                     .font(.system(size: 12 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 switch model.camera.state {
                 case .notAsked:
-                    Button("Turn On Camera") { model.camera.request() }
-                        .buttonStyle(ChipButtonStyle(tint: .white, scale: s))
-                        .fixedSize()
+                    Button("Turn On Camera") {
+                        model.camera.isCameraOff = false
+                        model.camera.request()
+                    }
+                    .buttonStyle(ChipButtonStyle(tint: .white, scale: s))
+                    .fixedSize()
                 case .denied:
                     Button("Open Settings") { model.camera.openPrivacySettings() }
                         .buttonStyle(ChipButtonStyle(tint: .white, scale: s))
                         .fixedSize()
-                case .granted, .noCamera:
+                case .granted:
+                    Button(model.camera.isCameraOff ? "Turn On Camera" : "Turn Off Camera") {
+                        model.camera.toggleCamera()
+                    }
+                    .buttonStyle(ChipButtonStyle(tint: .white, scale: s))
+                    .fixedSize()
+                    .accessibilityLabel(Text(model.camera.isCameraOff ? "Turn on camera" : "Turn off camera"))
+                case .noCamera:
                     EmptyView()
                 }
             }
@@ -764,9 +996,12 @@ struct MirrorBody: View {
         .padding(.bottom, 2 * s)
     }
 
-    private static func message(_ state: CameraAccess.State) -> LocalizedStringKey {
+    private static func message(_ state: CameraAccess.State, isOff: Bool) -> LocalizedStringKey {
         switch state {
-        case .granted: "Check how you look before a call. The camera turns off when you close this."
+        case .granted:
+            isOff
+                ? "Camera preview is turned off."
+                : "Check how you look before a call. The camera turns off when you close this."
         case .notAsked: "Check how you look before a call."
         case .denied: "Camera access is off for Dynamic Notch."
         case .noCamera: "No camera found."

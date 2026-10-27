@@ -6,47 +6,90 @@ import SwiftUI
 /// two rows to a page. More tiles make more pages, scrolled through with dots on the right.
 struct LauncherBody: View {
     let model: IslandModel
+    var startInEditMode: Bool = false
     @State private var page: Int? = 0
     @Environment(\.notchScale) private var s
 
     nonisolated static let columns = 5
     nonisolated static let rowsPerPage = 2
 
+    private var selected: [LauncherItem] { model.settings.featureShortcuts }
+    private var atCapacity: Bool { selected.count >= SettingsStore.maximumFeatureShortcuts }
+
     var body: some View {
+        let isEditing = model.isEditingShortcuts || startInEditMode
         let pages = Self.pages(model.launcherItems)
         let gap = IslandMetrics.Nook.launcherGap * s
         let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: Self.columns)
-        GeometryReader { geometry in
-            HStack(spacing: 10 * s) {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(pages.indices, id: \.self) { index in
-                            LazyVGrid(columns: columns, spacing: gap) {
-                                ForEach(pages[index]) { item in
-                                    LauncherTile(model: model, item: item)
+
+        VStack(spacing: 4 * s) {
+            if isEditing && atCapacity {
+                Text("You can add up to 3 shortcuts. Remove one to add another.")
+                    .font(.system(size: 11 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .lineLimit(1)
+                    .padding(.top, 1 * s)
+                    .padding(.bottom, 2 * s)
+                    .transition(.opacity)
+            }
+
+            GeometryReader { geometry in
+                HStack(spacing: 10 * s) {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(spacing: 0) {
+                            ForEach(pages.indices, id: \.self) { index in
+                                LazyVGrid(columns: columns, spacing: gap) {
+                                    ForEach(pages[index]) { item in
+                                        LauncherTile(
+                                            model: model,
+                                            item: item,
+                                            isEditing: isEditing,
+                                            isSelected: selected.contains(item),
+                                            atCapacity: atCapacity
+                                        )
+                                    }
                                 }
+                                .frame(height: geometry.size.height, alignment: .top)
+                                .id(index)
                             }
-                            .frame(height: geometry.size.height, alignment: .top)
-                            .id(index)
                         }
+                        .scrollTargetLayout()
                     }
-                    .scrollTargetLayout()
-                }
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: $page)
-                if pages.count > 1 {
-                    PageDots(count: pages.count, current: page ?? 0) { index in
-                        withAnimation(.smooth(duration: 0.35)) { page = index }
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: $page)
+                    if pages.count > 1 {
+                        PageDots(count: pages.count, current: page ?? 0) { index in
+                            withAnimation(.smooth(duration: 0.35)) { page = index }
+                        }
                     }
                 }
             }
         }
+        .onAppear {
+            if startInEditMode {
+                model.isEditingShortcuts = true
+            }
+        }
+        .animation(.spring(duration: 0.35, bounce: 0.2), value: isEditing)
+        .animation(.spring(duration: 0.35, bounce: 0.2), value: selected)
+        .accessibilityIdentifier("feature-shortcut-editor")
     }
 
     /// Tiles split into pages of ten.
     nonisolated static func pages(_ items: [LauncherItem]) -> [[LauncherItem]] {
         let size = columns * rowsPerPage
         return stride(from: 0, to: max(items.count, 1), by: size).map { Array(items[$0..<min($0 + size, items.count)]) }
+    }
+}
+
+// MARK: Shortcut editor
+
+/// Shown when navigating directly to .shortcutEditor, opening the launcher in edit mode.
+struct ShortcutEditorBody: View {
+    let model: IslandModel
+
+    var body: some View {
+        LauncherBody(model: model, startInEditMode: true)
     }
 }
 
@@ -80,90 +123,108 @@ private struct PageDots: View {
 private struct LauncherTile: View {
     let model: IslandModel
     let item: LauncherItem
+    var isEditing: Bool = false
+    var isSelected: Bool = false
+    var atCapacity: Bool = false
+
     @State private var isHovering = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
         let live = model.isLive(item)
-        Button {
-            model.open(item)
-        } label: {
-            VStack(spacing: 0) {
-                Image(systemName: Self.symbol(item, live: live))
-                    .font(.system(size: 19 * s, weight: .regular))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Self.tint(item))
-                    .frame(height: 24 * s)
-                Text(Self.title(item))
-                    .font(.system(size: 11.5 * s, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .padding(.top, 7 * s)
-                if model.settings.keyboardShortcutsEnabled {
-                    Text(item.shortcutLabel)
-                        .font(.system(size: 9.5 * s, weight: .regular))
-                        .kerning(0.5 * s)
-                        .foregroundStyle(Color.white.opacity(0.38))
-                        .padding(.top, 2 * s)
-                }
+        VStack(spacing: 0) {
+            Image(systemName: Self.symbol(item, live: live))
+                .font(.system(size: 19 * s, weight: .regular))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Self.tint(item))
+                .frame(height: 24 * s)
+            Text(item.title)
+                .font(.system(size: 11.5 * s, weight: .medium))
+                .foregroundStyle(.white.opacity(0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .padding(.top, 7 * s)
+            if model.settings.keyboardShortcutsEnabled {
+                Text(item.shortcutLabel)
+                    .font(.system(size: 9.5 * s, weight: .regular))
+                    .kerning(0.5 * s)
+                    .foregroundStyle(Color.white.opacity(0.38))
+                    .padding(.top, 2 * s)
             }
-            .padding(.horizontal, 6 * s)
-            .frame(maxWidth: .infinity)
-            .frame(height: IslandMetrics.Nook.launcherTile * s)
-            .background(
-                RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
-                    .fill(Color.white.opacity(isHovering ? 0.1 : 0.055))
-            )
-            .overlay(alignment: .topTrailing) {
-                // On right now: music playing, a timer running, kept awake.
-                if live {
-                    Circle()
-                        .fill(Self.tint(item))
-                        .frame(width: 6 * s, height: 6 * s)
-                        .padding(9 * s)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 16 * s, style: .continuous))
-            .animation(.easeOut(duration: 0.15), value: isHovering)
         }
-        .buttonStyle(PressableButtonStyle())
+        .padding(.horizontal, 6 * s)
+        .frame(maxWidth: .infinity)
+        .frame(height: IslandMetrics.Nook.launcherTile * s)
+        .background(
+            RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
+                .fill(Color.white.opacity(isHovering ? 0.1 : 0.055))
+        )
+        .overlay(alignment: .topTrailing) {
+            if isEditing {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 15 * s, weight: .semibold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, NotchColor.blue)
+                        .padding(6 * s)
+                } else if !atCapacity {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 15 * s, weight: .semibold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, NotchColor.blue)
+                        .padding(6 * s)
+                }
+            } else if live {
+                Circle()
+                    .fill(Self.tint(item))
+                    .frame(width: 6 * s, height: 6 * s)
+                    .padding(9 * s)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 16 * s, style: .continuous))
+        .gesture(
+            LongPressGesture(minimumDuration: 0.4)
+                .exclusively(before: TapGesture())
+                .onEnded { gesture in
+                    switch gesture {
+                    case .first:
+                        if !isEditing {
+                            model.isEditingShortcuts = true
+                            Haptics.perform(enabled: model.settings.hapticsEnabled)
+                        }
+                    case .second:
+                        if isEditing {
+                            if !isSelected && !atCapacity {
+                                model.settings.addFeatureShortcut(item)
+                                Haptics.perform(enabled: model.settings.hapticsEnabled)
+                            }
+                        } else {
+                            model.open(item)
+                        }
+                    }
+                }
+        )
+        .animation(.easeOut(duration: 0.15), value: isHovering)
         .onHover { isHovering = $0 }
-        .help(Self.help(item, live: live))
-        .accessibilityLabel(Text(Self.title(item)))
-        .accessibilityValue(Text(live ? "On" : ""))
-    }
-
-    static func title(_ item: LauncherItem) -> LocalizedStringKey {
-        switch item {
-        case .nowPlaying: "Now Playing"
-        case .timer: "Timer"
-        case .stopwatch: "Stopwatch"
-        case .calendar: "Calendar"
-        case .reminders: "Reminders"
-        case .clipboard: "Clipboard"
-        case .files: "Files"
-        case .scratchpad: "Scratchpad"
-        case .mirror: "Camera Mirror"
-        case .keepAwake: "Keep Awake"
-        case .stats: "Stats"
+        .help(isEditing ? (isSelected ? "\(item.title) (already added)" : (atCapacity ? "Remove a shortcut before adding another" : "Add \(item.title) to shortcuts")) : "\(Self.help(item, live: live)) Hold to edit shortcuts.")
+        .accessibilityElement()
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            if isEditing {
+                if !isSelected && !atCapacity {
+                    model.settings.addFeatureShortcut(item)
+                }
+            } else {
+                model.open(item)
+            }
         }
+        .accessibilityAction(named: Text("Edit shortcuts")) { model.isEditingShortcuts = true }
+        .accessibilityLabel(Text(item.title))
+        .accessibilityValue(Text(isSelected ? "Selected" : (live ? "On" : "")))
     }
 
     static func symbol(_ item: LauncherItem, live: Bool) -> String {
-        switch item {
-        case .nowPlaying: "music.note"
-        case .timer: "timer"
-        case .stopwatch: "stopwatch"
-        case .calendar: "calendar"
-        case .reminders: "checklist"
-        case .clipboard: "doc.on.clipboard"
-        case .files: "tray.full"
-        case .scratchpad: "note.text"
-        case .mirror: "web.camera"
-        case .keepAwake: live ? "cup.and.heat.waves.fill" : "cup.and.saucer"
-        case .stats: "gauge.with.dots.needle.33percent"
-        }
+        item == .keepAwake && live ? "cup.and.heat.waves.fill" : item.symbolName
     }
 
     static func tint(_ item: LauncherItem) -> Color {

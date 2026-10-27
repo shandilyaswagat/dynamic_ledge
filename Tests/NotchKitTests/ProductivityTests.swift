@@ -202,7 +202,7 @@ struct ProductivityModelTests {
 
     @Test func onlyThreeTabsSitInTheBar() {
         #expect(HomeTab.allCases.filter(\.isTab) == [.home, .tray, .clipboard])
-        #expect(HomeTab.allCases.filter(\.isPanel) == [.notes, .mirror, .timers, .calendar, .reminders, .stats])
+        #expect(HomeTab.allCases.filter(\.isPanel) == [.notes, .mirror, .timers, .calendar, .reminders, .stats, .shortcutEditor])
     }
 
     @Test func nookTabsShareOneSize() {

@@ -8,6 +8,11 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Customizable shortcuts.** Long-press any feature tile in the All Apps grid to enter edit mode.
+  Tap the plus badge on available features to add up to three quick-access shortcuts in the top-left
+  corner beside Home. Features you have already selected show a checkmark to prevent duplicates.
+  In edit mode, tap a minus badge to remove a shortcut, or drag them to reorder. Home always stays
+  first, and your shortcuts and their order are remembered whenever you restart the app.
 - **Elongated layout.** Pick it in Settings › Appearance and Home stretches across the top of the
   screen, with everything in one long row you can scroll sideways:
   - Music with a handle you can drag to any point in the song.
@@ -24,11 +29,14 @@ last one.
   can see it.
 - **Update button.** When a new version is out, a blue Update button appears at the top right of
   the open notch, next to the grid and Settings. One click installs it and relaunches.
-- **Hang up from the notch.** On a Zoom, Teams or Webex call, the call view has a red button that
-  ends the call (Zoom asks you to confirm). The first time, macOS asks to let Dynamic Notch use
-  Accessibility. Click the app's icon to jump to the call window instead.
+- **Hang up from the notch.** On a Zoom, Teams, Webex, or WhatsApp call, the call view has a red
+  button that ends the call (Zoom asks you to confirm). WhatsApp needs its accessible End call
+  button to be available. The first time, macOS asks to let Dynamic Notch use Accessibility. If
+  an app does not offer a safe way to hang up, the button opens the call window instead.
 - **Click any date in the Calendar.** In the Calendar's month, click a day to see its events;
   click today or the same day again to go back to what's coming up.
+- **Turn off Camera Mirror.** Inside the Camera Mirror panel, you can now turn the camera preview off
+  and back on at any time.
 
 ### Changed
 - **A new app icon:** a friendly little cloud on a soft purple tile.
@@ -44,6 +52,11 @@ last one.
 - The Tray preview in the drop view shows your four newest files, not the four oldest.
 - A long list of Shortcuts can no longer leave the list stuck loading.
 - A live stream reporting a nonsense length can no longer crash the music time display.
+- Spacing, padding, and alignment across the top-left shortcut area, All Apps grid, feature panels,
+  tray, and tray menus have been refined for consistent click targets and smooth layout transitions.
+- Files tray item spacing and close button clearance: widened spacing between files and inset the
+  remove button so it no longer feels congested against the top notch strip.
+- Voice Control and assistive tools now interact reliably with Dynamic Notch even while tucked away.
 
 ## [1.3.4] - 2026-10-26
 

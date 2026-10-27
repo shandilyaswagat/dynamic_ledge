@@ -9,6 +9,13 @@ import Observation
 @MainActor
 @Observable
 public final class CallMonitor {
+    public enum HangUpResult: Equatable, Sendable {
+        case sent
+        case needsAccessibility
+        case unavailable
+        case failed
+    }
+
     public struct Session: Equatable, Sendable {
         public var appName: String
         public var bundleIdentifier: String?
@@ -23,6 +30,8 @@ public final class CallMonitor {
 
     public private(set) var session: Session?
     public private(set) var appIcon: NSImage?
+    /// Kept visible while an active call needs the user to take the next step.
+    public private(set) var hangUpMessage: String?
 
     /// Continuous use needed before the activity appears, so Siri and dictation don't flash it.
     static let startDelay: TimeInterval = 2
@@ -35,6 +44,7 @@ public final class CallMonitor {
     @ObservationIgnored private var audioListeners: [AudioHW.Listener] = []
     @ObservationIgnored private var cameraListeners: [CameraListener] = []
     @ObservationIgnored private var isRunning = false
+    @ObservationIgnored private var didRequestAccessibilityThisLaunch = false
 
     public init() {}
 
@@ -53,6 +63,7 @@ public final class CallMonitor {
         session = nil
         appIcon = nil
         candidate = nil
+        hangUpMessage = nil
     }
 
     public func showApp() {
@@ -60,33 +71,100 @@ public final class CallMonitor {
         app.activate()
     }
 
-    /// The call app has a documented hang-up shortcut, so the notch can end the call for you.
+    /// Only call apps with a safe, app-specific route show the button.
     public var canHangUp: Bool {
-        CallHangup.shortcut(for: session?.bundleIdentifier) != nil && session?.processIdentifier != nil
+        CallHangup.route(for: session?.bundleIdentifier) != nil && session?.processIdentifier != nil
     }
 
-    /// Sends the call app its own hang-up shortcut. Sending keys to another app needs
-    /// Accessibility access; the first time, macOS asks for it and nothing is sent.
-    @discardableResult
-    public func hangUp() -> Bool {
+    /// Ends a call through an app's documented shortcut or exact accessible end-call control.
+    /// Accessibility is requested only after the user presses the button.
+    public func hangUp() async -> HangUpResult {
         guard let session, let pid = session.processIdentifier,
-              let shortcut = CallHangup.shortcut(for: session.bundleIdentifier) else { return false }
+              let route = CallHangup.route(for: session.bundleIdentifier) else { return .unavailable }
+        hangUpMessage = nil
         guard AXIsProcessTrusted() else {
-            DocumentWindowDrag.requestAccess()
-            return false
+            requestAccessibilityAccess()
+            hangUpMessage = String(localized: "Allow Accessibility to hang up calls.")
+            return .needsAccessibility
         }
-        // The shortcut goes to the app's meeting window, so bring it forward first.
+        // Both shortcuts and accessible controls belong to the call app, so bring it forward.
         NSRunningApplication(processIdentifier: pid)?.activate()
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            let source = CGEventSource(stateID: .hidSystemState)
-            for isDown in [true, false] {
-                guard let event = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: isDown) else { continue }
-                event.flags = shortcut.flags
-                event.postToPid(pid)
+        try? await Task.sleep(for: .milliseconds(250))
+        guard self.session?.processIdentifier == pid else { return .unavailable }
+        switch route {
+        case .shortcut(let shortcut):
+            guard post(shortcut, to: pid) else {
+                hangUpMessage = String(localized: "Couldn’t send the hang-up command.")
+                return .failed
+            }
+        case .accessibilityButton:
+            guard Self.pressWhatsAppEndCall(in: pid) else {
+                hangUpMessage = String(localized: "Couldn’t find WhatsApp’s End call button.")
+                return .failed
             }
         }
+        return .sent
+    }
+
+    private func requestAccessibilityAccess() {
+        guard !AXIsProcessTrusted(), !didRequestAccessibilityThisLaunch else { return }
+        didRequestAccessibilityThisLaunch = true
+        NSApp.activate(ignoringOtherApps: true)
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
+    }
+
+    private func post(_ shortcut: CallHangup.Shortcut, to pid: pid_t) -> Bool {
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return false }
+        for isDown in [true, false] {
+            guard let event = CGEvent(keyboardEventSource: source, virtualKey: shortcut.keyCode, keyDown: isDown) else { return false }
+            event.flags = shortcut.flags
+            event.postToPid(pid)
+        }
         return true
+    }
+
+    /// WhatsApp documents an End call button but no keyboard shortcut. Search only WhatsApp's
+    /// tree, require that exact label, and press it once after the user asks to hang up.
+    private static func pressWhatsAppEndCall(in pid: pid_t) -> Bool {
+        let application = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(application, 0.5)
+        var pending: [(element: AXUIElement, depth: Int)] = [(application, 0)]
+        var inspected = 0
+        while let current = pending.popLast(), inspected < 300 {
+            inspected += 1
+            let element = current.element
+            if hasEndCallLabel(element), supportsPress(element), AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+                return true
+            }
+            guard current.depth < 8 else { continue }
+            pending.append(contentsOf: children(of: element).map { ($0, current.depth + 1) })
+        }
+        return false
+    }
+
+    private static func hasEndCallLabel(_ element: AXUIElement) -> Bool {
+        [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute].contains { key in
+            guard let value = attribute(element, key) as? String else { return false }
+            return value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                .trimmingCharacters(in: .whitespacesAndNewlines) == "end call"
+        }
+    }
+
+    private static func supportsPress(_ element: AXUIElement) -> Bool {
+        var actions: CFArray?
+        return AXUIElementCopyActionNames(element, &actions) == .success &&
+            (actions as? [String])?.contains(kAXPressAction as String) == true
+    }
+
+    private static func children(of element: AXUIElement) -> [AXUIElement] {
+        (attribute(element, kAXChildrenAttribute) as? [AXUIElement]) ?? []
+    }
+
+    private static func attribute(_ element: AXUIElement, _ key: String) -> CFTypeRef? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, key as CFString, &value) == .success else { return nil }
+        return value
     }
 
     // MARK: Listening
@@ -150,6 +228,7 @@ public final class CallMonitor {
                     session = nil
                     appIcon = nil
                     inactiveSince = nil
+                    hangUpMessage = nil
                 }
             }
             schedulePoll(after: session != nil ? 1 : nil)
@@ -182,6 +261,7 @@ public final class CallMonitor {
                     isCall: isCall
                 )
                 appIcon = user.app?.icon
+                hangUpMessage = nil
             }
         }
         // Quick checks while a call is starting; a slower heartbeat once it is established.

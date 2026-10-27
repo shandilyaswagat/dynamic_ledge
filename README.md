@@ -50,6 +50,10 @@ Everything else lives behind the grid button at the top right: the timer, stopwa
 today's reminders, a scratchpad, your camera mirror and Keep Awake (stops your Mac from
 sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 
+Want your own quick picks? Hold a feature in All Features, then choose up to
+three features. Home stays there permanently, and you can remove or reorder the rest whenever you
+like.
+
 Like things wide? Pick **Elongated** in Settings › Appearance and Home stretches across the top
 of your screen, with everything in one long row you can scroll sideways: music you can scrub, a
 camera mirror, your week with one-click **Join** for Meet, Zoom, Teams and Webex calls, notes you
@@ -62,8 +66,11 @@ Want to keep an eye on your Mac? Click the **Stats** tile in the grid to switch 
 up beside the camera whenever nothing else is going on, and a click shows memory, CPU, free disk
 space and network speed. It's all read on your Mac and never leaves it.
 
-A few more handy bits: a mute button for your mic during calls, and (if you switch it on in
-Settings) a heads-up when a download finishes.
+A few more handy bits: a mute button for your mic during calls, a red **Hang Up** button for
+Teams, Zoom, Webex and WhatsApp calls, and (if you switch it on in Settings) a heads-up when a
+download finishes. The first time you use Hang Up, macOS asks for Accessibility access. WhatsApp
+uses its visible End call control; if that control is not available, the call stays open and the
+notch tells you why.
 
 Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,
 have it follow your pointer, or show it on all your screens at once. Screens without a notch get

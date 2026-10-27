@@ -12,10 +12,13 @@ final class DocumentWindowDrag {
     private var window: AXUIElement?
     private var origin: CGPoint?
     private var movementConfirmed = false
+    private static var didRequestAccessThisLaunch = false
 
     static var hasAccess: Bool { AXIsProcessTrusted() }
 
     static func requestAccess() {
+        guard !AXIsProcessTrusted(), !didRequestAccessThisLaunch else { return }
+        didRequestAccessThisLaunch = true
         NSApp.activate(ignoringOtherApps: true)
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
         _ = AXIsProcessTrustedWithOptions(options as CFDictionary)

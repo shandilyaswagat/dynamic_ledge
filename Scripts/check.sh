@@ -12,7 +12,15 @@ fi
 
 cd "$ROOT"
 echo "› Unit tests…"
-swift test --build-system native
+SWIFT_TEST_FLAGS=(--build-system native)
+if [[ -d "$DEVELOPER_DIR/Library/Developer/Frameworks/Testing.framework" ]]; then
+    SWIFT_TEST_FLAGS+=(
+        -Xswiftc "-F$DEVELOPER_DIR/Library/Developer/Frameworks"
+        -Xlinker -rpath -Xlinker "$DEVELOPER_DIR/Library/Developer/Frameworks"
+        -Xlinker -rpath -Xlinker "$DEVELOPER_DIR/Library/Developer/usr/lib"
+    )
+fi
+swift test "${SWIFT_TEST_FLAGS[@]}"
 echo "› Release build, warnings as errors…"
 swift build --build-system native -c release -Xswiftc -warnings-as-errors -Xcc -Werror
 echo "✓ All checks passed"

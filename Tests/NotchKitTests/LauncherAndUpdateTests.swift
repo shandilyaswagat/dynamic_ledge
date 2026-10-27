@@ -56,6 +56,26 @@ struct LauncherTests {
         #expect(ReminderRules.label(for: items[2], at: now) == "Overdue")
         #expect(ReminderRules.label(for: items[1], at: now) == nil)
     }
+
+    @Test func featureShortcutsAreUniqueBoundedAndReorderable() {
+        var selection = FeatureShortcutSelection(items: [.timer, .timer, .calendar, .files, .stats])
+        #expect(selection.items == [.timer, .calendar, .files])
+        let addedDuplicate = selection.add(.timer)
+        let addedOverCapacity = selection.add(.stats)
+        #expect(!addedDuplicate, "a feature is never added twice")
+        #expect(!addedOverCapacity, "three custom slots are the limit")
+        let moved = selection.move(from: 2, to: 0)
+        #expect(moved)
+        #expect(selection.items == [.files, .timer, .calendar])
+        let removed = selection.remove(.timer)
+        let added = selection.add(.stats)
+        #expect(removed)
+        #expect(added)
+        #expect(selection.items == [.files, .calendar, .stats])
+
+        let restored = FeatureShortcutSelection(rawValues: ["calendar", "missing", "calendar", "files"])
+        #expect(restored.items == [.calendar, .files])
+    }
 }
 
 @MainActor
@@ -97,6 +117,118 @@ struct LauncherModelTests {
         model.open(.keepAwake)
         #expect(model.keepAwake.isOn && model.isLive(.keepAwake))
         model.keepAwake.turnOff()
+    }
+
+    @Test func featureShortcutsPersistAndOpenTheSameFeatures() {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        let settings = SettingsStore(defaults: defaults)
+        #expect(!settings.hasCustomizedFeatureShortcuts)
+        #expect(settings.featureShortcuts == [.files, .clipboard])
+
+        // Add third item to reach limit
+        #expect(settings.addFeatureShortcut(.calendar))
+        #expect(settings.hasCustomizedFeatureShortcuts)
+        #expect(!settings.addFeatureShortcut(.timer))
+        #expect(settings.moveFeatureShortcut(from: 2, to: 0))
+        #expect(settings.featureShortcuts == [.calendar, .files, .clipboard])
+
+        let reloaded = SettingsStore(defaults: defaults)
+        #expect(reloaded.hasCustomizedFeatureShortcuts)
+        #expect(reloaded.featureShortcuts == [.calendar, .files, .clipboard])
+
+        let model = IslandModel(settings: reloaded, tray: TrayStore(folder: nil))
+        model.open(reloaded.featureShortcuts[1])
+        #expect(model.presentation == .tray)
+        model.open(reloaded.featureShortcuts[0])
+        #expect(model.presentation == .nook(.calendar))
+
+        model.showTab(.shortcutEditor)
+        #expect(model.presentation == .nook(.shortcutEditor))
+        #expect(model.isEditingShortcuts)
+        let editorHeight = model.layout.pill.height
+        model.showTab(.launcher)
+        #expect(editorHeight == model.layout.pill.height, "the editor has the launcher's scrollable grid height")
+        #expect(!model.isEditingShortcuts, "returning to All Features exits shortcut editing")
+
+        // Exiting edit mode
+        model.isEditingShortcuts = false
+        #expect(!model.isEditingShortcuts)
+        model.showTab(.home)
+        #expect(model.presentation == .home)
+    }
+
+    @Test func editingShortcutsLimitsAndInteractions() {
+        let defaults = UserDefaults(suiteName: "NotchTests-Edit-\(UUID().uuidString)")!
+        let settings = SettingsStore(defaults: defaults)
+        let model = IslandModel(settings: settings, tray: TrayStore(folder: nil))
+
+        #expect(!model.isEditingShortcuts)
+        model.isEditingShortcuts = true
+        #expect(model.isEditingShortcuts)
+
+        // Starting with default shortcuts
+        #expect(model.settings.featureShortcuts == [.files, .clipboard])
+
+        // Adding shortcut up to maximum of 3
+        #expect(model.settings.addFeatureShortcut(.calendar))
+        // Duplicate is rejected
+        #expect(!model.settings.addFeatureShortcut(.files))
+        // At limit of 3
+        #expect(model.settings.featureShortcuts.count == 3)
+        #expect(!model.settings.addFeatureShortcut(.stats), "further additions disabled at capacity")
+
+        // Removing enables addition immediately
+        #expect(model.settings.removeFeatureShortcut(.files))
+        #expect(model.settings.featureShortcuts.count == 2)
+        #expect(model.settings.addFeatureShortcut(.stats), "additions re-enabled after removal")
+        #expect(model.settings.featureShortcuts == [.clipboard, .calendar, .stats])
+
+        // Reordering
+        #expect(model.settings.moveFeatureShortcut(from: 2, to: 0))
+        #expect(model.settings.featureShortcuts == [.stats, .clipboard, .calendar])
+
+        // Exiting edit mode
+        model.isEditingShortcuts = false
+        #expect(!model.isEditingShortcuts)
+
+        // Navigation to original view and back to Home
+        model.open(.calendar)
+        #expect(model.presentation == .nook(.calendar))
+        model.showTab(.home)
+        #expect(model.presentation == IslandPresentation.home)
+    }
+
+    @Test func cameraMirrorOffOption() {
+        let camera = CameraAccess()
+        #expect(!camera.isCameraOff)
+        camera.toggleCamera()
+        #expect(camera.isCameraOff)
+        camera.toggleCamera()
+        #expect(!camera.isCameraOff)
+    }
+
+    @Test func trayItemRemovalAndClear() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let file1 = tempDir.appendingPathComponent("document1.pdf")
+        let file2 = tempDir.appendingPathComponent("image2.png")
+        try Data("test1".utf8).write(to: file1)
+        try Data("test2".utf8).write(to: file2)
+
+        let tray = TrayStore(folder: tempDir)
+        let added = tray.add([file1, file2])
+        #expect(added == 2)
+        #expect(tray.items.count == 2)
+
+        let firstId = tray.items[0].id
+        tray.remove(firstId)
+        #expect(tray.items.count == 1)
+        #expect(tray.items[0].id != firstId)
+
+        tray.removeAll()
+        #expect(tray.items.isEmpty)
     }
 
     @Test func screensWithoutANotchGetAVirtualNotch() {

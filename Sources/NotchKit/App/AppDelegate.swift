@@ -39,6 +39,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         if LockScreenController.isAvailable { lockScreen = LockScreenController(model: model) }
         statusController = StatusItemController(model: model) { [weak settingsController] in settingsController?.show() }
         model.startServices()
+        // Launching from Finder or a freshly mounted DMG must give immediate feedback. The
+        // notch can still collapse after the normal pointer-exit delay, but Home is visible
+        // when the app starts instead of appearing to do nothing in the background.
+        model.showTab(.home)
 
         #if DEBUG
         debugHooks = DebugHooks(model: model, settings: settingsController, lockScreen: lockScreen)

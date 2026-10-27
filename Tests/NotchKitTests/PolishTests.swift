@@ -443,14 +443,17 @@ struct StatsSamplingTests {
 
 @Suite("Hanging up")
 struct CallHangupTests {
-    @Test func onlyAppsWithADocumentedShortcut() throws {
+    @Test func usesOnlySafeAppSpecificHangUpRoutes() throws {
         let teams = try #require(CallHangup.shortcut(for: "com.microsoft.teams2"))
         #expect(teams.flags.contains(.maskCommand) && teams.flags.contains(.maskShift))
         #expect(CallHangup.shortcut(for: "com.microsoft.teams") == teams)
         #expect(try #require(CallHangup.shortcut(for: "us.zoom.xos")).asksToConfirm)
         #expect(CallHangup.shortcut(for: "Cisco-Systems.Spark") != nil)
+        #expect(CallHangup.shortcut(for: "com.cisco.webexmeetingsapp") != nil)
+        #expect(CallHangup.route(for: "net.whatsapp.WhatsApp") == .accessibilityButton)
+        #expect(CallHangup.shortcut(for: "net.whatsapp.WhatsApp") == nil)
         for app in ["com.apple.FaceTime", "com.google.Chrome", "com.apple.Safari", "com.tinyspeck.slackmacgap", nil] as [String?] {
-            #expect(CallHangup.shortcut(for: app) == nil, "\(app ?? "nil") gets no hang-up button")
+            #expect(CallHangup.route(for: app) == nil, "\(app ?? "nil") gets no hang-up button")
         }
     }
 }

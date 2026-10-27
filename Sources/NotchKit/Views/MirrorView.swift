@@ -13,9 +13,14 @@ final class CameraAccess {
     }
 
     private(set) var state: State = CameraAccess.current()
+    var isCameraOff: Bool = false
 
     func refresh() {
         state = Self.current()
+    }
+
+    func toggleCamera() {
+        isCameraOff.toggle()
     }
 
     func request() {

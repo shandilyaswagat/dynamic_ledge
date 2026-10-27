@@ -28,6 +28,8 @@ public final class IslandModel {
     /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
     /// layout). The notch stays open while you type, even if the pointer wanders off.
     public var isTypingInNook = false
+    /// Whether the shortcuts and the All Apps grid are currently in edit mode.
+    public var isEditingShortcuts = false
     public let hotKeys = HotKeys()
     public let updater = Updater()
     let camera = CameraAccess()
@@ -519,6 +521,7 @@ public final class IslandModel {
         pointerEnteredExpanded = false
         guard expandTarget != nil else { return }
         isTypingInNook = false
+        isEditingShortcuts = false
         if expandTarget == .notes { notes.save() }
         expandTarget = nil
         syncStatsSampling()
@@ -803,6 +806,9 @@ public final class IslandModel {
         if tab == .reminders { reminders.refreshAccess() }
         if tab == .tray { tray.pruneMissing() }
         if tab == .mirror { camera.refresh() }
+        // Editing belongs only to the dedicated shortcut editor. This also prevents a
+        // programmatic return to All Features from leaving its tiles in edit mode.
+        isEditingShortcuts = tab == .shortcutEditor
         expand(ExpandTarget(tab))
     }
 

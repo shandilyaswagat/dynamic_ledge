@@ -114,12 +114,31 @@ public final class SettingsStore {
     public var shortcutsEnabled: Bool { didSet { defaults.set(shortcutsEnabled, forKey: Key.shortcuts) } }
     /// Shortcut names pinned to the Home tab, in order.
     public var favoriteShortcuts: [String] { didSet { defaults.set(favoriteShortcuts, forKey: Key.favoriteShortcuts) } }
+    /// Optional feature shortcuts beside the permanent Home shortcut, in display order.
+    public var featureShortcuts: [LauncherItem] {
+        didSet {
+            let normalized = FeatureShortcutSelection(items: featureShortcuts).items
+            if normalized != featureShortcuts {
+                featureShortcuts = normalized
+            } else {
+                defaults.set(featureShortcuts.map(\.rawValue), forKey: Key.featureShortcuts)
+            }
+        }
+    }
     /// Show volume and brightness changes in the notch.
     public var levelsEnabled: Bool { didSet { defaults.set(levelsEnabled, forKey: Key.levels) } }
 
     public static let maximumFavoriteShortcuts = 4
+    public static let maximumFeatureShortcuts = FeatureShortcutSelection.maximumItems
+    public static let defaultFeatureShortcuts = FeatureShortcutSelection.defaultItems
     public static let focusChoices = [15, 25, 45, 50, 60]
     public static let breakChoices = [5, 10, 15]
+
+    /// Whether the user has explicitly customized their shortcuts. When false, the default shortcuts
+    /// matching earlier versions (Files and Clipboard) are preserved.
+    public var hasCustomizedFeatureShortcuts: Bool {
+        defaults.object(forKey: Key.featureShortcuts) != nil
+    }
 
     /// Set after the first-launch hint has been shown.
     public var hasShownWelcome: Bool { didSet { defaults.set(hasShownWelcome, forKey: Key.welcome) } }
@@ -189,6 +208,11 @@ public final class SettingsStore {
         calendarEnabled = defaults.object(forKey: Key.calendar) as? Bool ?? true
         shortcutsEnabled = defaults.object(forKey: Key.shortcuts) as? Bool ?? true
         favoriteShortcuts = Array((defaults.stringArray(forKey: Key.favoriteShortcuts) ?? []).prefix(Self.maximumFavoriteShortcuts))
+        if let saved = defaults.object(forKey: Key.featureShortcuts) as? [String] {
+            featureShortcuts = FeatureShortcutSelection(rawValues: saved).items
+        } else {
+            featureShortcuts = Self.defaultFeatureShortcuts
+        }
         levelsEnabled = defaults.object(forKey: Key.levels) as? Bool ?? true
         let linger = defaults.object(forKey: Key.linger) as? Double ?? 30
         pausedMediaLinger = Self.lingerChoices.contains(linger) ? linger : 30
@@ -203,6 +227,31 @@ public final class SettingsStore {
         }
         guard favoriteShortcuts.count < Self.maximumFavoriteShortcuts else { return false }
         favoriteShortcuts.append(name)
+        return true
+    }
+
+    /// Adds a feature to the upper-right shortcut area. Home remains outside this selection.
+    @discardableResult
+    public func addFeatureShortcut(_ item: LauncherItem) -> Bool {
+        var selection = FeatureShortcutSelection(items: featureShortcuts)
+        guard selection.add(item) else { return false }
+        featureShortcuts = selection.items
+        return true
+    }
+
+    @discardableResult
+    public func removeFeatureShortcut(_ item: LauncherItem) -> Bool {
+        var selection = FeatureShortcutSelection(items: featureShortcuts)
+        guard selection.remove(item) else { return false }
+        featureShortcuts = selection.items
+        return true
+    }
+
+    @discardableResult
+    public func moveFeatureShortcut(from source: Int, to destination: Int) -> Bool {
+        var selection = FeatureShortcutSelection(items: featureShortcuts)
+        guard selection.move(from: source, to: destination) else { return false }
+        featureShortcuts = selection.items
         return true
     }
 
@@ -253,6 +302,7 @@ public final class SettingsStore {
         static let calendar = "home.calendar"
         static let shortcuts = "home.shortcuts"
         static let favoriteShortcuts = "home.favoriteShortcuts"
+        static let featureShortcuts = "home.featureShortcuts"
         static let levels = "alert.levels"
     }
 }

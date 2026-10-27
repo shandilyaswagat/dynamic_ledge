@@ -17,13 +17,16 @@ Sources/
     │   ├── SystemClassifiers.swift Call apps, headphone symbols, liquid-effect maths
     │   ├── SystemStats.swift       Stats readings: CPU, memory, network maths and labels
     │   ├── MeetingLinks.swift      Finds Meet, Zoom, Teams and Webex links in events
-    │   └── ColorMath.swift         Album-art tint
+    │   ├── ColorMath.swift         Album-art tint
+    │   ├── LauncherItem.swift      Shared feature inventory and shortcut labels
+    │   └── FeatureShortcutSelection.swift  Ordered optional feature shortcuts
     ├── Services/                 System integrations
     │   ├── MediaBridgeClient       Runs and restarts the media helper; parses its output
     │   │                           and album-art tint off the main thread
     │   ├── NowPlayingService       Track, artwork, controls, pause linger
     │   ├── TimerService            Timer + alarm sound + App Nap guard
-    │   ├── CallMonitor             Microphone (Core Audio) and camera (Core Media IO)
+    │   ├── CallMonitor             Microphone (Core Audio), camera (Core Media IO), and safe
+    │   │                           app-specific hang-up actions after a user click
     │   ├── AudioRouteMonitor       Bluetooth headphones becoming the output
     │   ├── PowerMonitor            IOKit power-source notifications
     │   ├── TrayStore               Up to 30 session-only references; generated shortcuts cleaned on clear/exit
@@ -55,6 +58,8 @@ Sources/
    rectangle and radius together; content swaps with a blur transition.
 5. `IslandWindowController` feeds pointer positions back into the model and lets the panel take
    the mouse only where the shape is.
+6. `SettingsStore` saves the ordered feature shortcuts. The shortcut editor and launcher both
+   open features through `IslandModel.open(_:)`.
 
 ## Debug commands
 

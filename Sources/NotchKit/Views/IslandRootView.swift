@@ -32,6 +32,12 @@ struct IslandRootView: View {
         .animation(Motion.settings, value: model.settings.appearance)
         .animation(reduceMotion ? nil : Motion.hover, value: model.isHoveringPill)
         .environment(\.colorScheme, .dark)
+        // The panel is intentionally non-activating, so publish a stable action while it is
+        // tucked away. This keeps Voice Control and automation able to open the same Home view
+        // that a click on the notch opens without changing the panel's mouse routing.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("Dynamic Notch"))
+        .accessibilityAction(named: Text("Open Home")) { model.showTab(.home) }
     }
 }
 
@@ -173,6 +179,7 @@ struct NotchContent: View {
                 case .reminders: RemindersPanelBody(model: model)
                 case .stats: StatsPanelBody(model: model)
                 case .launcher: LauncherBody(model: model)
+                case .shortcutEditor: ShortcutEditorBody(model: model)
                 }
             }
         case .alert(let alert):

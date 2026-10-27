@@ -118,6 +118,8 @@ public enum HomeTab: String, CaseIterable, Sendable, Codable, Hashable {
     case stats
     /// The grid of everything the notch can do.
     case launcher
+    /// The feature picker opened by holding the upper-right shortcut area.
+    case shortcutEditor
 
     /// Shown in the tab bar beside the camera.
     public var isTab: Bool {

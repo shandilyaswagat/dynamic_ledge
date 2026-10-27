@@ -53,8 +53,8 @@ sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 
 Next to Home at the top left sit up to three shortcuts of your own. They start as Files and
 Clipboard, and Files shows how many things are in your Tray. To change them, open the
-grid, click **Edit**, then click features to add them or click a ticked one to remove it. Click
-**Done** when you're happy.
+grid and hold any feature, then click features to add them or click a ticked one to remove it.
+Click **Done** when you're happy.
 
 Like things wide? Pick **Elongated** in Settings › Appearance and Home stretches across the top
 of your screen, with everything in one long row you can scroll sideways: music you can scrub, a
@@ -120,7 +120,7 @@ xattr -dr com.apple.quarantine "/Applications/Dynamic Notch.app"
 |---|---|
 | Open Home or one of your shortcuts | Click the notch, then pick it at the top left |
 | Open anything else | Click the notch, then the grid button at the top right |
-| Change your shortcuts | Open the grid, click **Edit**, then click features to add or remove them |
+| Change your shortcuts | Open the grid, hold any feature, then click features to add or remove them |
 | Start a timer, a focus session or a shortcut | Click the notch, then tap it on Home |
 | See more about something | Click it |
 | Close it | Click anywhere else, or just move your mouse away (Notes stays open until you click away or press Escape) |

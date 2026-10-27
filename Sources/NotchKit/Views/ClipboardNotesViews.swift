@@ -86,6 +86,8 @@ private struct ClipboardCard: View {
                 }
                 .font(.system(size: 10 * s, weight: .medium))
                 .foregroundStyle(copied ? NotchColor.green : NotchColor.secondaryText)
+                // Room for the remove button, which sits at the end of this line.
+                .padding(.trailing, 18 * s)
             }
             .padding(10 * s)
             .frame(width: 150 * s)
@@ -97,16 +99,22 @@ private struct ClipboardCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 14 * s, style: .continuous))
         }
         .buttonStyle(PressableButtonStyle())
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .bottomTrailing) {
+            // Inside the card, level with the app and time, so it never covers the text or
+            // hangs off the corner.
             if isHovering {
                 Button { model.clipboard.remove(entry.id) } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14 * s))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, Color(white: 0.35))
+                    Image(systemName: "trash")
+                        .font(.system(size: 10.5 * s, weight: .semibold))
+                        .foregroundStyle(NotchColor.secondaryText)
+                        .frame(width: 18 * s, height: 18 * s)
+                        .background(Circle().fill(Color.white.opacity(0.1)))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(PressableButtonStyle())
-                .offset(x: 4 * s, y: -4 * s)
+                .padding(.trailing, 7 * s)
+                .padding(.bottom, 7 * s)
+                .help("Remove from history")
                 .accessibilityLabel(Text("Remove from history"))
             }
         }

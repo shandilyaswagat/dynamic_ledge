@@ -38,6 +38,9 @@ final class DocumentWindowDrag {
         }
         for _ in 0..<8 {
             if attribute(candidate, kAXRoleAttribute) as? String == kAXWindowRole {
+                // Our own notch panel is never a document to keep.
+                var pid: pid_t = 0
+                if AXUIElementGetPid(candidate, &pid) == .success, pid == ProcessInfo.processInfo.processIdentifier { return false }
                 AXUIElementSetMessagingTimeout(candidate, 0.05)
                 guard let position = position(candidate) else { return false }
                 window = candidate

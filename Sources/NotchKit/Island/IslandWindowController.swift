@@ -393,7 +393,10 @@ public final class IslandWindowController {
                     continue
                 }
                 guard self.model.acceptsFileDrops, !self.model.isDraggingFromTray else { continue }
-                if !self.isFileDragging, self.documentGestureStart == nil,
+                // A press on the notch itself is a click or hold on its buttons, never a document
+                // window being dragged in. The notch doesn't take focus, so the frontmost app
+                // check alone let a long press there show the Tray drop view.
+                if !self.isFileDragging, self.documentGestureStart == nil, !self.isPointerOnNotch,
                    NSWorkspace.shared.frontmostApplication?.processIdentifier != ProcessInfo.processInfo.processIdentifier {
                     self.dragChangeCount = self.lastIdleDragChangeCount
                     if self.model.settings.trayEnabled {
@@ -431,6 +434,11 @@ public final class IslandWindowController {
                 self.pointerChanged()
             }
         }
+    }
+
+    /// The pointer is over the visible notch, where the panel takes clicks.
+    private var isPointerOnNotch: Bool {
+        !panel.ignoresMouseEvents && panel.frame.contains(NSEvent.mouseLocation)
     }
 
     private var documentDropRegion: CGRect {

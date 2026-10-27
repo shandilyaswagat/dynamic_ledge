@@ -59,7 +59,7 @@ Sources/
 5. `IslandWindowController` feeds pointer positions back into the model and lets the panel take
    the mouse only where the shape is.
 6. `SettingsStore` saves the shortcuts beside Home, in the order they were added; the grid's
-   Edit mode adds and removes them. `IslandModel.featureShortcuts` hides any whose feature is
+   edit mode (hold a tile) adds and removes them. `IslandModel.featureShortcuts` hides any whose feature is
    switched off, and both the shortcuts and the grid open features through `IslandModel.open(_:)`.
 
 ## Debug commands

@@ -45,14 +45,9 @@ struct NookContainer<Content: View>: View {
                             .foregroundStyle(NotchColor.secondaryText)
                             .padding(.trailing, 4 * s)
                             .help("Click features to add them beside Home, or a ticked one to remove it")
-                        HeaderTextButton(title: "Done", filled: true) { model.isEditingShortcuts = false }
+                        DoneButton { model.isEditingShortcuts = false }
                             .accessibilityLabel(Text("Done editing shortcuts"))
                     } else {
-                        if tab == .launcher {
-                            HeaderTextButton(title: "Edit", filled: false) { model.isEditingShortcuts = true }
-                                .help("Pick the shortcuts beside Home")
-                                .accessibilityLabel(Text("Edit shortcuts"))
-                        }
                         UpdatePill(model: model)
                         LauncherButton(model: model, isOpen: tab == .launcher)
                         SettingsButton(model: model)
@@ -262,15 +257,14 @@ private struct HomeShortcutButton: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "house.fill")
-                .font(.system(size: 11 * s, weight: .semibold))
-                .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
-                .frame(width: 24 * s, height: 22 * s)
-                .background(Circle().fill(isSelected ? NotchColor.buttonFill : (isHovering ? Color.white.opacity(0.08) : Color.clear)))
-                .contentShape(Circle())
-        }
-        .buttonStyle(PressableButtonStyle())
+        // Fixed in place: a click opens Home, holding it does nothing.
+        Image(systemName: "house.fill")
+            .font(.system(size: 11 * s, weight: .semibold))
+            .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
+            .frame(width: 24 * s, height: 22 * s)
+            .background(Circle().fill(isSelected ? NotchColor.buttonFill : (isHovering ? Color.white.opacity(0.08) : Color.clear)))
+            .contentShape(Circle())
+            .modifier(ClickNotHold(onClick: action))
         .onHover { isHovering = $0 }
         .help("Home")
         .accessibilityLabel(Text("Home"))
@@ -291,15 +285,15 @@ private struct CustomShortcutButton: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Button(action: onTap) {
-                Image(systemName: item.symbolName)
-                    .font(.system(size: 11 * s, weight: .semibold))
-                    .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
-                    .frame(width: 24 * s, height: 22 * s)
-                    .background(Circle().fill(isSelected ? NotchColor.buttonFill : (isHovering ? Color.white.opacity(0.08) : Color.clear)))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(PressableButtonStyle())
+            // Fixed in place: a click opens the feature (or removes it while editing), holding
+            // it does nothing and it can't be dragged.
+            Image(systemName: item.symbolName)
+                .font(.system(size: 11 * s, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : NotchColor.secondaryText)
+                .frame(width: 24 * s, height: 22 * s)
+                .background(Circle().fill(isSelected ? NotchColor.buttonFill : (isHovering ? Color.white.opacity(0.08) : Color.clear)))
+                .contentShape(Circle())
+                .modifier(ClickNotHold(onClick: onTap))
             .onHover { isHovering = $0 }
             .help(isEditing ? "Remove \(item.title)" : item.title)
             .accessibilityLabel(Text(item.title))
@@ -335,26 +329,22 @@ private struct CustomShortcutButton: View {
     }
 }
 
-/// A small text capsule in the strip: Edit in the grid, Done while editing.
-private struct HeaderTextButton: View {
-    let title: LocalizedStringKey
-    let filled: Bool
+/// Ends editing the shortcuts, at the top right while the grid is in edit mode.
+private struct DoneButton: View {
     let action: () -> Void
-    @State private var isHovering = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            Text("Done")
                 .font(.system(size: 11 * s, weight: .semibold))
-                .foregroundStyle(filled ? .white : NotchColor.secondaryText)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 10 * s)
                 .frame(height: 22 * s)
-                .background(Capsule().fill(filled ? NotchColor.blue : (isHovering ? NotchColor.buttonFill : Color.clear)))
+                .background(Capsule().fill(NotchColor.blue))
                 .contentShape(Capsule())
         }
         .buttonStyle(PressableButtonStyle())
-        .onHover { isHovering = $0 }
     }
 }
 

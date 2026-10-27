@@ -163,6 +163,30 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// A click that works like a button's, while holding it down does nothing, or `onHold` when
+/// given. A plain Button fires on release however long it was held, so a long press on it
+/// would still open things.
+struct ClickNotHold: ViewModifier {
+    var onHold: (() -> Void)?
+    let onClick: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .gesture(
+                LongPressGesture(minimumDuration: 0.4)
+                    .exclusively(before: TapGesture())
+                    .onEnded { result in
+                        switch result {
+                        case .first: onHold?()
+                        case .second: onClick()
+                        }
+                    }
+            )
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { onClick() }
+    }
+}
+
 /// Round control from the iPhone timer and call activities.
 struct CircleButton: View {
     var symbol: String

@@ -10,7 +10,8 @@ last one.
 ### Added
 - **Your own shortcuts.** Beside Home at the top left of the open notch, keep up to three
   shortcuts to the features you use most. They start as Files and Clipboard. To change them, open
-  the grid and click **Edit**, then click features to add or remove them. A shortcut for
+  the grid and hold any feature, then click features to add or remove them and click Done. The
+  shortcuts themselves stay put: holding or dragging them does nothing. A shortcut for
   something you've switched off in Settings is hidden until you switch it back on, and the Files
   shortcut shows how many files are in the Tray.
 - **Elongated layout.** Pick it in Settings › Appearance and Home stretches across the top of the
@@ -52,6 +53,10 @@ last one.
   when there isn't room.
 - macOS asks for Accessibility access at most once each time the app starts, not on every try.
 - Voice Control and other assistive tools can open Home even while the notch is tucked away.
+- Holding or dragging anything on the open notch no longer brings up the Tray drop view.
+- An activity's name at the top left ("Microphone", for example) no longer runs under the camera;
+  it shortens to "Mic", or just the back arrow, when there isn't room.
+- In Clipboard, the delete button sits inside the card's footer instead of hanging off its corner.
 
 ## [1.3.5] - 2026-10-27
 

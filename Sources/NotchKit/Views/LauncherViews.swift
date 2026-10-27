@@ -105,7 +105,7 @@ private struct LauncherTile: View {
 
     var body: some View {
         let live = model.isLive(item)
-        Button(action: activate) {
+        Group {
             VStack(spacing: 0) {
                 Image(systemName: Self.symbol(item, live: live))
                     .font(.system(size: 19 * s, weight: .regular))
@@ -155,13 +155,21 @@ private struct LauncherTile: View {
             .contentShape(RoundedRectangle(cornerRadius: 16 * s, style: .continuous))
             .animation(.easeOut(duration: 0.15), value: isHovering)
         }
-        .buttonStyle(PressableButtonStyle())
+        // Click to open (or, while editing, add or remove); hold any tile to start editing the
+        // shortcuts beside Home.
+        .modifier(ClickNotHold(onHold: startEditing, onClick: activate))
         .onHover { isHovering = $0 }
         .help(isEditing
               ? (isSelected ? "Remove \(item.title) from the shortcuts" : (atCapacity ? "Remove a shortcut before adding another" : "Add \(item.title) beside Home"))
-              : Self.help(item, live: live))
+              : "\(Self.help(item, live: live)) Hold to pick your shortcuts.")
         .accessibilityLabel(Text(item.title))
         .accessibilityValue(Text(isEditing ? (isSelected ? "In shortcuts" : "") : (live ? "On" : "")))
+    }
+
+    private func startEditing() {
+        guard !isEditing else { return }
+        model.isEditingShortcuts = true
+        Haptics.perform(enabled: model.settings.hapticsEnabled)
     }
 
     /// Opens the feature, or while editing adds it to the shortcuts or takes it off.

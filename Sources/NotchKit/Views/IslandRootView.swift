@@ -77,9 +77,13 @@ struct IslandContentLayer: View {
         .overlay(alignment: .topLeading) {
             // In the strip beside the camera.
             if case .expanded = presentation {
+                // Only the part of the strip left of the camera, so the name never slides under it.
+                let leading = layout.flare + 14 * layout.contentScale
+                let room = (layout.pill.width - model.engine.cameraGap) / 2 - leading - 8 * layout.contentScale
                 ActivityHeader(model: model, presentation: presentation)
                     .environment(\.notchScale, layout.contentScale)
-                    .padding(.leading, layout.flare + 14 * layout.contentScale)
+                    .frame(width: max(room, 1), alignment: .leading)
+                    .padding(.leading, leading)
                     .frame(height: max(layout.content.minY - layout.pill.minY, 1))
                     .transition(.opacity)
             }
@@ -231,13 +235,29 @@ private struct ActivityHeader: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
+        // The name only when it fits beside the camera; otherwise just the back arrow.
+        ViewThatFits(in: .horizontal) {
+            titled(title)
+            titled(shortTitle)
+            BackToHomeButton(model: model)
+        }
+    }
+
+    private func titled(_ text: LocalizedStringKey) -> some View {
         HStack(spacing: 3 * s) {
             BackToHomeButton(model: model)
-            Text(title)
+            Text(text)
                 .font(.system(size: 13 * s, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
+                .fixedSize()
         }
+    }
+
+    /// For a narrow strip: "Mic" rather than "Microphone".
+    private var shortTitle: LocalizedStringKey {
+        if case .expanded(.call) = presentation, model.calls.session?.isCall == false { return "Mic" }
+        return title
     }
 
     private var title: LocalizedStringKey {

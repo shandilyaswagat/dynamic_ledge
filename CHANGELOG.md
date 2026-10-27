@@ -8,15 +8,11 @@ last one.
 ## [Unreleased]
 
 ### Added
-- **Customizable shortcuts.** Long-press any feature tile in the All Apps grid to enter edit mode.
-  Tap the plus badge on available features to add up to three quick-access shortcuts in the top-left
-  corner beside Home. Features you have already selected show a checkmark to prevent duplicates.
-  In edit mode, tap a minus badge to remove a shortcut, or drag them to reorder. Home always stays
-  first, and your shortcuts and their order are remembered whenever you restart the app. A
-  shortcut for something you've switched off in Settings is hidden until you switch it back on,
-  and the Files shortcut shows how many files are in the Tray.
-- **A first look.** The very first time you open Dynamic Notch, Home opens for a few seconds so
-  you can see it's running.
+- **Your own shortcuts.** Beside Home at the top left of the open notch, keep up to three
+  shortcuts to the features you use most. They start as Files and Clipboard. To change them, open
+  the grid and click **Edit**, then click features to add or remove them. A shortcut for
+  something you've switched off in Settings is hidden until you switch it back on, and the Files
+  shortcut shows how many files are in the Tray.
 - **Elongated layout.** Pick it in Settings › Appearance and Home stretches across the top of the
   screen, with everything in one long row you can scroll sideways:
   - Music with a handle you can drag to any point in the song.
@@ -33,22 +29,33 @@ last one.
   can see it.
 - **Update button.** When a new version is out, a blue Update button appears at the top right of
   the open notch, next to the grid and Settings. One click installs it and relaunches.
-- **Hang up from the notch.** On a Zoom, Teams, Webex, or WhatsApp call, the call view has a red
-  button that ends the call (Zoom asks you to confirm). WhatsApp needs its accessible End call
-  button to be available. The first time, macOS asks to let Dynamic Notch use Accessibility. If
-  an app does not offer a safe way to hang up, the button opens the call window instead.
+- **Hang up from the notch.** On a Zoom, Teams, Webex or WhatsApp call, the call view has a red
+  button that ends the call (Zoom asks you to confirm). The first time, macOS asks to let Dynamic
+  Notch use Accessibility. Click the app's icon to jump to the call window instead.
 - **Click any date in the Calendar.** In the Calendar's month, click a day to see its events;
   click today or the same day again to go back to what's coming up.
-- **Turn off Camera Mirror.** Inside the Camera Mirror panel, you can now turn the camera preview off
-  and back on at any time.
+- **Turn the camera off in Mirror.** A button in Mirror turns the camera preview off and back on.
+- **A first look.** The very first time you open Dynamic Notch, Home opens for a few seconds so
+  you can see it's running.
 
 ### Changed
+- **Free software.** Dynamic Notch is now licensed under the GNU General Public License, version 3
+  or later: you can use, study, share and change it, and changed versions you share stay free too.
 - **A new app icon:** a friendly little cloud on a soft purple tile.
+- **A roomier Tray:** more space between files, and the remove button sits clear of the top edge.
 - **Stats uses even less.** With the notch closed it reads just memory and CPU, and it stops
   reading while your display is asleep.
 
 ### Fixed
 - With Open on Hover, hovering over Stats now opens Stats instead of Home.
+- Home no longer spills past its edges when music is playing; the Focus button drops its label
+  when there isn't room.
+- macOS asks for Accessibility access at most once each time the app starts, not on every try.
+- Voice Control and other assistive tools can open Home even while the notch is tucked away.
+
+## [1.3.5] - 2026-10-27
+
+### Fixed
 - Dynamic Notch no longer quits right after you allow Reminders access, and the notch reopens on
   your list once you do.
 - Reminders notices access you turn on in System Settings, and shows tomorrow's to-dos after
@@ -56,13 +63,6 @@ last one.
 - The Tray preview in the drop view shows your four newest files, not the four oldest.
 - A long list of Shortcuts can no longer leave the list stuck loading.
 - A live stream reporting a nonsense length can no longer crash the music time display.
-- Spacing, padding, and alignment across the top-left shortcut area, All Apps grid, feature panels,
-  tray, and tray menus have been refined for consistent click targets and smooth layout transitions.
-- Files tray item spacing and close button clearance: widened spacing between files and inset the
-  remove button so it no longer feels congested against the top notch strip.
-- Voice Control and assistive tools now interact reliably with Dynamic Notch even while tucked away.
-- Home no longer spills past its edges when music is playing; the Focus button drops its label
-  when there isn't room.
 
 ## [1.3.4] - 2026-10-26
 
@@ -243,6 +243,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.3.5]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.5
 [1.3.4]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.4
 [1.3.3]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.3
 [1.3.2]: https://github.com/shandilyaswagat/dynamic_notch/releases/tag/v1.3.2

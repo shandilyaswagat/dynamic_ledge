@@ -23,7 +23,7 @@ jobs:
         os: [macos-15, macos-26]
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use the newest stable Xcode on the runner
         uses: maxim-lobanov/setup-xcode@v1

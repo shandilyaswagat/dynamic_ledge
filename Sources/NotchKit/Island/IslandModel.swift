@@ -28,8 +28,8 @@ public final class IslandModel {
     /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
     /// layout). The notch stays open while you type, even if the pointer wanders off.
     public var isTypingInNook = false
-    /// The grid is picking the shortcuts beside Home (its Edit button). Ends when anything else
-    /// opens or the notch closes.
+    /// The grid is picking the shortcuts beside Home (started by holding a tile). Ends when
+    /// anything else opens or the notch closes.
     public var isEditingShortcuts = false
     public let hotKeys = HotKeys()
     public let updater = Updater()

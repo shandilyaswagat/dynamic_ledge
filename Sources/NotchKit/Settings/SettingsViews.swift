@@ -93,7 +93,7 @@ struct GeneralSettingsView: View {
                 Section {
                     Toggle("Show on Lock Screen", isOn: $settings.lockScreenEnabled)
                 } footer: {
-                    Text("While your Mac is locked, the notch shows your music with controls, a running timer, or charging. Anyone at your Mac can see it, so it's off until you turn it on.")
+                    Text("While your Mac is locked, the notch shows a running timer, what's playing, or charging, just as it looks when you're logged in. Anyone at your Mac can see it, so it's off until you turn it on.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -270,7 +270,7 @@ struct ActivitiesSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                IconToggle(title: "Timer", detail: "Start one from the pill or the menu bar", symbol: "timer", color: .orange, isOn: $settings.timerEnabled)
+                IconToggle(title: "Timer", detail: "Start one from the notch or the menu bar", symbol: "timer", color: .orange, isOn: $settings.timerEnabled)
                 IconToggle(title: "Calls & Microphone", detail: "FaceTime, Zoom, Meet and any app using the mic", symbol: "phone.fill", color: .green, isOn: $settings.callsEnabled)
                 IconToggle(title: "AirDrop", detail: "Drag files to the notch to send them", symbol: "dot.radiowaves.up.forward", color: .blue, isOn: $settings.airDropEnabled)
             }
@@ -308,7 +308,7 @@ struct HomeSettingsView: View {
     var body: some View {
         Form {
             Section {
-                IconToggle(title: "File Tray", detail: "Drag saved document windows here. Up to 30 shortcuts; clears when the app quits", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
+                IconToggle(title: "File Tray", detail: "Files you drop on the notch, or saved document windows. Up to 30; clears when the app quits", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
                 if settings.trayEnabled {
                     Button("Allow document window dragging…") { DocumentWindowDrag.requestAccess() }
                     Text("Enable Dynamic Ledge in macOS Accessibility settings to store a saved document by dragging its whole window to the notch. The source app must expose its saved document location. Some apps also ask for Automation access. Unsaved or ambiguous documents cannot be stored.")
@@ -322,9 +322,9 @@ struct HomeSettingsView: View {
                 IconToggle(title: "Mirror", detail: "A quick camera preview before calls", symbol: "person.crop.square.fill", color: .purple, isOn: $settings.mirrorEnabled)
                 IconToggle(title: "Stats", detail: "Memory and CPU beside the camera when nothing else is on, plus disk and network in the grid", symbol: "gauge.with.dots.needle.33percent", color: .green, isOn: $settings.statsEnabled)
             } header: {
-                Text("Tabs")
+                Text("Features")
             } footer: {
-                Text("Click the notch to open Home. Tray and Clipboard are tabs next to it; everything else is in the grid button at the top right.")
+                Text("Click the notch to open Home. Up to three of these sit beside Home as shortcuts (Files and Clipboard to start); everything else is in the grid at the top right. To change the shortcuts, open the grid and hold any feature.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

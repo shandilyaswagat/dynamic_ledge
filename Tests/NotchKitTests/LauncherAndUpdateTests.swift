@@ -57,21 +57,18 @@ struct LauncherTests {
         #expect(ReminderRules.label(for: items[1], at: now) == nil)
     }
 
-    @Test func featureShortcutsAreUniqueBoundedAndReorderable() {
+    @Test func featureShortcutsAreUniqueAndBounded() {
         var selection = FeatureShortcutSelection(items: [.timer, .timer, .calendar, .files, .stats])
         #expect(selection.items == [.timer, .calendar, .files])
         let addedDuplicate = selection.add(.timer)
         let addedOverCapacity = selection.add(.stats)
         #expect(!addedDuplicate, "a feature is never added twice")
         #expect(!addedOverCapacity, "three custom slots are the limit")
-        let moved = selection.move(from: 2, to: 0)
-        #expect(moved)
-        #expect(selection.items == [.files, .timer, .calendar])
         let removed = selection.remove(.timer)
         let added = selection.add(.stats)
         #expect(removed)
         #expect(added)
-        #expect(selection.items == [.files, .calendar, .stats])
+        #expect(selection.items == [.calendar, .files, .stats], "a new one goes last")
 
         let restored = FeatureShortcutSelection(rawValues: ["calendar", "missing", "calendar", "files"])
         #expect(restored.items == [.calendar, .files])
@@ -129,32 +126,28 @@ struct LauncherModelTests {
         #expect(settings.addFeatureShortcut(.calendar))
         #expect(settings.hasCustomizedFeatureShortcuts)
         #expect(!settings.addFeatureShortcut(.timer))
-        #expect(settings.moveFeatureShortcut(from: 2, to: 0))
-        #expect(settings.featureShortcuts == [.calendar, .files, .clipboard])
+        #expect(settings.featureShortcuts == [.files, .clipboard, .calendar])
 
         let reloaded = SettingsStore(defaults: defaults)
         #expect(reloaded.hasCustomizedFeatureShortcuts)
-        #expect(reloaded.featureShortcuts == [.calendar, .files, .clipboard])
+        #expect(reloaded.featureShortcuts == [.files, .clipboard, .calendar])
 
         let model = IslandModel(settings: reloaded, tray: TrayStore(folder: nil))
-        model.open(reloaded.featureShortcuts[1])
-        #expect(model.presentation == .tray)
         model.open(reloaded.featureShortcuts[0])
+        #expect(model.presentation == .tray)
+        model.open(reloaded.featureShortcuts[2])
         #expect(model.presentation == .nook(.calendar))
 
-        model.showTab(.shortcutEditor)
-        #expect(model.presentation == .nook(.shortcutEditor))
-        #expect(model.isEditingShortcuts)
-        let editorHeight = model.layout.pill.height
+        // Edit, in the grid, ends whenever something else opens.
         model.showTab(.launcher)
-        #expect(editorHeight == model.layout.pill.height, "the editor has the launcher's scrollable grid height")
-        #expect(!model.isEditingShortcuts, "returning to All Features exits shortcut editing")
-
-        // Exiting edit mode
-        model.isEditingShortcuts = false
-        #expect(!model.isEditingShortcuts)
+        model.isEditingShortcuts = true
         model.showTab(.home)
-        #expect(model.presentation == .home)
+        #expect(!model.isEditingShortcuts)
+        model.showTab(.launcher)
+        #expect(!model.isEditingShortcuts, "the grid reopens normally")
+        model.isEditingShortcuts = true
+        model.collapse()
+        #expect(!model.isEditingShortcuts)
     }
 
     @Test func editingShortcutsLimitsAndInteractions() {
@@ -182,10 +175,6 @@ struct LauncherModelTests {
         #expect(model.settings.featureShortcuts.count == 2)
         #expect(model.settings.addFeatureShortcut(.stats), "additions re-enabled after removal")
         #expect(model.settings.featureShortcuts == [.clipboard, .calendar, .stats])
-
-        // Reordering
-        #expect(model.settings.moveFeatureShortcut(from: 2, to: 0))
-        #expect(model.settings.featureShortcuts == [.stats, .clipboard, .calendar])
 
         // Exiting edit mode
         model.isEditingShortcuts = false

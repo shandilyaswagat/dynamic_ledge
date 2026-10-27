@@ -58,8 +58,9 @@ Sources/
    rectangle and radius together; content swaps with a blur transition.
 5. `IslandWindowController` feeds pointer positions back into the model and lets the panel take
    the mouse only where the shape is.
-6. `SettingsStore` saves the ordered feature shortcuts. The shortcut editor and launcher both
-   open features through `IslandModel.open(_:)`.
+6. `SettingsStore` saves the shortcuts beside Home, in the order they were added; the grid's
+   Edit mode adds and removes them. `IslandModel.featureShortcuts` hides any whose feature is
+   switched off, and both the shortcuts and the grid open features through `IslandModel.open(_:)`.
 
 ## Debug commands
 

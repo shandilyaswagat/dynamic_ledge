@@ -31,12 +31,14 @@ And when you click it, you get a little home base right under the notch:
 
 - **Home** with your music, next event, quick timers, a Focus timer and your favourite Shortcuts.
   Tap the timer for any length, Pomodoro or a stopwatch, and tap your next event to see the month
+  (click any day in it to see what's on)
 - **Tray**, a handy spot to drop files you'll need again in a minute. Drag files onto the notch
   to put them there, and drag them back out when you're ready
 - **Clipboard**, the last few things you copied. Click one to copy it again. Passwords are
   skipped and nothing is saved
 - **Notes**, a little scratchpad for phone numbers, to-dos, whatever
-- **Mirror**, a quick look at your camera before you hop on a call
+- **Mirror**, a quick look at your camera before you hop on a call, with a button to turn the
+  camera off
 
 Drag files onto the notch and you can also AirDrop them straight from there.
 
@@ -45,14 +47,14 @@ over **Tray**. The first time, your Mac will ask you to allow Dynamic Notch in A
 sometimes Automation). Tray is a scratch space: it holds up to 30 things and clears when you quit
 the app, without ever touching your original files.
 
-
 Everything else lives behind the grid button at the top right: the timer, stopwatch, calendar,
 today's reminders, a scratchpad, your camera mirror and Keep Awake (stops your Mac from
 sleeping). Each one has a shortcut too, like ⌃⌥R for the timer.
 
-Want your own quick picks? Hold a feature in All Features, then choose up to
-three features. Home stays there permanently, and you can remove or reorder the rest whenever you
-like.
+Next to Home at the top left sit up to three shortcuts of your own. They start as Files and
+Clipboard, and Files shows how many things are in your Tray. To change them, open the
+grid, click **Edit**, then click features to add them or click a ticked one to remove it. Click
+**Done** when you're happy.
 
 Like things wide? Pick **Elongated** in Settings › Appearance and Home stretches across the top
 of your screen, with everything in one long row you can scroll sideways: music you can scrub, a
@@ -68,9 +70,9 @@ space and network speed. It's all read on your Mac and never leaves it.
 
 A few more handy bits: a mute button for your mic during calls, a red **Hang Up** button for
 Teams, Zoom, Webex and WhatsApp calls, and (if you switch it on in Settings) a heads-up when a
-download finishes. The first time you use Hang Up, macOS asks for Accessibility access. WhatsApp
-uses its visible End call control; if that control is not available, the call stays open and the
-notch tells you why.
+download finishes. The first time you use Hang Up, macOS asks for Accessibility access. For
+WhatsApp it presses WhatsApp's own End call button; if it can't find it, the call stays on and the
+notch tells you.
 
 Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,
 have it follow your pointer, or show it on all your screens at once. Screens without a notch get
@@ -116,7 +118,9 @@ xattr -dr com.apple.quarantine "/Applications/Dynamic Notch.app"
 
 | If you want to | Do this |
 |---|---|
-| Open Home, Tray, Clipboard, Notes or Mirror | Click the notch, then pick a tab at the top |
+| Open Home or one of your shortcuts | Click the notch, then pick it at the top left |
+| Open anything else | Click the notch, then the grid button at the top right |
+| Change your shortcuts | Open the grid, click **Edit**, then click features to add or remove them |
 | Start a timer, a focus session or a shortcut | Click the notch, then tap it on Home |
 | See more about something | Click it |
 | Close it | Click anywhere else, or just move your mouse away (Notes stays open until you click away or press Escape) |
@@ -143,7 +147,8 @@ it slides down, then click.
 macOS to see what's playing. If Apple ever removes that in an update, music will stop showing up
 but everything else will keep working.
 
-**Is it safe?** All the code is right here in this repo, so anyone can look through it. The app
+**Is it safe?** All the code is right here in this repo, so anyone can look through it (it's free
+software, see [License](#license)). The app
 doesn't collect anything, and the only time it goes online is to check GitHub for a new version. That warning during install only shows up because
 I haven't registered the app with Apple yet. I'm planning to do that later.
 
@@ -185,3 +190,10 @@ Check the [changelog](CHANGELOG.md) to see what changed in each version.
 ## Want to build it yourself?
 
 Build steps and notes on how it all fits together are in the [docs folder](docs/README.md).
+
+## License
+
+Dynamic Notch is free software, © 2026 Swagat Shandilya and contributors. You can use it, share it
+and change it under the [GNU General Public License, version 3](LICENSE) or (at your choice) any
+later version. If you share a changed version, it has to stay free under the same license, with
+its source code available.

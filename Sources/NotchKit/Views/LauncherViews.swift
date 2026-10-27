@@ -6,7 +6,6 @@ import SwiftUI
 /// two rows to a page. More tiles make more pages, scrolled through with dots on the right.
 struct LauncherBody: View {
     let model: IslandModel
-    var startInEditMode: Bool = false
     @State private var page: Int? = 0
     @Environment(\.notchScale) private var s
 
@@ -17,22 +16,12 @@ struct LauncherBody: View {
     private var atCapacity: Bool { selected.count >= SettingsStore.maximumFeatureShortcuts }
 
     var body: some View {
-        let isEditing = model.isEditingShortcuts || startInEditMode
+        let isEditing = model.isEditingShortcuts
         let pages = Self.pages(model.launcherItems)
         let gap = IslandMetrics.Nook.launcherGap * s
         let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: Self.columns)
 
-        VStack(spacing: 4 * s) {
-            if isEditing && atCapacity {
-                Text("You can add up to 3 shortcuts. Remove one to add another.")
-                    .font(.system(size: 11 * s, weight: .medium))
-                    .foregroundStyle(NotchColor.secondaryText)
-                    .lineLimit(1)
-                    .padding(.top, 1 * s)
-                    .padding(.bottom, 2 * s)
-                    .transition(.opacity)
-            }
-
+        VStack(spacing: 0) {
             GeometryReader { geometry in
                 HStack(spacing: 10 * s) {
                     ScrollView(.vertical, showsIndicators: false) {
@@ -65,11 +54,6 @@ struct LauncherBody: View {
                 }
             }
         }
-        .onAppear {
-            if startInEditMode {
-                model.isEditingShortcuts = true
-            }
-        }
         .animation(.spring(duration: 0.35, bounce: 0.2), value: isEditing)
         .animation(.spring(duration: 0.35, bounce: 0.2), value: selected)
         .accessibilityIdentifier("feature-shortcut-editor")
@@ -79,17 +63,6 @@ struct LauncherBody: View {
     nonisolated static func pages(_ items: [LauncherItem]) -> [[LauncherItem]] {
         let size = columns * rowsPerPage
         return stride(from: 0, to: max(items.count, 1), by: size).map { Array(items[$0..<min($0 + size, items.count)]) }
-    }
-}
-
-// MARK: Shortcut editor
-
-/// Shown when navigating directly to .shortcutEditor, opening the launcher in edit mode.
-struct ShortcutEditorBody: View {
-    let model: IslandModel
-
-    var body: some View {
-        LauncherBody(model: model, startInEditMode: true)
     }
 }
 
@@ -132,95 +105,77 @@ private struct LauncherTile: View {
 
     var body: some View {
         let live = model.isLive(item)
-        VStack(spacing: 0) {
-            Image(systemName: Self.symbol(item, live: live))
-                .font(.system(size: 19 * s, weight: .regular))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Self.tint(item))
-                .frame(height: 24 * s)
-            Text(item.title)
-                .font(.system(size: 11.5 * s, weight: .medium))
-                .foregroundStyle(.white.opacity(0.92))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .padding(.top, 7 * s)
-            if model.settings.keyboardShortcutsEnabled {
-                Text(item.shortcutLabel)
-                    .font(.system(size: 9.5 * s, weight: .regular))
-                    .kerning(0.5 * s)
-                    .foregroundStyle(Color.white.opacity(0.38))
-                    .padding(.top, 2 * s)
-            }
-        }
-        .padding(.horizontal, 6 * s)
-        .frame(maxWidth: .infinity)
-        .frame(height: IslandMetrics.Nook.launcherTile * s)
-        .background(
-            RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
-                .fill(Color.white.opacity(isHovering ? 0.1 : 0.055))
-        )
-        .overlay(alignment: .topTrailing) {
-            if isEditing {
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 15 * s, weight: .semibold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, NotchColor.blue)
-                        .padding(6 * s)
-                } else if !atCapacity {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 15 * s, weight: .semibold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, NotchColor.blue)
-                        .padding(6 * s)
+        Button(action: activate) {
+            VStack(spacing: 0) {
+                Image(systemName: Self.symbol(item, live: live))
+                    .font(.system(size: 19 * s, weight: .regular))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Self.tint(item))
+                    .frame(height: 24 * s)
+                Text(item.title)
+                    .font(.system(size: 11.5 * s, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .padding(.top, 7 * s)
+                if model.settings.keyboardShortcutsEnabled {
+                    Text(item.shortcutLabel)
+                        .font(.system(size: 9.5 * s, weight: .regular))
+                        .kerning(0.5 * s)
+                        .foregroundStyle(Color.white.opacity(0.38))
+                        .padding(.top, 2 * s)
                 }
-            } else if live {
-                Circle()
-                    .fill(Self.tint(item))
-                    .frame(width: 6 * s, height: 6 * s)
-                    .padding(9 * s)
             }
-        }
-        .contentShape(RoundedRectangle(cornerRadius: 16 * s, style: .continuous))
-        .gesture(
-            LongPressGesture(minimumDuration: 0.4)
-                .exclusively(before: TapGesture())
-                .onEnded { gesture in
-                    switch gesture {
-                    case .first:
-                        if !isEditing {
-                            model.isEditingShortcuts = true
-                            Haptics.perform(enabled: model.settings.hapticsEnabled)
-                        }
-                    case .second:
-                        if isEditing {
-                            if !isSelected && !atCapacity {
-                                model.addFeatureShortcut(item)
-                                Haptics.perform(enabled: model.settings.hapticsEnabled)
-                            }
-                        } else {
-                            model.open(item)
-                        }
+            .padding(.horizontal, 6 * s)
+            .frame(maxWidth: .infinity)
+            .frame(height: IslandMetrics.Nook.launcherTile * s)
+            .background(
+                RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
+                    .fill(Color.white.opacity(isHovering ? 0.1 : 0.055))
+            )
+            .overlay(alignment: .topTrailing) {
+                if isEditing {
+                    // Ticked: already beside Home. Plus: room to add it.
+                    if isSelected || !atCapacity {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle.fill")
+                            .font(.system(size: 15 * s, weight: .semibold))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, NotchColor.blue)
+                            .padding(6 * s)
                     }
+                } else if live {
+                    // On right now: music playing, a timer running, kept awake.
+                    Circle()
+                        .fill(Self.tint(item))
+                        .frame(width: 6 * s, height: 6 * s)
+                        .padding(9 * s)
                 }
-        )
-        .animation(.easeOut(duration: 0.15), value: isHovering)
-        .onHover { isHovering = $0 }
-        .help(isEditing ? (isSelected ? "\(item.title) (already added)" : (atCapacity ? "Remove a shortcut before adding another" : "Add \(item.title) to shortcuts")) : "\(Self.help(item, live: live)) Hold to edit shortcuts.")
-        .accessibilityElement()
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction {
-            if isEditing {
-                if !isSelected && !atCapacity {
-                    model.addFeatureShortcut(item)
-                }
-            } else {
-                model.open(item)
             }
+            .opacity(isEditing && atCapacity && !isSelected ? 0.5 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: 16 * s, style: .continuous))
+            .animation(.easeOut(duration: 0.15), value: isHovering)
         }
-        .accessibilityAction(named: Text("Edit shortcuts")) { model.isEditingShortcuts = true }
+        .buttonStyle(PressableButtonStyle())
+        .onHover { isHovering = $0 }
+        .help(isEditing
+              ? (isSelected ? "Remove \(item.title) from the shortcuts" : (atCapacity ? "Remove a shortcut before adding another" : "Add \(item.title) beside Home"))
+              : Self.help(item, live: live))
         .accessibilityLabel(Text(item.title))
-        .accessibilityValue(Text(isSelected ? "Selected" : (live ? "On" : "")))
+        .accessibilityValue(Text(isEditing ? (isSelected ? "In shortcuts" : "") : (live ? "On" : "")))
+    }
+
+    /// Opens the feature, or while editing adds it to the shortcuts or takes it off.
+    private func activate() {
+        guard isEditing else {
+            model.open(item)
+            return
+        }
+        if isSelected {
+            model.settings.removeFeatureShortcut(item)
+        } else if !model.addFeatureShortcut(item) {
+            return
+        }
+        Haptics.perform(enabled: model.settings.hapticsEnabled)
     }
 
     static func symbol(_ item: LauncherItem, live: Bool) -> String {

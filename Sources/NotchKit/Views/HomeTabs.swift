@@ -38,23 +38,21 @@ struct NookContainer<Content: View>: View {
                     .frame(width: cameraGap + 12 * s)
                 HStack(spacing: 4 * s) {
                     if model.isEditingShortcuts {
-                        Button {
-                            model.isEditingShortcuts = false
-                            if tab == .shortcutEditor {
-                                model.showTab(.launcher)
-                            }
-                        } label: {
-                            Text("Done")
-                                .font(.system(size: 11 * s, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10 * s)
-                                .frame(height: 22 * s)
-                                .background(Capsule().fill(NotchColor.blue))
-                                .contentShape(Capsule())
-                        }
-                        .buttonStyle(PressableButtonStyle())
-                        .accessibilityLabel(Text("Done editing shortcuts"))
+                        // How many are picked, so the limit is clear before it's hit.
+                        Text("\(model.featureShortcuts.count) of \(SettingsStore.maximumFeatureShortcuts)")
+                            .font(.system(size: 11 * s, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(NotchColor.secondaryText)
+                            .padding(.trailing, 4 * s)
+                            .help("Click features to add them beside Home, or a ticked one to remove it")
+                        HeaderTextButton(title: "Done", filled: true) { model.isEditingShortcuts = false }
+                            .accessibilityLabel(Text("Done editing shortcuts"))
                     } else {
+                        if tab == .launcher {
+                            HeaderTextButton(title: "Edit", filled: false) { model.isEditingShortcuts = true }
+                                .help("Pick the shortcuts beside Home")
+                                .accessibilityLabel(Text("Edit shortcuts"))
+                        }
                         UpdatePill(model: model)
                         LauncherButton(model: model, isOpen: tab == .launcher)
                         SettingsButton(model: model)
@@ -79,7 +77,6 @@ struct NookContainer<Content: View>: View {
         case .notes: "Scratchpad"
         case .mirror: "Camera Mirror"
         case .stats: "Stats"
-        case .shortcutEditor: "Shortcuts"
         default: "Timer"
         }
     }
@@ -201,13 +198,11 @@ private struct LauncherButton: View {
     }
 }
 
-/// The permanent Home button and up to three saved feature shortcuts in the top-left corner.
-/// In edit mode they can be removed, or dragged sideways to reorder them.
+/// The permanent Home button and up to three saved feature shortcuts in the top-left corner,
+/// in the order they were added. While the grid is editing, each shows a remove badge.
 private struct FeatureShortcutBar: View {
     let model: IslandModel
     let selectedTab: HomeTab
-    /// The shortcut being dragged, kept here so reordering never waits on the pasteboard.
-    @State private var dragging: LauncherItem?
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -218,7 +213,7 @@ private struct FeatureShortcutBar: View {
                 model.isEditingShortcuts = false
                 model.showTab(.home)
             }
-            ForEach(Array(shortcuts.enumerated()), id: \.element) { index, item in
+            ForEach(shortcuts) { item in
                 CustomShortcutButton(
                     item: item,
                     isSelected: isCurrentFeature(item) && !isEditing,
@@ -227,12 +222,8 @@ private struct FeatureShortcutBar: View {
                     onTap: {
                         if isEditing { remove(item) } else { model.open(item) }
                     },
-                    onRemove: { remove(item) },
-                    moveLeft: index > 0 ? { model.settings.moveFeatureShortcut(item, to: shortcuts[index - 1]) } : nil,
-                    moveRight: index < shortcuts.count - 1 ? { model.settings.moveFeatureShortcut(item, to: shortcuts[index + 1]) } : nil
+                    onRemove: { remove(item) }
                 )
-                .modifier(ShortcutDrag(isEnabled: isEditing, item: item) { dragging = item })
-                .onDrop(of: [.text], delegate: ShortcutBarDropDelegate(target: item, model: model, dragging: $dragging))
             }
         }
         .padding(2 * s)
@@ -295,8 +286,6 @@ private struct CustomShortcutButton: View {
     let badge: Int
     let onTap: () -> Void
     let onRemove: () -> Void
-    let moveLeft: (() -> Void)?
-    let moveRight: (() -> Void)?
     @State private var isHovering = false
     @Environment(\.notchScale) private var s
 
@@ -342,56 +331,30 @@ private struct CustomShortcutButton: View {
                     .accessibilityHidden(true)
             }
         }
-        .accessibilityAction(named: Text("Move Left")) { moveLeft?() }
-        .accessibilityAction(named: Text("Move Right")) { moveRight?() }
         .accessibilityAction(named: Text("Remove")) { onRemove() }
     }
 }
 
-/// Shortcuts can be dragged only while editing; otherwise a drag would carry the feature's name
-/// out as text into whatever app it's dropped on.
-private struct ShortcutDrag: ViewModifier {
-    let isEnabled: Bool
-    let item: LauncherItem
-    let onStart: () -> Void
+/// A small text capsule in the strip: Edit in the grid, Done while editing.
+private struct HeaderTextButton: View {
+    let title: LocalizedStringKey
+    let filled: Bool
+    let action: () -> Void
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
 
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.onDrag {
-                onStart()
-                return NSItemProvider(object: item.rawValue as NSString)
-            }
-        } else {
-            content
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11 * s, weight: .semibold))
+                .foregroundStyle(filled ? .white : NotchColor.secondaryText)
+                .padding(.horizontal, 10 * s)
+                .frame(height: 22 * s)
+                .background(Capsule().fill(filled ? NotchColor.blue : (isHovering ? NotchColor.buttonFill : Color.clear)))
+                .contentShape(Capsule())
         }
-    }
-}
-
-/// Reorders live as the dragged shortcut passes over another, like the iPhone's Home Screen.
-/// Moving happens once, on entering; letting go only finishes the drag.
-private struct ShortcutBarDropDelegate: DropDelegate {
-    let target: LauncherItem
-    let model: IslandModel
-    @Binding var dragging: LauncherItem?
-
-    func validateDrop(info: DropInfo) -> Bool {
-        model.isEditingShortcuts && dragging != nil
-    }
-
-    func dropEntered(info: DropInfo) {
-        guard model.isEditingShortcuts, let dragging, dragging != target else { return }
-        model.settings.moveFeatureShortcut(dragging, to: target)
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard dragging != nil else { return false }
-        dragging = nil
-        Haptics.perform(enabled: model.settings.hapticsEnabled)
-        return true
+        .buttonStyle(PressableButtonStyle())
+        .onHover { isHovering = $0 }
     }
 }
 

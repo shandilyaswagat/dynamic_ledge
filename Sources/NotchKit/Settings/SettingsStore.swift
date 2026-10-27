@@ -230,7 +230,7 @@ public final class SettingsStore {
         return true
     }
 
-    /// Adds a feature to the upper-right shortcut area. Home remains outside this selection.
+    /// Adds a shortcut beside Home, after the others. Home itself is always there.
     @discardableResult
     public func addFeatureShortcut(_ item: LauncherItem) -> Bool {
         var selection = FeatureShortcutSelection(items: featureShortcuts)
@@ -247,22 +247,6 @@ public final class SettingsStore {
         return true
     }
 
-    /// Moves a shortcut to where another one is, by feature rather than position, so hidden
-    /// shortcuts in between don't throw it off.
-    @discardableResult
-    public func moveFeatureShortcut(_ item: LauncherItem, to target: LauncherItem) -> Bool {
-        guard let source = featureShortcuts.firstIndex(of: item),
-              let destination = featureShortcuts.firstIndex(of: target) else { return false }
-        return moveFeatureShortcut(from: source, to: destination)
-    }
-
-    @discardableResult
-    public func moveFeatureShortcut(from source: Int, to destination: Int) -> Bool {
-        var selection = FeatureShortcutSelection(items: featureShortcuts)
-        guard selection.move(from: source, to: destination) else { return false }
-        featureShortcuts = selection.items
-        return true
-    }
 
     public func resetAppearance() {
         appearance = .standard

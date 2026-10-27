@@ -179,7 +179,6 @@ struct NotchContent: View {
                 case .reminders: RemindersPanelBody(model: model)
                 case .stats: StatsPanelBody(model: model)
                 case .launcher: LauncherBody(model: model)
-                case .shortcutEditor: ShortcutEditorBody(model: model)
                 }
             }
         case .alert(let alert):

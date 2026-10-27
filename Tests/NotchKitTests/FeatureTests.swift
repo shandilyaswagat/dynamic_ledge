@@ -389,15 +389,6 @@ struct NewFeatureModelTests {
         #expect(!model.addFeatureShortcut(.timer), "three visible is the limit")
     }
 
-    @Test func movingByFeatureLandsOnTheTarget() {
-        let model = makeModel()
-        model.settings.featureShortcuts = [.files, .clipboard, .calendar]
-        model.settings.moveFeatureShortcut(.files, to: .calendar)
-        #expect(model.settings.featureShortcuts == [.clipboard, .calendar, .files])
-        model.settings.moveFeatureShortcut(.files, to: .clipboard)
-        #expect(model.settings.featureShortcuts == [.files, .clipboard, .calendar])
-    }
-
     @Test func homeRowsFollowSettings() {
         let model = makeModel()
         model.settings.calendarEnabled = false

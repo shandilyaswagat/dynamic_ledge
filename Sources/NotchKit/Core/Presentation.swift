@@ -116,10 +116,8 @@ public enum HomeTab: String, CaseIterable, Sendable, Codable, Hashable {
     case reminders
     /// Memory, CPU, disk and network.
     case stats
-    /// The grid of everything the notch can do.
+    /// The grid of everything the notch can do. Its Edit button picks the shortcuts beside Home.
     case launcher
-    /// The feature picker opened by holding the upper-right shortcut area.
-    case shortcutEditor
 
     /// Shown in the tab bar beside the camera.
     public var isTab: Bool {

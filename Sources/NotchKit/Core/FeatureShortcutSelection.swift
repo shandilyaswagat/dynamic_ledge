@@ -42,13 +42,4 @@ public struct FeatureShortcutSelection: Equatable, Sendable {
         items.remove(at: index)
         return true
     }
-
-    /// Moves one selected feature to a concrete destination slot.
-    @discardableResult
-    public mutating func move(from source: Int, to destination: Int) -> Bool {
-        guard items.indices.contains(source), items.indices.contains(destination), source != destination else { return false }
-        let item = items.remove(at: source)
-        items.insert(item, at: destination)
-        return true
-    }
 }

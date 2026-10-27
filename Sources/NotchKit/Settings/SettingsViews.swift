@@ -417,12 +417,20 @@ struct AboutSettingsView: View {
                 Text(copyright)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
                     .padding(.top, 8)
             }
+            HStack(spacing: 14) {
+                Link("Source Code", destination: Self.repository)
+                Link("License", destination: Self.repository.appending(path: "blob/main/LICENSE"))
+            }
+            .font(.caption)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
+
+    private static let repository = URL(string: "https://github.com/shandilyaswagat/dynamic_notch")!
 }
 
 /// Updates: the automatic check, a button to check now, and Install when there's something new.

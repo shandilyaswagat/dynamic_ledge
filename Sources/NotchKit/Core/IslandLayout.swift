@@ -294,7 +294,7 @@ public struct LayoutEngine: Equatable, Sendable {
         case .expanded(.nowPlaying): IslandMetrics.ContentHeight.nowPlaying + (home.hasMediaSwitcher ? IslandMetrics.ContentHeight.mediaSwitcher : 0)
         case .expanded(.timer), .expanded(.stopwatch): IslandMetrics.ContentHeight.timer
         case .expanded(.call): IslandMetrics.ContentHeight.call
-        case .nook(let tab): ((tab == .launcher || tab == .shortcutEditor) ? IslandMetrics.Nook.launcherBody : IslandMetrics.Nook.body) + IslandMetrics.Nook.bodyTopInset
+        case .nook(let tab): (tab == .launcher ? IslandMetrics.Nook.launcherBody : IslandMetrics.Nook.body) + IslandMetrics.Nook.bodyTopInset
         case .alert(.timerFinished): IslandMetrics.ContentHeight.timerFinished
         case .drop: IslandMetrics.ContentHeight.drop
         default: nil

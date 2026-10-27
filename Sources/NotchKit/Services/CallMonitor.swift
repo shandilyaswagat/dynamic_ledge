@@ -45,6 +45,9 @@ public final class CallMonitor {
     @ObservationIgnored private var cameraListeners: [CameraListener] = []
     @ObservationIgnored private var isRunning = false
     @ObservationIgnored private var didRequestAccessibilityThisLaunch = false
+    /// Whether WhatsApp has a call window open, as last read in the background.
+    @ObservationIgnored private var whatsAppCallWindow: (pid: pid_t, open: Bool)?
+    @ObservationIgnored private var whatsAppWindowCheck: Task<Void, Never>?
 
     public init() {}
 
@@ -64,6 +67,9 @@ public final class CallMonitor {
         appIcon = nil
         candidate = nil
         hangUpMessage = nil
+        whatsAppWindowCheck?.cancel()
+        whatsAppWindowCheck = nil
+        whatsAppCallWindow = nil
     }
 
     public func showApp() {
@@ -185,19 +191,38 @@ public final class CallMonitor {
             (actions as? [String])?.contains(kAXPressAction as String) == true
     }
 
-    private static func isWhatsAppCallActive(in pid: pid_t?) -> Bool {
-        guard let pid else { return false }
-        let application = AXUIElementCreateApplication(pid)
-        var windowsRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-              let windows = windowsRef as? [AXUIElement] else { return false }
-        for window in windows {
-            if let title = attribute(window, kAXTitleAttribute) as? String,
-               title.localizedCaseInsensitiveContains("call") {
-                return true
-            }
+    /// Is this WhatsApp mic use a call? Reads the last background check of WhatsApp's windows and
+    /// starts a fresh one; when the answer changes, the call is evaluated again.
+    private func isWhatsAppOnCall(pid: pid_t?, cameraOn: Bool) -> Bool {
+        let canRead = pid != nil && AXIsProcessTrusted()
+        if canRead, let pid { refreshWhatsAppWindow(pid) }
+        let open = whatsAppCallWindow.flatMap { $0.pid == pid ? $0.open : nil }
+        return CallHangup.isWhatsAppOnCall(cameraOn: cameraOn, canReadWindows: canRead, callWindowOpen: open)
+    }
+
+    private func refreshWhatsAppWindow(_ pid: pid_t) {
+        guard whatsAppWindowCheck == nil else { return }
+        whatsAppWindowCheck = Task { [weak self] in
+            // Another app's windows can be slow to answer; never ask on the main thread.
+            let open = await Task.detached(priority: .utility) { Self.hasCallWindow(pid) }.value
+            guard let self else { return }
+            self.whatsAppWindowCheck = nil
+            let changed = self.whatsAppCallWindow?.pid != pid || self.whatsAppCallWindow?.open != open
+            self.whatsAppCallWindow = (pid, open)
+            if changed, self.isRunning { self.evaluate() }
         }
-        return false
+    }
+
+    /// A WhatsApp window whose title says it's a call (English titles only, which is why
+    /// the camera and the no-Accessibility case also count). Short timeouts throughout.
+    nonisolated private static func hasCallWindow(_ pid: pid_t) -> Bool {
+        let application = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(application, 0.25)
+        guard let windows = attribute(application, kAXWindowsAttribute) as? [AXUIElement] else { return false }
+        return windows.contains { window in
+            AXUIElementSetMessagingTimeout(window, 0.25)
+            return (attribute(window, kAXTitleAttribute) as? String)?.localizedCaseInsensitiveContains("call") == true
+        }
     }
 
     nonisolated private static func children(of element: AXUIElement) -> [AXUIElement] {
@@ -283,7 +308,7 @@ public final class CallMonitor {
         let identifier = user.app?.bundleIdentifier ?? user.bundleIdentifier
         let isCall: Bool
         if identifier == "net.whatsapp.WhatsApp" || identifier == "desktop.WhatsApp" {
-            let callActive = cameraOn || Self.isWhatsAppCallActive(in: user.app?.processIdentifier ?? user.pid)
+            let callActive = isWhatsAppOnCall(pid: user.app?.processIdentifier ?? user.pid, cameraOn: cameraOn)
             if !callActive {
                 candidate = nil
                 if session != nil {
@@ -292,7 +317,8 @@ public final class CallMonitor {
                     inactiveSince = nil
                     hangUpMessage = nil
                 }
-                schedulePoll(after: nil)
+                // The mic stays on, so nothing else will tell us when a call starts; keep looking.
+                schedulePoll(after: 3)
                 return
             }
             isCall = true

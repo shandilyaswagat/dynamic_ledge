@@ -43,6 +43,14 @@ public enum CallHangup {
         return shortcut
     }
 
+    /// WhatsApp keeps the microphone after a call and for voice notes, so its mic use alone
+    /// isn't a call. With the camera on, or a window titled as a call, it is. Without
+    /// Accessibility the windows can't be read, so mic use counts as a call, as it always has:
+    /// better a call that lingers than a call that never shows.
+    public static func isWhatsAppOnCall(cameraOn: Bool, canReadWindows: Bool, callWindowOpen: Bool?) -> Bool {
+        cameraOn || !canReadWindows || callWindowOpen == true
+    }
+
     /// WhatsApp adds invisible direction marks to accessibility labels.
     public static func isWhatsAppEndCallLabel(_ label: String) -> Bool {
         let withoutDirectionMarks = String(label.unicodeScalars.filter {

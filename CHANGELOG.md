@@ -5,6 +5,15 @@ Every release of Dynamic Ledge (called Dynamic Notch until 1.4.0), newest first.
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+### Fixed
+- Hang Up works with WhatsApp's Leave call button as well as End call, and the call view closes
+  as soon as you hang up.
+- WhatsApp holding on to the microphone after a call, or while you record a voice note, no longer
+  shows as a call (once Dynamic Ledge has Accessibility access; without it, WhatsApp mic use still
+  shows as a call, as before).
+
 ## [1.4.0] - 2026-10-27
 
 **Dynamic Notch is now Dynamic Ledge.** Same app, new name. Updating from Dynamic Notch keeps all
@@ -53,7 +62,6 @@ move across on their own.
   reading while your display is asleep.
 
 ### Fixed
-- The hang-up button now recognizes WhatsApp’s Leave call control, and prevents lingering background microphone use from keeping the notch in a call state after hanging up.
 - With Open on Hover, hovering over Stats now opens Stats instead of Home.
 - Home no longer spills past its edges when music is playing; the Focus button drops its label
   when there isn't room.

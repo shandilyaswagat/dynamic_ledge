@@ -371,7 +371,7 @@ private struct SettingsButton: View {
 
 // MARK: Home
 
-/// Media card on the left; calendar, timers and shortcuts beside it.
+/// Up to three sections side by side (HomeSections.swift), or the elongated row of widgets.
 struct HomeBody: View {
     let model: IslandModel
     @Environment(\.notchScale) private var s
@@ -385,78 +385,7 @@ struct HomeBody: View {
     }
 
     private var standard: some View {
-        let content = model.homeContent
-        return HStack(alignment: .top, spacing: 14 * s) {
-            if content.hasMedia {
-                MediaCard(service: model.nowPlaying)
-                    .frame(width: IslandMetrics.Nook.mediaCardWidth * s)
-                    .frame(maxHeight: .infinity)
-            }
-            VStack(alignment: .leading, spacing: IslandMetrics.Nook.rowGap * s) {
-                if content.hasEvent {
-                    CalendarRow(model: model, calendar: model.calendar)
-                        .frame(height: IslandMetrics.Nook.row * s)
-                }
-                if content.hasTimer {
-                    TimerPresetsRow(model: model)
-                        .frame(height: IslandMetrics.Nook.row * s)
-                }
-                if content.hasShortcuts {
-                    ShortcutsRow(model: model)
-                        .frame(height: IslandMetrics.Nook.row * s)
-                }
-                if content.rowCount == 0 && !content.hasMedia {
-                    Text("Nothing live right now")
-                        .font(.system(size: 13 * s, weight: .medium))
-                        .foregroundStyle(NotchColor.secondaryText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(.bottom, 2 * s)
-    }
-}
-
-/// Artwork, title and transport controls in a small card.
-private struct MediaCard: View {
-    let service: NowPlayingService
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        let info = service.info
-        VStack(alignment: .leading, spacing: 8 * s) {
-            HStack(spacing: 10 * s) {
-                Button { service.openSourceApp() } label: {
-                    ArtworkView(artwork: service.artwork, fallbackIcon: service.appIcon, size: 46 * s, cornerRadius: 10 * s)
-                }
-                .buttonStyle(PressableButtonStyle())
-                .accessibilityLabel(Text("Open player"))
-                VStack(alignment: .leading, spacing: 2 * s) {
-                    Text(info?.title ?? "")
-                        .font(.system(size: 13 * s, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text(info?.artist.isEmpty == false ? info?.artist ?? "" : service.appName ?? "")
-                        .font(.system(size: 11 * s))
-                        .foregroundStyle(NotchColor.secondaryText)
-                }
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            MiniProgress(service: service)
-                .frame(height: 3 * s)
-            HStack(spacing: 18 * s) {
-                GlyphButton(symbol: "backward.fill", size: 13 * s, label: "Previous Track") { service.previousTrack() }
-                GlyphButton(symbol: info?.isPlaying == true ? "pause.fill" : "play.fill", size: 18 * s, label: info?.isPlaying == true ? "Pause" : "Play") {
-                    service.togglePlayPause()
-                }
-                GlyphButton(symbol: "forward.fill", size: 13 * s, label: "Next Track") { service.nextTrack() }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(10 * s)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(RoundedRectangle(cornerRadius: 16 * s, style: .continuous).fill(Color.white.opacity(0.07)))
+        StandardHomeBody(model: model)
     }
 }
 
@@ -475,95 +404,6 @@ struct MiniProgress: View {
             }
         }
         .accessibilityHidden(true)
-    }
-}
-
-/// The next event, or a button to connect the calendar the first time.
-private struct CalendarRow: View {
-    let model: IslandModel
-    let calendar: CalendarService
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        HStack(spacing: 8 * s) {
-            switch calendar.access {
-            case .notAsked:
-                RowLabel(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
-                Spacer(minLength: 8 * s)
-                Button("Connect") { calendar.requestAccess() }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-            case .denied, .limited:
-                RowLabel(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
-                Spacer(minLength: 8 * s)
-                Button("Allow Access") { calendar.openPrivacySettings() }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-                    .help("Turn on Dynamic Ledge in Privacy & Security › Calendars")
-            case .granted:
-                // Always shown once connected, even on a free day, and always opens the month.
-                Button { model.showTab(.calendar) } label: {
-                    HStack(spacing: 8 * s) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 12 * s, weight: .semibold))
-                            .foregroundStyle(NotchColor.red)
-                            .frame(width: 16 * s)
-                        if let event = calendar.nextEvent {
-                            Text(event.title)
-                                .font(.system(size: 12 * s, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                            Spacer(minLength: 6 * s)
-                            TimelineView(.everyMinute) { context in
-                                Text(CalendarRules.relativeLabel(for: event, at: context.date))
-                                    .font(.system(size: 11 * s, weight: .medium))
-                                    .monospacedDigit()
-                                    .foregroundStyle(event.isHappening(at: context.date) ? NotchColor.green : NotchColor.secondaryText)
-                                    .fixedSize()
-                            }
-                        } else {
-                            Text("No more events this week")
-                                .font(.system(size: 12 * s, weight: .medium))
-                                .foregroundStyle(NotchColor.secondaryText)
-                                .lineLimit(1)
-                            Spacer(minLength: 6 * s)
-                        }
-                        Image(systemName: "chevron.forward")
-                            .font(.system(size: 9 * s, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.3))
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(PressableButtonStyle())
-                .accessibilityLabel(Text(calendar.nextEvent.map { "Next event, \($0.title)" } ?? "Calendar"))
-            }
-        }
-    }
-}
-
-/// The start of a Home row: a tinted symbol and a name, like a row in an Apple list.
-private struct RowLabel: View {
-    let symbol: String
-    let tint: Color
-    let title: LocalizedStringKey
-    var showsChevron = false
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        HStack(spacing: 8 * s) {
-            Image(systemName: symbol)
-                .font(.system(size: 12 * s, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 16 * s)
-            Text(title)
-                .font(.system(size: 12 * s, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .fixedSize()
-            if showsChevron {
-                Image(systemName: "chevron.forward")
-                    .font(.system(size: 9 * s, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.3))
-            }
-        }
     }
 }
 
@@ -604,90 +444,6 @@ private struct QuickActionLabel: View {
     }
 }
 
-/// "Timer ›" opens the full timer; the capsules on the right start one straight away.
-private struct TimerPresetsRow: View {
-    let model: IslandModel
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        HStack(spacing: 6 * s) {
-            Button {
-                model.timerPanelMode = .timer
-                model.showTab(.timers)
-            } label: {
-                RowLabel(symbol: "timer", tint: NotchColor.orange, title: "Timer", showsChevron: true)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(PressableButtonStyle())
-            .help("Any length, Pomodoro or Stopwatch")
-            .accessibilityLabel(Text("Timer"))
-            Spacer(minLength: 8 * s)
-            ForEach(TimerService.presets.prefix(3), id: \.self) { preset in
-                Button(Self.shortLabel(preset)) { model.startTimer(preset) }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s, width: 40 * s))
-                    .accessibilityLabel(Text("Start \(TimeFormatting.spoken(preset)) timer"))
-            }
-            // Beside the music card there isn't always room for the word; the icon stays.
-            ViewThatFits(in: .horizontal) {
-                focusButton(showsTitle: true)
-                focusButton(showsTitle: false)
-            }
-        }
-    }
-
-    private func focusButton(showsTitle: Bool) -> some View {
-        Button {
-            model.startSession(.focus)
-        } label: {
-            if showsTitle {
-                Label("Focus", systemImage: TimerMode.focus.symbol)
-                    .labelStyle(.titleAndIcon)
-            } else {
-                Image(systemName: TimerMode.focus.symbol)
-            }
-        }
-        .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s))
-        .help("Focus for \(model.settings.focusMinutes) minutes, then take a \(model.settings.breakMinutes) minute break")
-        .accessibilityLabel(Text("Start a \(model.settings.focusMinutes) minute focus session"))
-    }
-
-    /// "5m", "10m": short enough that the row fits beside the music card.
-    private static func shortLabel(_ seconds: TimeInterval) -> String {
-        "\(Int(seconds / 60))m"
-    }
-}
-
-private struct ShortcutsRow: View {
-    let model: IslandModel
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        HStack(spacing: 6 * s) {
-            RowLabel(symbol: "bolt.fill", tint: NotchColor.blue, title: "Shortcuts")
-            Spacer(minLength: 8 * s)
-            ForEach(model.favoriteShortcuts, id: \.self) { name in
-                let isRunning = model.shortcuts.running.contains(name)
-                Button {
-                    model.shortcuts.run(name)
-                } label: {
-                    HStack(spacing: 5 * s) {
-                        if isRunning {
-                            ProgressView()
-                                .controlSize(.mini)
-                        }
-                        Text(name)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: 110 * s)
-                    }
-                }
-                .buttonStyle(QuickActionStyle(tint: NotchColor.blue, scale: s))
-                .disabled(isRunning)
-                .accessibilityLabel(Text("Run shortcut \(name)"))
-            }
-        }
-    }
-}
-
 // MARK: Tray
 
 /// Files dropped on the notch. Drag them out, double-click to open, right-click for more.
@@ -707,7 +463,7 @@ struct TrayBody: View {
     }
 
     @ViewBuilder private var contents: some View {
-        let items = model.tray.items
+        let items = model.tray.ordered
         if items.isEmpty {
             ZStack {
                 RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
@@ -717,7 +473,7 @@ struct TrayBody: View {
                         .font(.system(size: 22 * s, weight: .semibold))
                     Text("Drag files onto the notch to keep them here")
                         .font(.system(size: 13 * s, weight: .medium))
-                    Text("They stay here until you quit. Your originals aren't touched.")
+                    Text("They stay until you quit, or pin one to keep it. Your originals aren't touched.")
                         .font(.system(size: 10 * s))
                 }
                 .foregroundStyle(NotchColor.secondaryText)
@@ -729,6 +485,7 @@ struct TrayBody: View {
                     HStack(spacing: 12 * s) {
                         ForEach(items) { item in
                             TrayItemView(model: model, item: item)
+                                .transition(.scale(scale: 0.9).combined(with: .opacity))
                         }
                     }
                     .padding(.horizontal, 4 * s)
@@ -736,7 +493,7 @@ struct TrayBody: View {
                     .padding(.bottom, 6 * s)
                 }
                 Button {
-                    model.tray.removeAll()
+                    withAnimation(.snappy(duration: 0.25)) { model.tray.removeAll() }
                 } label: {
                     Image(systemName: "xmark.bin.fill")
                         .font(.system(size: 13 * s, weight: .semibold))
@@ -745,10 +502,14 @@ struct TrayBody: View {
                         .background(Circle().fill(NotchColor.buttonFill))
                 }
                 .buttonStyle(PressableButtonStyle())
-                .help("Clear the tray")
+                .help(model.tray.pinnedCount > 0 ? "Clear the tray (pinned items stay)" : "Clear the tray")
                 .accessibilityLabel(Text("Clear the tray"))
+                // Clearing leaves pinned items, so it's only offered when there's something else.
+                .disabled(model.tray.pinnedCount == items.count)
+                .opacity(model.tray.pinnedCount == items.count ? 0.4 : 1)
             }
             .frame(maxHeight: .infinity)
+            .animation(.snappy(duration: 0.25), value: items.map(\.id))
         }
     }
 }
@@ -775,7 +536,27 @@ struct TrayItemView: View {
         }
         .padding(.horizontal, 8 * s)
         .padding(.vertical, 8 * s)
-        .background(RoundedRectangle(cornerRadius: 12 * s, style: .continuous).fill(Color.white.opacity(isHovering ? 0.12 : 0)))
+        .background(RoundedRectangle(cornerRadius: 12 * s, style: .continuous).fill(Color.white.opacity(isHovering ? 0.12 : (item.isPinned ? 0.06 : 0))))
+        .overlay(alignment: .topLeading) {
+            // Pinned items always show the pin; on hover, any item offers it.
+            if item.isPinned || isHovering {
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) { model.tray.togglePin(item.id) }
+                } label: {
+                    Image(systemName: item.isPinned ? "pin.fill" : "pin")
+                        .font(.system(size: 9.5 * s, weight: .bold))
+                        .foregroundStyle(item.isPinned ? NotchColor.orange : .white.opacity(0.85))
+                        .frame(width: 18 * s, height: 18 * s)
+                        .background(Circle().fill(Color.black.opacity(0.75)))
+                        .frame(width: 22 * s, height: 22 * s)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .padding([.top, .leading], 3 * s)
+                .help(item.isPinned ? "Unpin" : "Pin, so it stays after you quit")
+                .accessibilityLabel(Text(item.isPinned ? "Unpin \(item.name)" : "Pin \(item.name)"))
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if isHovering {
                 Button { model.tray.remove(item.id) } label: {
@@ -808,6 +589,7 @@ struct TrayItemView: View {
             Button("Open") { model.tray.open(item) }
             Button("Show in Finder") { model.tray.revealInFinder(item) }
             Button("Send with AirDrop") { model.airDrop([item.url]) }
+            Button(item.isPinned ? "Unpin" : "Pin") { model.tray.togglePin(item.id) }
             Divider()
             Button("Remove from Tray") { model.tray.remove(item.id) }
         }

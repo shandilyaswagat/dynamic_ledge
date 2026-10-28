@@ -1,34 +1,73 @@
 import Foundation
 
-/// Recently copied text, newest first. Kept in memory only.
+/// Recently copied text, newest first, with pinned clips kept at the top. Unpinned copies live
+/// in memory only; pinned ones are the user's to keep, so the monitor saves those.
 public struct ClipboardHistory: Equatable, Sendable {
-    public struct Entry: Identifiable, Equatable, Sendable {
+    public struct Entry: Identifiable, Equatable, Sendable, Codable {
         public let id: UUID
         public let text: String
         /// Name of the app it was copied from, when known.
         public let appName: String?
         public let copiedAt: Date
+        public var isPinned = false
     }
 
+    /// Pinned first (newest pin first), then the rest, newest first.
     public private(set) var entries: [Entry] = []
 
+    /// Unpinned copies kept. Pinned ones don't count towards it.
     public static let capacity = 20
+    public static let pinnedCapacity = 20
     /// Longer copies are kept whole on the pasteboard but cut here, so the history stays small.
     public static let maximumLength = 20_000
 
-    public init() {}
+    public init(pinned: [Entry] = []) {
+        entries = Array(pinned.filter(\.isPinned).prefix(Self.pinnedCapacity))
+    }
 
-    /// Adds a copy. Copying the same text again moves it to the front instead of repeating it.
-    /// Returns false for text that isn't worth keeping (empty or only whitespace).
+    public var pinned: [Entry] { entries.filter(\.isPinned) }
+    public var pinnedCount: Int { entries.lazy.filter(\.isPinned).count }
+    public var canPin: Bool { pinnedCount < Self.pinnedCapacity }
+
+    /// Adds a copy. Copying the same text again moves it to the front instead of repeating it,
+    /// and a pinned clip stays pinned. Returns false for text that isn't worth keeping (empty or
+    /// only whitespace).
     @discardableResult
     public mutating func add(_ text: String, appName: String? = nil, now: Date = Date()) -> Bool {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         let kept = text.count > Self.maximumLength ? String(text.prefix(Self.maximumLength)) : text
-        entries.removeAll { $0.text == kept }
-        entries.insert(Entry(id: UUID(), text: kept, appName: appName, copiedAt: now), at: 0)
-        if entries.count > Self.capacity {
-            entries.removeLast(entries.count - Self.capacity)
+        if let index = entries.firstIndex(where: { $0.text == kept }), entries[index].isPinned {
+            // Pinned clips keep their place; the pin order is the user's.
+            return true
         }
+        entries.removeAll { $0.text == kept }
+        entries.insert(Entry(id: UUID(), text: kept, appName: appName, copiedAt: now), at: pinnedCount)
+        let unpinned = entries.count - pinnedCount
+        if unpinned > Self.capacity {
+            entries.removeLast(unpinned - Self.capacity)
+        }
+        return true
+    }
+
+    /// Pins or unpins. A new pin goes to the top; an unpinned clip joins the history at the
+    /// front. Returns false when the pins are full.
+    @discardableResult
+    public mutating func togglePin(_ id: UUID) -> Bool {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return false }
+        var entry = entries.remove(at: index)
+        if entry.isPinned {
+            entry.isPinned = false
+            entries.insert(entry, at: pinnedCount)
+            let unpinned = entries.count - pinnedCount
+            if unpinned > Self.capacity { entries.removeLast(unpinned - Self.capacity) }
+            return true
+        }
+        guard canPin else {
+            entries.insert(entry, at: index)
+            return false
+        }
+        entry.isPinned = true
+        entries.insert(entry, at: 0)
         return true
     }
 
@@ -36,8 +75,21 @@ public struct ClipboardHistory: Equatable, Sendable {
         entries.removeAll { $0.id == id }
     }
 
-    public mutating func removeAll() {
-        entries.removeAll()
+    /// Clears the history. Pinned clips stay unless `includingPinned`.
+    public mutating func removeAll(includingPinned: Bool = false) {
+        entries.removeAll { includingPinned || !$0.isPinned }
+    }
+
+    /// Entries whose text or app contains every word of the query, ignoring case and accents.
+    public func matching(_ query: String) -> [Entry] {
+        let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !words.isEmpty else { return entries }
+        return entries.filter { entry in
+            words.allSatisfy { word in
+                entry.text.range(of: word, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+                    || entry.appName?.range(of: word, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+            }
+        }
     }
 
     /// One line for the card: whitespace runs collapsed, so code and lists stay readable.

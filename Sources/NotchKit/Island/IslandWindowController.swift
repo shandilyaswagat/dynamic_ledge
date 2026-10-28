@@ -191,10 +191,12 @@ public final class IslandWindowController {
         }
     }
 
-    /// Notes takes the keyboard while it's open and hands it straight back when it closes.
+    /// Notes, and Clipboard while its search is open, take the keyboard and hand it straight back
+    /// when they close.
     /// The panel never activates the app, so the app you were in stays in front.
     private func observeKeyboard() {
-        let wantsKeyboard = isActive && model.presentation == .notes
+        let wantsKeyboard = isActive && (model.presentation == .notes
+            || (model.presentation == .clipboard && model.isSearchingClipboard))
         // The elongated Home has Notes and To-dos inline: the panel may take the keyboard, but
         // only once you click into one of them, so the app you were in keeps it until then.
         let mayType = isActive && model.presentation == .home && model.settings.appearance.nookLayout == .elongated
@@ -211,6 +213,7 @@ public final class IslandWindowController {
         }
         withObservationTracking {
             _ = isActive && model.presentation == .notes
+            _ = model.isSearchingClipboard
             _ = model.presentation == .home && model.settings.appearance.nookLayout == .elongated
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.observeKeyboard() }

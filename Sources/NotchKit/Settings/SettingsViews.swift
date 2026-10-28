@@ -265,6 +265,9 @@ struct ActivitiesSettingsView: View {
         Form {
             Section("Live Activities") {
                 IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
+                if settings.nowPlayingEnabled {
+                    IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when it has them. The song’s name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
+                }
                 if !nowPlaying.isAvailable {
                     Text("Now Playing isn’t available on this Mac.")
                         .font(.caption)
@@ -308,14 +311,14 @@ struct HomeSettingsView: View {
     var body: some View {
         Form {
             Section {
-                IconToggle(title: "File Tray", detail: "Files you drop on the notch, or saved document windows. Up to 30; clears when the app quits", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
+                IconToggle(title: "File Tray", detail: "Files you drop on the notch, or saved document windows. Up to 30; clears when the app quits, except pinned ones", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
                 if settings.trayEnabled {
                     Button("Allow document window dragging…") { DocumentWindowDrag.requestAccess() }
                     Text("Enable Dynamic Ledge in macOS Accessibility settings to store a saved document by dragging its whole window to the notch. The source app must expose its saved document location. Some apps also ask for Automation access. Unsaved or ambiguous documents cannot be stored.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                IconToggle(title: "Clipboard", detail: "Text you copied recently. Passwords are skipped, nothing is saved", symbol: "doc.on.clipboard.fill", color: .orange, isOn: $settings.clipboardEnabled)
+                IconToggle(title: "Clipboard", detail: "Text you copied recently. Passwords are skipped; only pinned clips are saved", symbol: "doc.on.clipboard.fill", color: .orange, isOn: $settings.clipboardEnabled)
                 IconToggle(title: "Notes", detail: "A quick scratchpad, saved as you type", symbol: "note.text", color: .yellow, isOn: $settings.notesEnabled)
                 IconToggle(title: "Reminders", detail: "Today's to-dos, ticked off from the notch", symbol: "checklist", color: .blue, isOn: $settings.remindersEnabled)
                 IconToggle(title: "Finished downloads", detail: "A heads-up when a file lands in Downloads. macOS asks for access once", symbol: "arrow.down.circle.fill", color: .blue, isOn: $settings.downloadsEnabled)

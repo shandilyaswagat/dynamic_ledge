@@ -83,6 +83,8 @@ public final class SettingsStore {
     public var timerSound: Bool { didSet { defaults.set(timerSound, forKey: Key.timerSound) } }
 
     public var nowPlayingEnabled: Bool { didSet { defaults.set(nowPlayingEnabled, forKey: Key.nowPlaying) } }
+    /// Timed lyrics under the song, looked up on LRCLIB.
+    public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
     public var callsEnabled: Bool { didSet { defaults.set(callsEnabled, forKey: Key.calls) } }
     public var airDropEnabled: Bool { didSet { defaults.set(airDropEnabled, forKey: Key.airDrop) } }
@@ -184,6 +186,7 @@ public final class SettingsStore {
         display = (defaults.string(forKey: Key.display)).flatMap(DisplayChoice.init(rawValue:)) ?? .automatic
         timerSound = defaults.object(forKey: Key.timerSound) as? Bool ?? true
         nowPlayingEnabled = defaults.object(forKey: Key.nowPlaying) as? Bool ?? true
+        lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
         timerEnabled = defaults.object(forKey: Key.timer) as? Bool ?? true
         callsEnabled = defaults.object(forKey: Key.calls) as? Bool ?? true
         airDropEnabled = defaults.object(forKey: Key.airDrop) as? Bool ?? true
@@ -272,6 +275,7 @@ public final class SettingsStore {
         static let display = "general.display"
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
+        static let lyrics = "activity.lyrics"
         static let timer = "activity.timer"
         static let calls = "activity.calls"
         static let airDrop = "activity.airDrop"

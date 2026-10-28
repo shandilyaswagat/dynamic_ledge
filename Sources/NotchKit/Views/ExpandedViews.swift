@@ -53,8 +53,18 @@ struct NowPlayingExpandedView: View {
                     .frame(width: 20 * s, height: 18 * s)
             }
 
+            // Exactly ContentHeight.lyrics taller: 26 for the line, 8 above it, and 4 less above
+            // the progress bar.
+            let showsLyrics = model.showsLyrics
+            if showsLyrics, let lyrics = model.lyrics.current {
+                LyricsLine(lyrics: lyrics, service: service, size: 14 * s)
+                    .frame(height: 26 * s)
+                    .padding(.top, 8 * s)
+                    .transition(.opacity)
+            }
+
             ProgressRow(service: service)
-                .padding(.top, 14 * s)
+                .padding(.top, (showsLyrics ? 10 : 14) * s)
 
             HStack(spacing: 30 * s) {
                 GlyphButton(symbol: "backward.fill", size: 19 * s, label: "Previous Track") { service.previousTrack() }
@@ -67,6 +77,42 @@ struct NowPlayingExpandedView: View {
         }
         .padding(.horizontal, 22 * s)
         .frame(maxHeight: .infinity)
+    }
+}
+
+/// The line of the song being sung now, sliding up as the next one starts. A gap between
+/// lines shows a note.
+struct LyricsLine: View {
+    let lyrics: SyncedLyrics
+    let service: NowPlayingService
+    var size: CGFloat
+    var alignment: Alignment = .center
+
+    var body: some View {
+        let info = service.info
+        TimelineView(.animation(minimumInterval: 0.2, paused: info?.isPlaying != true)) { context in
+            // A touch early, so a line appears as it's sung rather than just after.
+            let index = info?.elapsed(at: context.date).flatMap { lyrics.index(at: $0 + 0.3) }
+            let text = index.map { lyrics.lines[$0].text } ?? ""
+            ZStack {
+                Text(text.isEmpty ? "♪" : text)
+                    .font(.system(size: size, weight: .semibold))
+                    .foregroundStyle(text.isEmpty ? NotchColor.secondaryText : .white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .multilineTextAlignment(alignment == .center ? .center : .leading)
+                    .id(index ?? -1)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+            .clipped()
+            .animation(.smooth(duration: 0.35), value: index)
+        }
+        .accessibilityElement()
+        .accessibilityLabel(Text("Lyrics"))
     }
 }
 

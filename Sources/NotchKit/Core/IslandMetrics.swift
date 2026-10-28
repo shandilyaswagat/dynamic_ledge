@@ -27,8 +27,10 @@ public enum IslandMetrics {
         public static let timerFinished: CGFloat = 72
         /// The row of app buttons in the music view when several apps are playing.
         public static let mediaSwitcher: CGFloat = 38
+        /// The line of lyrics in the music view, for songs that have timed lyrics.
+        public static let lyrics: CGFloat = 30
         /// Tallest expanded content; sizes the window.
-        public static let maximum: CGFloat = max(nowPlaying + mediaSwitcher, Nook.launcherBody + Nook.bodyTopInset)
+        public static let maximum: CGFloat = max(nowPlaying + lyrics + mediaSwitcher, Nook.launcherBody + Nook.bodyTopInset)
     }
 
     /// The Home, Tray and Mirror tabs share one fixed-size "nook", like the paid notch apps:
@@ -45,6 +47,8 @@ public enum IslandMetrics {
         public static let mediaCardWidth: CGFloat = 210
         /// The grid of features gets more height than the other views, so its tiles can breathe.
         public static let launcherBody: CGFloat = 170
+        /// Clipboard's search bar, added below the clips while it's open.
+        public static let searchBar: CGFloat = 40
         public static let launcherTile: CGFloat = 76
         public static let launcherGap: CGFloat = 10
         /// Elongated layout: Home, Tray, Clipboard and the grid stretch across the top of the
@@ -90,13 +94,19 @@ public struct HomeContent: Equatable, Sendable {
     public var hasShortcuts: Bool
     /// More than one app is playing, so the music view shows a row to switch between them.
     public var hasMediaSwitcher: Bool
+    /// The song has timed lyrics, so the music view shows a line of them.
+    public var hasLyrics: Bool
+    /// Clipboard's search bar is open below the clips.
+    public var hasClipboardSearch: Bool
 
-    public init(hasMedia: Bool = false, hasEvent: Bool = false, hasTimer: Bool = true, hasShortcuts: Bool = false, hasMediaSwitcher: Bool = false) {
+    public init(hasMedia: Bool = false, hasEvent: Bool = false, hasTimer: Bool = true, hasShortcuts: Bool = false, hasMediaSwitcher: Bool = false, hasLyrics: Bool = false, hasClipboardSearch: Bool = false) {
         self.hasMedia = hasMedia
         self.hasEvent = hasEvent
         self.hasTimer = hasTimer
         self.hasShortcuts = hasShortcuts
         self.hasMediaSwitcher = hasMediaSwitcher
+        self.hasLyrics = hasLyrics
+        self.hasClipboardSearch = hasClipboardSearch
     }
 
     /// Rows in the widget column (calendar, timer, shortcuts).

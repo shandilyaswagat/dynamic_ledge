@@ -62,7 +62,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
-        model?.tray.removeAll()
+        model?.tray.endSession()
         model?.stopServices()
         islandWindows?.tearDown()
         lockScreen?.tearDown()

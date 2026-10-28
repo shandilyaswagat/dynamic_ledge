@@ -7,6 +7,20 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- **A new Home.** Up to three sections side by side. Whatever's live comes first: a call or the
+  microphone, and music, each with its own buttons (Hang Up, mute, play). When two are on, they
+  share the section. Click one to open its full view again. A running timer or stopwatch sits at
+  the top of the Timer section, above the quick-start buttons.
+- **Lyrics.** Songs with timed lyrics show the line being sung, in the music view and on Home.
+  Lyrics come from lrclib.net, which is sent only the song's name, artist, album and length.
+  Songs without them look as before. Turn them off in Settings › Activities.
+- **Search and pin in Clipboard.** Search your clips as you type, and press Return to copy the
+  first match. Pin a clip to keep it at the front and after you quit (up to 20). Clearing the
+  history leaves pinned clips.
+- **Pinned files in the Tray.** Pin a file to keep it in the Tray after you quit. A pinned file
+  that's renamed or moved is still found. Clearing the Tray leaves pinned files.
+
 ### Fixed
 - Hang Up works with WhatsApp's Leave call button as well as End call, and the call view closes
   as soon as you hang up.

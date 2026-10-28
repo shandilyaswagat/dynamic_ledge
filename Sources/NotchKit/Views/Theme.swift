@@ -59,6 +59,8 @@ enum Motion {
     }
 
     static let settings = Animation.spring(response: 0.3, dampingFraction: 1)
+    /// The open notch growing or shrinking to fit what's in it.
+    static let resize = Animation.spring(response: 0.38, dampingFraction: 0.86)
     static let hover = Animation.spring(response: 0.3, dampingFraction: 0.68)
 }
 

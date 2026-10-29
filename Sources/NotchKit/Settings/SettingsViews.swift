@@ -264,7 +264,7 @@ struct ActivitiesSettingsView: View {
     var body: some View {
         Form {
             Section("Live Activities") {
-                IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
+                IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app, or just the ones you pick", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
                 if settings.nowPlayingEnabled {
                     IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when it has them. The song’s name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
                 }
@@ -276,6 +276,10 @@ struct ActivitiesSettingsView: View {
                 IconToggle(title: "Timer", detail: "Start one from the notch or the menu bar", symbol: "timer", color: .orange, isOn: $settings.timerEnabled)
                 IconToggle(title: "Calls & Microphone", detail: "FaceTime, Zoom, Meet and any app using the mic", symbol: "phone.fill", color: .green, isOn: $settings.callsEnabled)
                 IconToggle(title: "AirDrop", detail: "Drag files to the notch to send them", symbol: "dot.radiowaves.up.forward", color: .blue, isOn: $settings.airDropEnabled)
+            }
+
+            if settings.nowPlayingEnabled {
+                NowPlayingAppsSection(settings: settings)
             }
 
             Section("Alerts") {
@@ -298,6 +302,117 @@ struct ActivitiesSettingsView: View {
 
     private static func label(for seconds: TimeInterval) -> String {
         seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
+    }
+}
+
+/// Every app's music, or only the apps ticked here.
+private struct NowPlayingAppsSection: View {
+    @Bindable var settings: SettingsStore
+
+    /// Offered ticked the first time someone switches to choosing apps, if installed.
+    private static let suggested = ["com.spotify.client", "com.apple.Music"]
+
+    var body: some View {
+        Section {
+            Picker("Show music from", selection: mode) {
+                Text("All apps").tag(MediaAppFilter.Mode.all)
+                Text("Only these apps").tag(MediaAppFilter.Mode.chosen)
+            }
+            if settings.nowPlayingAppMode == .chosen {
+                ForEach(rows) { app in
+                    Toggle(isOn: allowed(app.id)) {
+                        HStack(spacing: 10) {
+                            Image(nsImage: app.icon)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                            Text(app.name)
+                        }
+                    }
+                    .accessibilityLabel(Text(app.name))
+                    .contextMenu {
+                        Button("Remove from List") { settings.forgetMediaApp(app.id) }
+                    }
+                }
+                Button("Add App…", action: addApp)
+            }
+        } header: {
+            Text("Now Playing Apps")
+        } footer: {
+            if settings.nowPlayingAppMode == .chosen {
+                Text("Music from other apps won’t show in the notch. Apps join this list once they play something. YouTube and other websites play through your browser, so leave the browser off to keep them out.")
+            }
+        }
+    }
+
+    private var mode: Binding<MediaAppFilter.Mode> {
+        Binding {
+            settings.nowPlayingAppMode
+        } set: { newMode in
+            if newMode == .chosen, settings.nowPlayingApps.isEmpty {
+                for id in Self.suggested where MediaAppInfo.isInstalled(id) {
+                    settings.setNowPlaying(id, allowed: true)
+                }
+            }
+            settings.nowPlayingAppMode = newMode
+        }
+    }
+
+    private func allowed(_ id: String) -> Binding<Bool> {
+        Binding {
+            settings.nowPlayingApps.contains(id)
+        } set: { isOn in
+            settings.setNowPlaying(id, allowed: isOn)
+        }
+    }
+
+    /// Ticked apps first, in the order they were picked, then the rest that played lately.
+    private var rows: [MediaAppInfo] {
+        var ids = settings.nowPlayingApps
+        ids += settings.recentMediaApps.identifiers.filter { !ids.contains($0) && $0 != Bundle.main.bundleIdentifier }
+        return ids.map(MediaAppInfo.lookup)
+    }
+
+    private func addApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Add"
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls {
+            if let id = Bundle(url: url)?.bundleIdentifier {
+                settings.setNowPlaying(id, allowed: true)
+            }
+        }
+    }
+}
+
+/// An app's name and icon, looked up once per launch.
+@MainActor
+private struct MediaAppInfo: Identifiable {
+    let id: String
+    let name: String
+    let icon: NSImage
+
+    private static var cache: [String: MediaAppInfo] = [:]
+
+    static func isInstalled(_ id: String) -> Bool {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) != nil
+    }
+
+    static func lookup(_ id: String) -> MediaAppInfo {
+        if let cached = cache[id] { return cached }
+        let info: MediaAppInfo
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+            let name = FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+            info = MediaAppInfo(id: id, name: name, icon: NSWorkspace.shared.icon(forFile: url.path))
+        } else {
+            // Uninstalled since: still listed, so it can be unticked or removed. Not cached, in
+            // case it's installed again.
+            return MediaAppInfo(id: id, name: id, icon: NSWorkspace.shared.icon(for: .application))
+        }
+        cache[id] = info
+        return info
     }
 }
 

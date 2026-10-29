@@ -144,6 +144,8 @@ public final class IslandModel {
         power.onAlert = { [weak self] alert in self?.receive(alert) }
         audioRoute.onAlert = { [weak self] alert in self?.receive(alert) }
         nowPlaying.lingerDuration = settings.pausedMediaLinger
+        nowPlaying.appFilter = settings.mediaAppFilter
+        nowPlaying.onAppSeen = { [weak self] identifier in self?.settings.noteMediaApp(identifier) }
         observeActivities()
         observeSettings()
         observeLyrics()
@@ -928,6 +930,8 @@ public final class IslandModel {
     private func observeSettings() {
         withObservationTracking {
             _ = settings.pausedMediaLinger
+            _ = settings.nowPlayingAppMode
+            _ = settings.nowPlayingApps
             _ = settings.airDropEnabled
             _ = settings.trayEnabled
             _ = settings.mirrorEnabled
@@ -942,6 +946,7 @@ public final class IslandModel {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.nowPlaying.lingerDuration = self.settings.pausedMediaLinger
+                self.nowPlaying.appFilter = self.settings.mediaAppFilter
                 if !self.acceptsFileDrops {
                     self.isFileDragNear = false
                     self.setTargeted(nil, false)

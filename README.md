@@ -32,7 +32,8 @@ and you forget it's there.
 
 Here's what it shows:
 
-- Whatever music is playing, from any app, with the album art and play/pause/skip
+- Whatever music is playing, from any app (or just the ones you pick, like Spotify), with the
+  album art and play/pause/skip
 - Timers, counting down right next to the camera
 - Calls on FaceTime, Zoom, Meet, Teams and the rest, with how long you've been on
 - Your next calendar event, plus a heads up 5 minutes before it starts
@@ -161,7 +162,12 @@ it slides down, then click.
 
 **My music isn't showing.** Play something and give it a second. The app uses a hidden bit of
 macOS to see what's playing. If Apple ever removes that in an update, music will stop showing up
-but everything else will keep working.
+but everything else will keep working. If you picked **Only these apps** in Settings ›
+Activities, check the app is ticked there.
+
+**Can I stop videos from showing up?** Yes. In Settings › Activities, set **Show music from** to
+**Only these apps** and tick just your music app, like Spotify. YouTube and other websites play
+through your browser, so leave the browser unticked.
 
 **Is it safe?** All the code is right here in this repo, so anyone can look through it (it's free
 software, see [License](#license)). The app

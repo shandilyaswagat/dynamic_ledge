@@ -20,6 +20,9 @@ last one.
   history leaves pinned clips.
 - **Pinned files in the Tray.** Pin a file to keep it in the Tray after you quit. A pinned file
   that's renamed or moved is still found. Clearing the Tray leaves pinned files.
+- **Choose which apps show music.** In Settings › Activities, pick **Only these apps** and tick
+  the ones you want, like Spotify. Anything else playing, such as a video in your browser, stays
+  out of the notch. Apps join the list once they play something, or add one yourself.
 
 ### Fixed
 - Hang Up works with WhatsApp's Leave call button as well as End call, and the call view closes

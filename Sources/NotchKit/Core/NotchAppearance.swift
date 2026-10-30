@@ -28,6 +28,17 @@ public enum NookLayout: String, CaseIterable, Sendable, Codable, Identifiable {
     public var id: String { rawValue }
 }
 
+/// How the notch is drawn.
+public enum NotchTheme: String, CaseIterable, Sendable, Codable, Identifiable {
+    /// Solid black, so the extension reads as part of the notch.
+    case black
+    /// Frosted glass that shows a blur of what's behind it, with softer, springier motion. The
+    /// part around the camera stays black so the notch itself doesn't show through.
+    case glass
+
+    public var id: String { rawValue }
+}
+
 /// The user's size choices.
 public struct NotchAppearance: Equatable, Sendable, Codable {
     /// How far the shape reaches either side of the camera.
@@ -39,19 +50,26 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
     /// Small, medium or large. Width and thickness fine-tune on top of it.
     public var size: NotchSize
     public var nookLayout: NookLayout
+    public var theme: NotchTheme
+    /// Glass only: 0 is clear, 1 fully tinted (darkest, easiest to read over busy windows).
+    public var glassTint: Double
 
     public init(
         width: Double,
         height: Double,
         pitchBlack: Bool = true,
         size: NotchSize = .large,
-        nookLayout: NookLayout = .standard
+        nookLayout: NookLayout = .standard,
+        theme: NotchTheme = .black,
+        glassTint: Double = NotchAppearance.defaultGlassTint
     ) {
         self.width = width
         self.height = height
         self.pitchBlack = pitchBlack
         self.size = size
         self.nookLayout = nookLayout
+        self.theme = theme
+        self.glassTint = glassTint
     }
 
     public static let standard = NotchAppearance(
@@ -63,6 +81,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
 
     public static let widthRange: ClosedRange<Double> = 120...420
     public static let heightRange: ClosedRange<Double> = 24...52
+    public static let glassTintRange: ClosedRange<Double> = 0...1
+    public static let defaultGlassTint = 0.5
 
     /// Brings every value into its supported range, replacing non-finite values with defaults.
     public func clamped() -> NotchAppearance {
@@ -71,7 +91,9 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
             height: Self.clamp(height, to: Self.heightRange, fallback: Self.standard.height),
             pitchBlack: pitchBlack,
             size: size,
-            nookLayout: nookLayout
+            nookLayout: nookLayout,
+            theme: theme,
+            glassTint: Self.clamp(glassTint, to: Self.glassTintRange, fallback: Self.defaultGlassTint)
         )
     }
 

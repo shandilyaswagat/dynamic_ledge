@@ -179,3 +179,27 @@ with Homebrew.
 Vorssaint) a launcher grid of every feature with keyboard shortcuts.
 **Not yet:** replacing the macOS volume/brightness HUD and keyboard backlight; a real audio
 visualizer (needs recording permission); custom gestures.
+
+## 9. Apple's Mac Dynamic Island and the 2026 notch apps (researched for 1.4.2)
+
+On 28 October 2026 Apple announced a MacBook Pro with a touchscreen OLED display and its own
+Dynamic Island. The notch is replaced by a small hole for the camera, with the pixels around it
+turned black to form a pill. Apple calls it the home for Spotlight, Live Activities and Siri,
+and you tap it to answer a call, accept AirDrop or pause a song. Short system alerts found in
+macOS 27 cover AirPods connecting, noise-cancellation mode, Focus, low battery and audio
+switching. macOS also gains a slider that takes its glass look from clear to tinted. Animation
+details weren't public yet, and only that MacBook Pro gets it.
+
+**Decided:** stay focused on MacBooks with a notch and don't copy Apple's island yet.
+
+Newer notch apps add: a Liquid Glass look (MacNotch, DynamicLake Pro), downloads as a live
+activity (Notchy), approving coding-assistant requests from the notch (Crest; MacNotch and Droppy
+watch them), AirPods battery (Seam, Atoll, MacNotch), Focus detection (Seam), replacing the
+volume and brightness indicator (MediaMate and others), and other apps' notifications (Alcove,
+DynamicLake, MacNotch, Boring Notch).
+
+**Taken:** a Glass theme beside Black (with a clear-to-tinted slider and softer motion), download
+progress, and Claude Code approvals.
+**Later:** signing and notarizing, other apps' notifications, AirPods battery with an animated
+AirPods alert like the iPhone's.
+**Left out:** Focus (macOS doesn't say which Focus is on), one search bar in the notch.

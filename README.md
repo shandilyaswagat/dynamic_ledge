@@ -39,7 +39,6 @@ Here's what it shows:
 - Your next calendar event, plus a heads up 5 minutes before it starts
 - Volume and brightness when you change them
 - A heads up when you plug in your charger or your battery gets low
-- Your AirPods or headphones connecting
 
 And when you click it, you get a little home base right under the notch:
 
@@ -85,8 +84,8 @@ up beside the camera whenever nothing else is going on, and a click shows memory
 space and network speed. It's all read on your Mac and never leaves it.
 
 A few more handy bits: a mute button for your mic during calls, a red **Hang Up** button for
-Teams, Zoom, Webex and WhatsApp calls, and (if you switch it on in Settings) a heads-up when a
-download finishes. The first time you use Hang Up, macOS asks for Accessibility access. WhatsApp
+Teams, Zoom, Webex and WhatsApp calls, and (if you switch it on in Settings) download progress
+and a heads-up when a download finishes. The first time you use Hang Up, macOS asks for Accessibility access. WhatsApp
 uses its accessible Leave call or End call control; if it can't find it, the call stays on and the
 notch tells you.
 
@@ -95,7 +94,11 @@ have it follow your pointer, or show it on all your screens at once. Screens wit
 a notch too: it stays out of sight until something's going on, and you can bring it out by resting
 your pointer at the top centre of the screen for a moment.
 
-You can make it small, medium or large, whatever looks right on your screen.
+You can make it small, medium or large, whatever looks right on your screen. Prefer something
+lighter than black? Pick the **Glass** theme in Settings › Appearance.
+
+Use Claude Code? Turn on **Claude Code approvals** in Settings › Activities, and when it needs
+your OK to run a command or change a file, you can Allow or Deny it right from the notch.
 
 It doesn't need an account and doesn't track anything. It goes online only for a quick daily
 check for a new version and, with Lyrics on, to look up the song that's playing. You can turn

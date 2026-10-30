@@ -7,6 +7,26 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- **Glass theme.** Pick **Glass** in Settings › Appearance for a frosted-glass notch that blurs
+  what's behind it, with softer, springier motion. The part around the camera stays black, and a
+  slider takes the glass from clear to tinted. Black stays the default.
+- **Download progress.** While Safari, Chrome or another browser downloads into your Downloads
+  folder, the notch shows how far along it is. Open it to see the file, how much is left and
+  roughly how long, with buttons to show it in Finder or stop it. Part of the Finished downloads
+  setting.
+- **Claude Code approvals.** Turn it on in Settings › Activities, and when Claude Code needs your
+  OK to run a command or change a file, the notch shows what it wants to do with Allow and Deny.
+  Close it, or leave it for two minutes, and Claude Code asks in Terminal as usual. It adds a hook
+  to Claude Code's settings, and takes it out again when you turn it off.
+
+### Removed
+- The "Connected" alert for AirPods and other headphones. macOS already shows it at the top of
+  the screen, so the notch was repeating it.
+
+### Fixed
+- The notch no longer freezes while macOS asks for access to your Downloads folder.
+
 ## [1.4.1] - 2026-10-30
 
 ### Added

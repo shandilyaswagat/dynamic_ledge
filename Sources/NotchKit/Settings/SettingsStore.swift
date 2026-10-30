@@ -63,6 +63,8 @@ public final class SettingsStore {
             defaults.set(value.nookLayout.rawValue, forKey: Key.nookLayout)
             defaults.set(value.width, forKey: Key.width)
             defaults.set(value.height, forKey: Key.height)
+            defaults.set(value.theme.rawValue, forKey: Key.theme)
+            defaults.set(value.glassTint, forKey: Key.glassTint)
         }
     }
 
@@ -94,6 +96,9 @@ public final class SettingsStore {
         MediaAppFilter(mode: nowPlayingAppMode, allowed: Set(nowPlayingApps))
     }
 
+    /// Answer Claude Code's permission requests from the notch. Off until asked for: turning it
+    /// on adds a hook to Claude Code's settings.
+    public var agentApprovalsEnabled: Bool { didSet { defaults.set(agentApprovalsEnabled, forKey: Key.agentApprovals) } }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
@@ -178,7 +183,9 @@ public final class SettingsStore {
             height: defaults.object(forKey: Key.height) as? Double ?? standard.height,
             pitchBlack: defaults.object(forKey: Key.pitchBlack) as? Bool ?? standard.pitchBlack,
             size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size,
-            nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout
+            nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout,
+            theme: defaults.string(forKey: Key.theme).flatMap(NotchTheme.init(rawValue:)) ?? standard.theme,
+            glassTint: defaults.object(forKey: Key.glassTint) as? Double ?? standard.glassTint
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
@@ -202,6 +209,7 @@ public final class SettingsStore {
         nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
         recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
+        agentApprovalsEnabled = defaults.bool(forKey: Key.agentApprovals)
         timerEnabled = defaults.object(forKey: Key.timer) as? Bool ?? true
         callsEnabled = defaults.object(forKey: Key.calls) as? Bool ?? true
         airDropEnabled = defaults.object(forKey: Key.airDrop) as? Bool ?? true
@@ -299,6 +307,8 @@ public final class SettingsStore {
         static let pitchBlack = "shape.pitchBlack"
         static let size = "shape.size"
         static let nookLayout = "shape.nookLayout"
+        static let theme = "shape.theme"
+        static let glassTint = "shape.glassTint"
         static let width = "shape.width"
         static let height = "shape.height"
         static let showWhenIdle = "behavior.showWhenIdle"
@@ -314,6 +324,7 @@ public final class SettingsStore {
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
         static let lyrics = "activity.lyrics"
+        static let agentApprovals = "activity.agentApprovals"
         static let nowPlayingAppMode = "nowPlaying.appMode"
         static let nowPlayingApps = "nowPlaying.apps"
         static let recentMediaApps = "nowPlaying.recentApps"

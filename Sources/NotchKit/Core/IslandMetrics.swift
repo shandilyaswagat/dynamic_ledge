@@ -23,6 +23,9 @@ public enum IslandMetrics {
         public static let nowPlaying: CGFloat = 140
         public static let timer: CGFloat = 76
         public static let call: CGFloat = 72
+        public static let download: CGFloat = 72
+        /// Who's asking, what they want to do, and Allow / Deny.
+        public static let agentRequest: CGFloat = 112
         public static let drop: CGFloat = 100
         public static let timerFinished: CGFloat = 72
         /// The row of app buttons in the music view when several apps are playing.

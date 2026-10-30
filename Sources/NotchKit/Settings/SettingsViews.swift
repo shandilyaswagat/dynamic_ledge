@@ -196,9 +196,29 @@ struct AppearanceSettingsView: View {
             }
 
             Section {
-                Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
+                Picker("Theme", selection: $settings.appearance.theme) {
+                    Text("Black").tag(NotchTheme.black)
+                    Text("Glass").tag(NotchTheme.glass)
+                }
+                .pickerStyle(.segmented)
+                if settings.appearance.theme == .glass {
+                    LabeledContent("Glass") {
+                        HStack(spacing: 8) {
+                            Text("Clear").font(.caption).foregroundStyle(.secondary)
+                            Slider(value: $settings.appearance.glassTint, in: NotchAppearance.glassTintRange)
+                                .frame(minWidth: 180)
+                            Text("Tinted").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
+                }
+            } header: {
+                Text("Look")
             } footer: {
-                Text("The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
+                Text(settings.appearance.theme == .glass
+                    ? "Frosted glass that blurs what’s behind it, with softer, springier motion. The part around the camera stays black. More tint is easier to read over bright windows."
+                    : "The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -282,10 +302,11 @@ struct ActivitiesSettingsView: View {
                 NowPlayingAppsSection(settings: settings)
             }
 
+            CodingAssistantSection(settings: settings)
+
             Section("Alerts") {
                 IconToggle(title: "Charging", detail: nil, symbol: "bolt.fill", color: .green, isOn: $settings.chargingAlertsEnabled)
                 IconToggle(title: "Low Battery", detail: "At 20% and 10%", symbol: "battery.25percent", color: .red, isOn: $settings.lowBatteryAlertsEnabled)
-                IconToggle(title: "Headphones", detail: "When AirPods or other Bluetooth headphones connect", symbol: "airpodspro", color: .gray, isOn: $settings.headphoneAlertsEnabled)
                 IconToggle(title: "Volume & Brightness", detail: "Shows the level in the notch when you change it", symbol: "speaker.wave.2.fill", color: .indigo, isOn: $settings.levelsEnabled)
             }
 
@@ -302,6 +323,48 @@ struct ActivitiesSettingsView: View {
 
     private static func label(for seconds: TimeInterval) -> String {
         seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
+    }
+}
+
+/// Claude Code's permission requests, answered from the notch.
+private struct CodingAssistantSection: View {
+    @Bindable var settings: SettingsStore
+    @State private var problem: String?
+
+    var body: some View {
+        Section {
+            IconToggle(title: "Claude Code approvals", detail: "Allow or deny its requests from the notch", symbol: "terminal.fill", color: .orange, isOn: enabled)
+            if let problem {
+                Text(problem)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Coding Assistants")
+        } footer: {
+            Text("When Claude Code needs your OK to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and Claude Code asks in Terminal as usual. Turning this on adds a hook to ~/.claude/settings.json; turning it off removes it. New Claude Code sessions pick it up.")
+        }
+    }
+
+    private var enabled: Binding<Bool> {
+        Binding {
+            settings.agentApprovalsEnabled
+        } set: { isOn in
+            problem = nil
+            do {
+                if isOn {
+                    guard let command = ClaudeHookSettings.currentCommand(socket: AgentBridge.defaultSocketPath) else { return }
+                    try ClaudeHookSettings.install(command: command)
+                } else {
+                    try ClaudeHookSettings.uninstall()
+                }
+                settings.agentApprovalsEnabled = isOn
+            } catch ClaudeHookSettings.Failure.unreadable {
+                problem = "Couldn’t read ~/.claude/settings.json, so it was left as it is. Check that it’s valid JSON."
+            } catch {
+                problem = "Couldn’t save ~/.claude/settings.json."
+            }
+        }
     }
 }
 

@@ -5,6 +5,34 @@ Every release of Dynamic Ledge (called Dynamic Notch until 1.4.0), newest first.
 [Semantic Versioning](https://semver.org/): new features bump the middle number, fixes bump the
 last one.
 
+## [Unreleased]
+
+## [1.4.1] - 2026-10-30
+
+### Added
+- **A new Home.** Up to three sections side by side. Whatever's live comes first: a call or the
+  microphone, and music, each with its own buttons (Hang Up, mute, play). When two are on, they
+  share the section. Click one to open its full view again. A running timer or stopwatch sits at
+  the top of the Timer section, above the quick-start buttons.
+- **Lyrics.** Songs with timed lyrics show the line being sung, in the music view and on Home.
+  Lyrics come from lrclib.net, which is sent only the song's name, artist, album and length.
+  Songs without them look as before. Turn them off in Settings › Activities.
+- **Search and pin in Clipboard.** Search your clips as you type, and press Return to copy the
+  first match. Pin a clip to keep it at the front and after you quit (up to 20). Clearing the
+  history leaves pinned clips.
+- **Pinned files in the Tray.** Pin a file to keep it in the Tray after you quit. A pinned file
+  that's renamed or moved is still found. Clearing the Tray leaves pinned files.
+- **Choose which apps show music.** In Settings › Activities, pick **Only these apps** and tick
+  the ones you want, like Spotify. Anything else playing, such as a video in your browser, stays
+  out of the notch. Apps join the list once they play something, or add one yourself.
+
+### Fixed
+- Hang Up works with WhatsApp's Leave call button as well as End call, and the call view closes
+  as soon as you hang up.
+- WhatsApp holding on to the microphone after a call, or while you record a voice note, no longer
+  shows as a call (once Dynamic Ledge has Accessibility access; without it, WhatsApp mic use still
+  shows as a call, as before).
+
 ## [1.4.0] - 2026-10-27
 
 **Dynamic Notch is now Dynamic Ledge.** Same app, new name. Updating from Dynamic Notch keeps all
@@ -253,6 +281,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.4.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.1
 [1.4.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.0
 [1.3.5]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.5
 [1.3.4]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.4

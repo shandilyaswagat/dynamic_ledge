@@ -17,6 +17,7 @@ public final class IslandModel {
     public let shortcuts: ShortcutsService
     public let levels: LevelMonitor
     public let clipboard: ClipboardMonitor
+    public let lyrics = LyricsService()
     public let notes: NotesStore
     public let stopwatch: StopwatchService
     public let keepAwake = KeepAwakeService()
@@ -28,6 +29,8 @@ public final class IslandModel {
     /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
     /// layout). The notch stays open while you type, even if the pointer wanders off.
     public var isTypingInNook = false
+    /// Clipboard's search field is open, so the notch takes the keyboard for it.
+    public var isSearchingClipboard = false
     /// The grid is picking the shortcuts beside Home (started by holding a tile). Ends when
     /// anything else opens or the notch closes.
     public var isEditingShortcuts = false
@@ -141,8 +144,11 @@ public final class IslandModel {
         power.onAlert = { [weak self] alert in self?.receive(alert) }
         audioRoute.onAlert = { [weak self] alert in self?.receive(alert) }
         nowPlaying.lingerDuration = settings.pausedMediaLinger
+        nowPlaying.appFilter = settings.mediaAppFilter
+        nowPlaying.onAppSeen = { [weak self] identifier in self?.settings.noteMediaApp(identifier) }
         observeActivities()
         observeSettings()
+        observeLyrics()
     }
 
     public func startServices() {
@@ -272,6 +278,12 @@ public final class IslandModel {
         )
     }
 
+    /// The music view shows a line of lyrics: the song has timed lyrics, and the view is on it
+    /// rather than on another app that's playing.
+    public var showsLyrics: Bool {
+        settings.nowPlayingEnabled && settings.lyricsEnabled && lyrics.current != nil && nowPlaying.selectedSource == nil
+    }
+
     public var homeHasMedia: Bool {
         settings.nowPlayingEnabled && nowPlaying.info?.hasContent == true
     }
@@ -298,7 +310,9 @@ public final class IslandModel {
             hasEvent: showsCalendarRow,
             hasTimer: settings.timerEnabled,
             hasShortcuts: !favoriteShortcuts.isEmpty,
-            hasMediaSwitcher: !nowPlaying.otherSources.isEmpty
+            hasMediaSwitcher: !nowPlaying.otherSources.isEmpty,
+            hasLyrics: showsLyrics,
+            hasClipboardSearch: isSearchingClipboard
         )
     }
 
@@ -545,6 +559,7 @@ public final class IslandModel {
         pointerEnteredExpanded = false
         guard expandTarget != nil else { return }
         isTypingInNook = false
+        isSearchingClipboard = false
         isEditingShortcuts = false
         if expandTarget == .notes { notes.save() }
         expandTarget = nil
@@ -896,9 +911,27 @@ public final class IslandModel {
         }
     }
 
+    /// Looks up lyrics whenever the song changes (or lyrics are switched on or off).
+    private func observeLyrics() {
+        let info = nowPlaying.info
+        lyrics.update(for: info, enabled: settings.nowPlayingEnabled && settings.lyricsEnabled)
+        withObservationTracking {
+            _ = nowPlaying.info?.title
+            _ = nowPlaying.info?.artist
+            _ = nowPlaying.info?.album
+            _ = nowPlaying.info?.duration
+            _ = settings.nowPlayingEnabled
+            _ = settings.lyricsEnabled
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.observeLyrics() }
+        }
+    }
+
     private func observeSettings() {
         withObservationTracking {
             _ = settings.pausedMediaLinger
+            _ = settings.nowPlayingAppMode
+            _ = settings.nowPlayingApps
             _ = settings.airDropEnabled
             _ = settings.trayEnabled
             _ = settings.mirrorEnabled
@@ -913,6 +946,7 @@ public final class IslandModel {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.nowPlaying.lingerDuration = self.settings.pausedMediaLinger
+                self.nowPlaying.appFilter = self.settings.mediaAppFilter
                 if !self.acceptsFileDrops {
                     self.isFileDragNear = false
                     self.setTargeted(nil, false)

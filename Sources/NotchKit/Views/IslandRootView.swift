@@ -30,6 +30,8 @@ struct IslandRootView: View {
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
         .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion), value: presentation)
         .animation(Motion.settings, value: model.settings.appearance)
+        // Lyrics arriving, a second app playing, Clipboard's search bar: the shape eases to fit.
+        .animation(reduceMotion ? nil : Motion.resize, value: model.homeContent)
         .animation(reduceMotion ? nil : Motion.hover, value: model.isHoveringPill)
         .environment(\.colorScheme, .dark)
         // The panel is intentionally non-activating, so publish a stable action while it is

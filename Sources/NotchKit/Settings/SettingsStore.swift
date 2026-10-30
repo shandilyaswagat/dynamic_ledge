@@ -83,6 +83,19 @@ public final class SettingsStore {
     public var timerSound: Bool { didSet { defaults.set(timerSound, forKey: Key.timerSound) } }
 
     public var nowPlayingEnabled: Bool { didSet { defaults.set(nowPlayingEnabled, forKey: Key.nowPlaying) } }
+    /// Every app's music, or only the apps in `nowPlayingApps`.
+    public var nowPlayingAppMode: MediaAppFilter.Mode { didSet { defaults.set(nowPlayingAppMode.rawValue, forKey: Key.nowPlayingAppMode) } }
+    /// Bundle identifiers of the apps picked for Now Playing.
+    public var nowPlayingApps: [String] { didSet { defaults.set(nowPlayingApps, forKey: Key.nowPlayingApps) } }
+    /// Apps that played something lately, offered as choices in Settings.
+    public private(set) var recentMediaApps: RecentMediaApps { didSet { defaults.set(recentMediaApps.identifiers, forKey: Key.recentMediaApps) } }
+
+    public var mediaAppFilter: MediaAppFilter {
+        MediaAppFilter(mode: nowPlayingAppMode, allowed: Set(nowPlayingApps))
+    }
+
+    /// Timed lyrics under the song, looked up on LRCLIB.
+    public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
     public var callsEnabled: Bool { didSet { defaults.set(callsEnabled, forKey: Key.calls) } }
     public var airDropEnabled: Bool { didSet { defaults.set(airDropEnabled, forKey: Key.airDrop) } }
@@ -184,6 +197,11 @@ public final class SettingsStore {
         display = (defaults.string(forKey: Key.display)).flatMap(DisplayChoice.init(rawValue:)) ?? .automatic
         timerSound = defaults.object(forKey: Key.timerSound) as? Bool ?? true
         nowPlayingEnabled = defaults.object(forKey: Key.nowPlaying) as? Bool ?? true
+        nowPlayingAppMode = defaults.string(forKey: Key.nowPlayingAppMode).flatMap(MediaAppFilter.Mode.init(rawValue:)) ?? .all
+        var seenApps = Set<String>()
+        nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
+        recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
+        lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
         timerEnabled = defaults.object(forKey: Key.timer) as? Bool ?? true
         callsEnabled = defaults.object(forKey: Key.calls) as? Bool ?? true
         airDropEnabled = defaults.object(forKey: Key.airDrop) as? Bool ?? true
@@ -248,6 +266,29 @@ public final class SettingsStore {
     }
 
 
+    /// Remembers an app that played something. Saves only when it's new.
+    public func noteMediaApp(_ identifier: String) {
+        var recent = recentMediaApps
+        if recent.note(identifier) { recentMediaApps = recent }
+    }
+
+    public func setNowPlaying(_ identifier: String, allowed: Bool) {
+        if allowed {
+            guard !identifier.isEmpty, !nowPlayingApps.contains(identifier) else { return }
+            nowPlayingApps.append(identifier)
+        } else {
+            nowPlayingApps.removeAll { $0 == identifier }
+        }
+    }
+
+    /// Takes an app off the list in Settings (it comes back if it plays again).
+    public func forgetMediaApp(_ identifier: String) {
+        setNowPlaying(identifier, allowed: false)
+        var recent = recentMediaApps
+        recent.remove(identifier)
+        if recent != recentMediaApps { recentMediaApps = recent }
+    }
+
     public func resetAppearance() {
         appearance = .standard
     }
@@ -272,6 +313,10 @@ public final class SettingsStore {
         static let display = "general.display"
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
+        static let lyrics = "activity.lyrics"
+        static let nowPlayingAppMode = "nowPlaying.appMode"
+        static let nowPlayingApps = "nowPlaying.apps"
+        static let recentMediaApps = "nowPlaying.recentApps"
         static let timer = "activity.timer"
         static let calls = "activity.calls"
         static let airDrop = "activity.airDrop"

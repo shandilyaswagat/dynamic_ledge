@@ -1,3 +1,4 @@
+import Foundation
 import Carbon.HIToolbox
 import CoreGraphics
 
@@ -40,5 +41,23 @@ public enum CallHangup {
     public static func shortcut(for bundleIdentifier: String?) -> Shortcut? {
         guard case let .shortcut(shortcut) = route(for: bundleIdentifier) else { return nil }
         return shortcut
+    }
+
+    /// WhatsApp keeps the microphone after a call and for voice notes, so its mic use alone
+    /// isn't a call. With the camera on, or a window titled as a call, it is. Without
+    /// Accessibility the windows can't be read, so mic use counts as a call, as it always has:
+    /// better a call that lingers than a call that never shows.
+    public static func isWhatsAppOnCall(cameraOn: Bool, canReadWindows: Bool, callWindowOpen: Bool?) -> Bool {
+        cameraOn || !canReadWindows || callWindowOpen == true
+    }
+
+    /// WhatsApp adds invisible direction marks to accessibility labels.
+    public static func isWhatsAppEndCallLabel(_ label: String) -> Bool {
+        let withoutDirectionMarks = String(label.unicodeScalars.filter {
+            !CharacterSet(charactersIn: "\u{200E}\u{200F}\u{061C}\u{202A}\u{202B}\u{202C}\u{202D}\u{202E}\u{2066}\u{2067}\u{2068}\u{2069}").contains($0)
+        })
+        let normalized = withoutDirectionMarks.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized == "end call" || normalized == "leave call"
     }
 }

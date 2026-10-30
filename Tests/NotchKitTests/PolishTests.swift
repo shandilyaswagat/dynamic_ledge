@@ -443,6 +443,23 @@ struct StatsSamplingTests {
 
 @Suite("Hanging up")
 struct CallHangupTests {
+    @Test func whatsAppMicUseIsACallWhenItCanBeTold() {
+        // Without Accessibility its windows can't be read: count it, as before.
+        #expect(CallHangup.isWhatsAppOnCall(cameraOn: false, canReadWindows: false, callWindowOpen: nil))
+        #expect(CallHangup.isWhatsAppOnCall(cameraOn: true, canReadWindows: true, callWindowOpen: false))
+        #expect(CallHangup.isWhatsAppOnCall(cameraOn: false, canReadWindows: true, callWindowOpen: true))
+        #expect(!CallHangup.isWhatsAppOnCall(cameraOn: false, canReadWindows: true, callWindowOpen: false), "a voice note, or the mic held after a call")
+        #expect(!CallHangup.isWhatsAppOnCall(cameraOn: false, canReadWindows: true, callWindowOpen: nil), "not read yet")
+    }
+
+    @Test func recognizesWhatsAppCallControlsWithoutMatchingOtherButtons() {
+        #expect(CallHangup.isWhatsAppEndCallLabel("\u{200E}leave call"))
+        #expect(CallHangup.isWhatsAppEndCallLabel(" End call "))
+        #expect(CallHangup.isWhatsAppEndCallLabel("\u{200F}LEAVE CALL\u{200E}"))
+        #expect(!CallHangup.isWhatsAppEndCallLabel("Start call"))
+        #expect(!CallHangup.isWhatsAppEndCallLabel("Leave call feedback"))
+    }
+
     @Test func usesOnlySafeAppSpecificHangUpRoutes() throws {
         let teams = try #require(CallHangup.shortcut(for: "com.microsoft.teams2"))
         #expect(teams.flags.contains(.maskCommand) && teams.flags.contains(.maskShift))

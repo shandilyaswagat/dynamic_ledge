@@ -3,21 +3,32 @@ import Observation
 
 /// Watches the pasteboard for copied text. macOS has no change notification, so it checks the
 /// change count a little more than once a second, which costs next to nothing. Copies marked
-/// private (passwords) are skipped, and nothing is written to disk.
+/// private (passwords) are skipped. Only clips the user pins are saved, so they're still there
+/// after a restart; the rest stays in memory.
 @MainActor
 @Observable
 public final class ClipboardMonitor {
-    public private(set) var history = ClipboardHistory()
+    public private(set) var history: ClipboardHistory {
+        didSet {
+            if history.pinned != oldValue.pinned { savePinned() }
+        }
+    }
     /// The entry that was just copied back, for a moment of feedback on its card.
     public private(set) var justCopied: UUID?
 
     @ObservationIgnored private let pasteboard: NSPasteboard
+    @ObservationIgnored private let defaults: UserDefaults
+    private static let pinnedKey = "clipboard.pinned"
     @ObservationIgnored private var lastChangeCount: Int
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
 
-    public init(pasteboard: NSPasteboard = .general) {
+    public init(pasteboard: NSPasteboard = .general, defaults: UserDefaults = .standard) {
         self.pasteboard = pasteboard
+        self.defaults = defaults
+        let pinned = defaults.data(forKey: Self.pinnedKey)
+            .flatMap { try? JSONDecoder().decode([ClipboardHistory.Entry].self, from: $0) } ?? []
+        history = ClipboardHistory(pinned: pinned)
         lastChangeCount = pasteboard.changeCount
     }
 
@@ -35,7 +46,7 @@ public final class ClipboardMonitor {
         self.timer = timer
     }
 
-    /// Stops watching and forgets the history.
+    /// Stops watching and forgets the history, apart from pinned clips.
     public func stop() {
         timer?.invalidate()
         timer = nil
@@ -52,14 +63,16 @@ public final class ClipboardMonitor {
         history.add(text, appName: NSWorkspace.shared.frontmostApplication?.localizedName)
     }
 
-    /// Puts an entry back on the pasteboard so it can be pasted, and moves it to the front.
+    /// Puts an entry back on the pasteboard so it can be pasted, and moves it to the front
+    /// (pinned clips stay where they are).
     public func copy(_ entry: ClipboardHistory.Entry) {
         pasteboard.clearContents()
         pasteboard.setString(entry.text, forType: .string)
         // Our own copy is not a new entry; just move this one to the front.
         lastChangeCount = pasteboard.changeCount
         history.add(entry.text, appName: entry.appName)
-        justCopied = history.entries.first?.id
+        // A pinned clip keeps its place; anything else is now first among the unpinned.
+        justCopied = history.entries.first { $0.text == entry.text }?.id
         feedbackTask?.cancel()
         feedbackTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.2))
@@ -72,7 +85,23 @@ public final class ClipboardMonitor {
         history.remove(id)
     }
 
+    /// Clears the history; pinned clips stay.
     public func removeAll() {
         history.removeAll()
+    }
+
+    /// Returns false when every pin is taken.
+    @discardableResult
+    public func togglePin(_ id: UUID) -> Bool {
+        history.togglePin(id)
+    }
+
+    private func savePinned() {
+        let pinned = history.pinned
+        if pinned.isEmpty {
+            defaults.removeObject(forKey: Self.pinnedKey)
+        } else if let data = try? JSONEncoder().encode(pinned) {
+            defaults.set(data, forKey: Self.pinnedKey)
+        }
     }
 }

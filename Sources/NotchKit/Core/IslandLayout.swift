@@ -291,10 +291,16 @@ public struct LayoutEngine: Equatable, Sendable {
 
     private func baseContentHeight(for presentation: IslandPresentation, home: HomeContent) -> CGFloat? {
         switch presentation {
-        case .expanded(.nowPlaying): IslandMetrics.ContentHeight.nowPlaying + (home.hasMediaSwitcher ? IslandMetrics.ContentHeight.mediaSwitcher : 0)
+        case .expanded(.nowPlaying):
+            IslandMetrics.ContentHeight.nowPlaying
+                + (home.hasLyrics ? IslandMetrics.ContentHeight.lyrics : 0)
+                + (home.hasMediaSwitcher ? IslandMetrics.ContentHeight.mediaSwitcher : 0)
         case .expanded(.timer), .expanded(.stopwatch): IslandMetrics.ContentHeight.timer
         case .expanded(.call): IslandMetrics.ContentHeight.call
-        case .nook(let tab): (tab == .launcher ? IslandMetrics.Nook.launcherBody : IslandMetrics.Nook.body) + IslandMetrics.Nook.bodyTopInset
+        case .nook(.launcher): IslandMetrics.Nook.launcherBody + IslandMetrics.Nook.bodyTopInset
+        case .nook(.clipboard):
+            IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
+        case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset
         case .alert(.timerFinished): IslandMetrics.ContentHeight.timerFinished
         case .drop: IslandMetrics.ContentHeight.drop
         default: nil

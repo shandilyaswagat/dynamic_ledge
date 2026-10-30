@@ -29,6 +29,17 @@ public final class NowPlayingService {
 
     public var lingerDuration: TimeInterval = 30
 
+    /// Which apps to show. Anything else playing is treated as if nothing were.
+    public var appFilter: MediaAppFilter = .all {
+        didSet {
+            guard appFilter != oldValue else { return }
+            applyFilterChange()
+        }
+    }
+
+    /// Called with each app that reports playback, shown or not, so Settings can list it.
+    @ObservationIgnored public var onAppSeen: ((String) -> Void)?
+
     /// Apps that were playing before the current one took over and are probably still going
     /// (macOS reports only one "now playing" app, so these are remembered here).
     public private(set) var otherSources: [MediaSource] = []
@@ -156,6 +167,15 @@ public final class NowPlayingService {
             return
         }
 
+        let identifier = Self.sourceIdentifier(for: newInfo)
+        if let identifier { onAppSeen?(identifier) }
+        guard appFilter.allows(identifier) else {
+            // Only clear once: a hidden app keeps sending updates while it plays.
+            if info != nil || isLingering { apply(nil, artworkData: nil) }
+            expectedPlayState = nil
+            return
+        }
+
         if let expected = expectedPlayState {
             if now >= expected.until || newInfo.isPlaying == expected.isPlaying {
                 expectedPlayState = nil
@@ -170,7 +190,7 @@ public final class NowPlayingService {
 
         let previous = snapshotOfCurrent(at: now)
         updateArtwork(for: newInfo, data: artworkData, accent: newAccent)
-        updateSourceApp(for: newInfo)
+        updateSourceApp(identifier)
         trackOtherSources(previous: previous, now: now)
 
         let wasPlaying = info?.isPlaying ?? false
@@ -210,13 +230,19 @@ public final class NowPlayingService {
         }
     }
 
-    private func updateSourceApp(for newInfo: NowPlayingInfo) {
-        var identifier = newInfo.bundleIdentifier
-        if let pid = newInfo.processIdentifier, let app = NSRunningApplication(processIdentifier: pid) {
+    /// The app behind a report: the regular app owning the process when there is one, since
+    /// browsers and some players report from a helper.
+    private static func sourceIdentifier(for info: NowPlayingInfo) -> String? {
+        var identifier = info.bundleIdentifier
+        if let pid = info.processIdentifier, let app = NSRunningApplication(processIdentifier: pid) {
             if identifier == nil || app.activationPolicy == .regular {
                 identifier = app.bundleIdentifier ?? identifier
             }
         }
+        return identifier
+    }
+
+    private func updateSourceApp(_ identifier: String?) {
         guard identifier != resolvedBundleIdentifier else { return }
         resolvedBundleIdentifier = identifier
         guard let identifier, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) else {
@@ -226,6 +252,20 @@ public final class NowPlayingService {
         }
         appIcon = NSWorkspace.shared.icon(forFile: url.path)
         appName = FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+    }
+
+    // MARK: Filter
+
+    private func applyFilterChange() {
+        otherSources.removeAll { !appFilter.allows($0.id) }
+        if let selectedSourceID, !otherSources.contains(where: { $0.id == selectedSourceID }) {
+            self.selectedSourceID = nil
+        }
+        if info != nil, !appFilter.allows(resolvedBundleIdentifier) {
+            apply(nil, artworkData: nil)
+        }
+        // An app that's allowed now may already be playing: ask for the current state again.
+        bridge.send("refresh")
     }
 
     // MARK: Other sources

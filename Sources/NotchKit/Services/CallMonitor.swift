@@ -45,6 +45,9 @@ public final class CallMonitor {
     @ObservationIgnored private var cameraListeners: [CameraListener] = []
     @ObservationIgnored private var isRunning = false
     @ObservationIgnored private var didRequestAccessibilityThisLaunch = false
+    /// Whether WhatsApp has a call window open, as last read in the background.
+    @ObservationIgnored private var whatsAppCallWindow: (pid: pid_t, open: Bool)?
+    @ObservationIgnored private var whatsAppWindowCheck: Task<Void, Never>?
 
     public init() {}
 
@@ -64,6 +67,9 @@ public final class CallMonitor {
         appIcon = nil
         candidate = nil
         hangUpMessage = nil
+        whatsAppWindowCheck?.cancel()
+        whatsAppWindowCheck = nil
+        whatsAppCallWindow = nil
     }
 
     public func showApp() {
@@ -97,6 +103,10 @@ public final class CallMonitor {
                 hangUpMessage = String(localized: "Couldn’t send the hang-up command.")
                 return .failed
             }
+            if !shortcut.asksToConfirm {
+                self.session = nil
+                self.candidate = nil
+            }
         case .accessibilityButton:
             // Walking another app's window can take a while if it's busy; never on the main
             // thread, or the notch would freeze with it.
@@ -105,6 +115,8 @@ public final class CallMonitor {
                 hangUpMessage = String(localized: "Couldn’t find WhatsApp’s End call button.")
                 return .failed
             }
+            self.session = nil
+            self.candidate = nil
         }
         return .sent
     }
@@ -128,22 +140,40 @@ public final class CallMonitor {
     }
 
     /// WhatsApp documents an End call button but no keyboard shortcut. Search only WhatsApp's
-    /// tree, require that exact label, and press it once after the user asks to hang up. Runs
-    /// off the main thread, with a short timeout per element and a cap on the whole search.
+    /// tree, require a known call-ending label, and press it once after the user asks to hang up.
+    /// Runs off the main thread, with a short timeout per element and a cap on the whole search.
     nonisolated private static func pressWhatsAppEndCall(in pid: pid_t) -> Bool {
         let application = AXUIElementCreateApplication(pid)
         let deadline = Date().addingTimeInterval(3)
-        var pending: [(element: AXUIElement, depth: Int)] = [(application, 0)]
+        AXUIElementSetMessagingTimeout(application, 0.25)
+
+        // Query windows directly so call windows are searched before diving into chat lists.
+        var windowsRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windowsRef)
+        let windows = (windowsRef as? [AXUIElement]) ?? children(of: application)
+
+        // Prioritize windows whose title indicates an active call.
+        let sortedRoots = windows.sorted { w1, w2 in
+            let t1 = (attribute(w1, kAXTitleAttribute) as? String ?? "").localizedCaseInsensitiveContains("call")
+            let t2 = (attribute(w2, kAXTitleAttribute) as? String ?? "").localizedCaseInsensitiveContains("call")
+            if t1 != t2 { return t1 }
+            return false
+        }
+
+        var queue: [(element: AXUIElement, depth: Int)] = sortedRoots.map { ($0, 0) }
         var inspected = 0
-        while let current = pending.popLast(), inspected < 300, Date() < deadline {
+        while !queue.isEmpty, inspected < 500, Date() < deadline {
+            let current = queue.removeFirst()
             inspected += 1
             let element = current.element
             AXUIElementSetMessagingTimeout(element, 0.25)
-            if hasEndCallLabel(element), supportsPress(element), AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
-                return true
+            if hasEndCallLabel(element), supportsPress(element) {
+                if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+                    return true
+                }
             }
             guard current.depth < 8 else { continue }
-            pending.append(contentsOf: children(of: element).map { ($0, current.depth + 1) })
+            queue.append(contentsOf: children(of: element).map { ($0, current.depth + 1) })
         }
         return false
     }
@@ -151,8 +181,7 @@ public final class CallMonitor {
     nonisolated private static func hasEndCallLabel(_ element: AXUIElement) -> Bool {
         [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute].contains { key in
             guard let value = attribute(element, key) as? String else { return false }
-            return value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-                .trimmingCharacters(in: .whitespacesAndNewlines) == "end call"
+            return CallHangup.isWhatsAppEndCallLabel(value)
         }
     }
 
@@ -160,6 +189,40 @@ public final class CallMonitor {
         var actions: CFArray?
         return AXUIElementCopyActionNames(element, &actions) == .success &&
             (actions as? [String])?.contains(kAXPressAction as String) == true
+    }
+
+    /// Is this WhatsApp mic use a call? Reads the last background check of WhatsApp's windows and
+    /// starts a fresh one; when the answer changes, the call is evaluated again.
+    private func isWhatsAppOnCall(pid: pid_t?, cameraOn: Bool) -> Bool {
+        let canRead = pid != nil && AXIsProcessTrusted()
+        if canRead, let pid { refreshWhatsAppWindow(pid) }
+        let open = whatsAppCallWindow.flatMap { $0.pid == pid ? $0.open : nil }
+        return CallHangup.isWhatsAppOnCall(cameraOn: cameraOn, canReadWindows: canRead, callWindowOpen: open)
+    }
+
+    private func refreshWhatsAppWindow(_ pid: pid_t) {
+        guard whatsAppWindowCheck == nil else { return }
+        whatsAppWindowCheck = Task { [weak self] in
+            // Another app's windows can be slow to answer; never ask on the main thread.
+            let open = await Task.detached(priority: .utility) { Self.hasCallWindow(pid) }.value
+            guard let self else { return }
+            self.whatsAppWindowCheck = nil
+            let changed = self.whatsAppCallWindow?.pid != pid || self.whatsAppCallWindow?.open != open
+            self.whatsAppCallWindow = (pid, open)
+            if changed, self.isRunning { self.evaluate() }
+        }
+    }
+
+    /// A WhatsApp window whose title says it's a call (English titles only, which is why
+    /// the camera and the no-Accessibility case also count). Short timeouts throughout.
+    nonisolated private static func hasCallWindow(_ pid: pid_t) -> Bool {
+        let application = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(application, 0.25)
+        guard let windows = attribute(application, kAXWindowsAttribute) as? [AXUIElement] else { return false }
+        return windows.contains { window in
+            AXUIElementSetMessagingTimeout(window, 0.25)
+            return (attribute(window, kAXTitleAttribute) as? String)?.localizedCaseInsensitiveContains("call") == true
+        }
     }
 
     nonisolated private static func children(of element: AXUIElement) -> [AXUIElement] {
@@ -243,7 +306,25 @@ public final class CallMonitor {
 
         let name = user.app?.localizedName ?? String(localized: "Microphone")
         let identifier = user.app?.bundleIdentifier ?? user.bundleIdentifier
-        let isCall = CallClassifier.isCallApp(identifier) || cameraOn
+        let isCall: Bool
+        if identifier == "net.whatsapp.WhatsApp" || identifier == "desktop.WhatsApp" {
+            let callActive = isWhatsAppOnCall(pid: user.app?.processIdentifier ?? user.pid, cameraOn: cameraOn)
+            if !callActive {
+                candidate = nil
+                if session != nil {
+                    session = nil
+                    appIcon = nil
+                    inactiveSince = nil
+                    hangUpMessage = nil
+                }
+                // The mic stays on, so nothing else will tell us when a call starts; keep looking.
+                schedulePoll(after: 3)
+                return
+            }
+            isCall = true
+        } else {
+            isCall = CallClassifier.isCallApp(identifier) || cameraOn
+        }
         let key = identifier ?? name
 
         if var current = session, current.key == key {

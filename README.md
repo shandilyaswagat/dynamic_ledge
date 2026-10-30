@@ -32,7 +32,8 @@ and you forget it's there.
 
 Here's what it shows:
 
-- Whatever music is playing, from any app, with the album art and play/pause/skip
+- Whatever music is playing, from any app (or just the ones you pick, like Spotify), with the
+  album art and play/pause/skip
 - Timers, counting down right next to the camera
 - Calls on FaceTime, Zoom, Meet, Teams and the rest, with how long you've been on
 - Your next calendar event, plus a heads up 5 minutes before it starts
@@ -42,13 +43,15 @@ Here's what it shows:
 
 And when you click it, you get a little home base right under the notch:
 
-- **Home** with your music, next event, quick timers, a Focus timer and your favourite Shortcuts.
-  Tap the timer for any length, Pomodoro or a stopwatch, and tap your next event to see the month
-  (click any day in it to see what's on)
+- **Home** with whatever's live (a call, the mic, your music) up front, then your next event,
+  quick timers and your favourite Shortcuts, side by side. Hang up or pause right from Home, or
+  click a live card to open it. Tap the timer for any length, Pomodoro or a stopwatch, and tap
+  your next event to see the month (click any day in it to see what's on)
+- **Lyrics** for songs that have timed lyrics, line by line as they're sung
 - **Files Tray**, a handy spot to drop files you'll need again in a minute. Drag files onto the notch
-  to put them there, and drag them back out when you're ready
-- **Clipboard**, the last few things you copied. Click one to copy it again. Passwords are
-  skipped and nothing is saved
+  to put them there, and drag them back out when you're ready. Pin the ones you want to keep around
+- **Clipboard**, the last few things you copied. Search them, pin the ones you reuse, and click one
+  to copy it again. Passwords are skipped, and only pinned clips are saved
 - **Notes**, a little scratchpad for phone numbers, to-dos, whatever
 - **Mirror**, a quick look at your camera before you hop on a call, with a button to turn the
   camera off
@@ -58,7 +61,7 @@ Drag files onto the notch and you can also AirDrop them straight from there.
 Working on a document? Save it, then drag its window by the title bar onto the notch and let go
 over **Tray**. The first time, your Mac will ask you to allow Dynamic Ledge in Accessibility (and
 sometimes Automation). Tray is a scratch space: it holds up to 30 things and clears when you quit
-the app, without ever touching your original files.
+the app, apart from anything you've pinned, without ever touching your original files.
 
 Everything else lives behind the grid button at the top right: music, the timer, stopwatch,
 calendar, today's reminders, a scratchpad, your camera mirror, Stats and Keep Awake (stops your
@@ -83,8 +86,8 @@ space and network speed. It's all read on your Mac and never leaves it.
 
 A few more handy bits: a mute button for your mic during calls, a red **Hang Up** button for
 Teams, Zoom, Webex and WhatsApp calls, and (if you switch it on in Settings) a heads-up when a
-download finishes. The first time you use Hang Up, macOS asks for Accessibility access. For
-WhatsApp it presses WhatsApp's own End call button; if it can't find it, the call stays on and the
+download finishes. The first time you use Hang Up, macOS asks for Accessibility access. WhatsApp
+uses its accessible Leave call or End call control; if it can't find it, the call stays on and the
 notch tells you.
 
 Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,
@@ -94,8 +97,9 @@ your pointer at the top centre of the screen for a moment.
 
 You can make it small, medium or large, whatever looks right on your screen.
 
-It doesn't need an account and doesn't track anything. The only time it goes online is a quick
-daily check for a new version, which you can turn off in Settings. All of this is free.
+It doesn't need an account and doesn't track anything. It goes online only for a quick daily
+check for a new version and, with Lyrics on, to look up the song that's playing. You can turn
+both off in Settings. All of this is free.
 
 ## Installing it
 
@@ -159,11 +163,18 @@ it slides down, then click.
 
 **My music isn't showing.** Play something and give it a second. The app uses a hidden bit of
 macOS to see what's playing. If Apple ever removes that in an update, music will stop showing up
-but everything else will keep working.
+but everything else will keep working. If you picked **Only these apps** in Settings ›
+Activities, check the app is ticked there.
+
+**Can I stop videos from showing up?** Yes. In Settings › Activities, set **Show music from** to
+**Only these apps** and tick just your music app, like Spotify. YouTube and other websites play
+through your browser, so leave the browser unticked.
 
 **Is it safe?** All the code is right here in this repo, so anyone can look through it (it's free
 software, see [License](#license)). The app
-doesn't collect anything, and the only time it goes online is to check GitHub for a new version. That warning during install only shows up because
+doesn't collect anything. It goes online only to check GitHub for a new version and, if you have
+Lyrics on, to look up the song that's playing on lrclib.net (just its name, artist, album and
+length). That warning during install only shows up because
 I haven't registered the app with Apple yet. I'm planning to do that later.
 
 **Why is it asking for my camera or calendar?** Only if you use those bits. It asks for the camera
@@ -171,8 +182,9 @@ the first time you open Mirror, and for your calendar when you click Connect. No
 recorded or sent anywhere. Say no and everything else keeps working.
 
 **Does it keep what I copy?** Only while the app is running, and only the last 20 bits of text.
-It's never written to disk, and anything a password manager marks as private is skipped. Don't
-want it at all? Turn off Clipboard in Settings and it stops watching right away.
+The only clips saved to disk are the ones you pin, so they're still there next time. Anything a
+password manager marks as private is skipped. Don't want it at all? Turn off Clipboard in
+Settings and it stops watching right away.
 
 **How do I update it?** It updates itself. When a new version is out, the notch lets you know;
 click it, or go to Settings › About, and hit **Install and Relaunch**. Every update is checked
@@ -202,6 +214,14 @@ Applications folder, and keeps all your settings. Homebrew moves you to the new 
 - Works on Apple silicon and Intel Macs, but it's really made for MacBooks with a notch
 
 ## What's new
+
+**1.4.1**:
+
+- A new **Home** with whatever's live up front, then your next event and timers, side by side
+- **Lyrics**, line by line as the song plays
+- **Search and pin** your Clipboard, and **pin files** in the Tray so they stay after you quit
+- Pick **which apps show music**, so videos in your browser stay out of the notch
+- Hang Up now works with WhatsApp's Leave call button too
 
 **1.4.0**, the biggest update yet:
 

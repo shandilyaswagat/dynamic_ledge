@@ -18,15 +18,30 @@ struct GlassSurface: View, Animatable {
     var body: some View {
         let opacity = min(1, layout.pillOpacity * 20)
         let hasBubble = layout.bubble.width > 0.5 && layout.bubble.height > 0.5
+        let amount = glassAmount
         ZStack(alignment: .topLeading) {
-            if opacity > 0.001 || hasBubble {
-                glass(hasBubble: hasBubble)
-                    .opacity(opacity > 0.001 ? 1 : 0)
-                ZStack(alignment: .topLeading) {
-                    smoke
-                    rim
+            if opacity > 0.001 {
+                if amount > 0.001 {
+                    glass
+                        .opacity(amount)
+                    ZStack(alignment: .topLeading) {
+                        smoke
+                        rim
+                    }
+                    .opacity(opacity * amount)
                 }
-                .opacity(opacity)
+                // The closed notch, its activities and short alerts stay plain black: glass edges
+                // there would draw a light line around the camera.
+                if amount < 0.999 {
+                    pillShape
+                        .fill(Color.black.opacity(opacity * (1 - amount)))
+                        .placed(in: layout.pill)
+                }
+            }
+            if hasBubble {
+                Circle()
+                    .fill(Color.black)
+                    .placed(in: layout.bubble)
             }
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
@@ -38,6 +53,13 @@ struct GlassSurface: View, Animatable {
         IslandShape(topRadius: layout.topRadius, bottomRadius: layout.bottomRadius, flare: layout.flare)
     }
 
+    /// 0 while the shape is about notch-sized (closed, an activity, a short alert), rising to 1 as
+    /// it opens, so the glass grows in with the opening instead of switching on.
+    private var glassAmount: Double {
+        let closed = max(layout.notchBand, 32) + 14
+        return min(max((layout.pill.height - closed) / 44, 0), 1)
+    }
+
     /// Darkness left at the bottom edge. Never fully clear, so white text stays readable.
     private var bottomShade: Double { 0.08 + 0.5 * tint }
     /// How dark the body is above the fade.
@@ -46,33 +68,15 @@ struct GlassSurface: View, Animatable {
     private static let fadeStart = 0.62
 
     @ViewBuilder
-    private func glass(hasBubble: Bool) -> some View {
+    private var glass: some View {
         if #available(macOS 26.0, *) {
             // Liquid Glass: frosts and brightens what's behind, and bends it at the edges.
-            // The pill and the bubble melt into each other as they separate.
-            GlassEffectContainer(spacing: 10) {
-                ZStack(alignment: .topLeading) {
-                    Color.clear
-                        .glassEffect(.regular, in: pillShape)
-                        .placed(in: layout.pill)
-                    if hasBubble {
-                        Color.clear
-                            .glassEffect(.regular.tint(.black.opacity(bottomShade + 0.2)), in: Circle())
-                            .placed(in: layout.bubble)
-                    }
-                }
-                .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
-            }
+            Color.clear
+                .glassEffect(.regular, in: pillShape)
+                .placed(in: layout.pill)
         } else {
-            ZStack(alignment: .topLeading) {
-                FrostedGlass(shape: pillShape)
-                    .placed(in: layout.pill)
-                if hasBubble {
-                    FrostedGlass(shape: Circle())
-                        .overlay(Circle().fill(Color.black.opacity(bottomShade + 0.2)))
-                        .placed(in: layout.bubble)
-                }
-            }
+            FrostedGlass(shape: pillShape)
+                .placed(in: layout.pill)
         }
     }
 

@@ -8,9 +8,10 @@ last one.
 ## [Unreleased]
 
 ### Added
-- **Glass theme.** Pick **Glass** in Settings › Appearance for a frosted-glass notch that blurs
-  what's behind it, with softer, springier motion. The part around the camera stays black, and a
-  slider takes the glass from clear to tinted. Black stays the default.
+- **Glass theme.** Pick **Glass** in Settings › Appearance for a smoked-glass notch: black around
+  the camera, easing into frosted glass along the bottom edge, which catches the light. It moves
+  with softer, springier motion, and a slider sets how dark the glass stays. Black stays the
+  default.
 - **Download progress.** While Safari, Chrome or another browser downloads into your Downloads
   folder, the notch shows how far along it is. Open it to see the file, how much is left and
   roughly how long, with buttons to show it in Finder or stop it. Part of the Finished downloads

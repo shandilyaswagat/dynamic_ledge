@@ -97,8 +97,9 @@ your pointer at the top centre of the screen for a moment.
 
 You can make it small, medium or large, whatever looks right on your screen.
 
-It doesn't need an account and doesn't track anything. The only time it goes online is a quick
-daily check for a new version, which you can turn off in Settings. All of this is free.
+It doesn't need an account and doesn't track anything. It goes online only for a quick daily
+check for a new version and, with Lyrics on, to look up the song that's playing. You can turn
+both off in Settings. All of this is free.
 
 ## Installing it
 
@@ -213,6 +214,14 @@ Applications folder, and keeps all your settings. Homebrew moves you to the new 
 - Works on Apple silicon and Intel Macs, but it's really made for MacBooks with a notch
 
 ## What's new
+
+**1.4.1**:
+
+- A new **Home** with whatever's live up front, then your next event and timers, side by side
+- **Lyrics**, line by line as the song plays
+- **Search and pin** your Clipboard, and **pin files** in the Tray so they stay after you quit
+- Pick **which apps show music**, so videos in your browser stay out of the notch
+- Hang Up now works with WhatsApp's Leave call button too
 
 **1.4.0**, the biggest update yet:
 

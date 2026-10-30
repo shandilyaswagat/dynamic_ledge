@@ -7,6 +7,8 @@ last one.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-30
+
 ### Added
 - **A new Home.** Up to three sections side by side. Whatever's live comes first: a call or the
   microphone, and music, each with its own buttons (Hang Up, mute, play). When two are on, they
@@ -279,6 +281,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.4.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.1
 [1.4.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.0
 [1.3.5]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.5
 [1.3.4]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.4

@@ -12,18 +12,35 @@ public final class DownloadsWatcher {
     private var source: DispatchSourceFileSystemObject?
     private var known: Set<String> = []
     private var checkTask: Task<Void, Never>?
+    private var opening: Task<Void, Never>?
 
     public init(folder: URL? = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first) {
         self.folder = folder ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
     }
 
-    public var isRunning: Bool { source != nil }
+    public var isRunning: Bool { source != nil || opening != nil }
 
     public func start() {
-        guard source == nil else { return }
-        // Reading the folder is what asks for Downloads access, once.
-        known = Set(names())
-        let descriptor = open(folder.path, O_EVTONLY)
+        guard source == nil, opening == nil else { return }
+        let folder = folder
+        // Reading the folder is what asks for Downloads access, once. macOS holds the read until
+        // the person answers, so it happens off the main thread: the notch keeps working while
+        // the question is up.
+        opening = Task { [weak self] in
+            let (names, descriptor) = await Task.detached {
+                (Self.names(in: folder), open(folder.path, O_EVTONLY))
+            }.value
+            guard let self, self.opening != nil, !Task.isCancelled else {
+                if descriptor >= 0 { close(descriptor) }
+                return
+            }
+            self.opening = nil
+            self.known = Set(names)
+            self.watch(descriptor)
+        }
+    }
+
+    private func watch(_ descriptor: Int32) {
         guard descriptor >= 0 else { return }
         let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: [.write, .rename], queue: .main)
         source.setEventHandler { [weak self] in
@@ -35,6 +52,8 @@ public final class DownloadsWatcher {
     }
 
     public func stop() {
+        opening?.cancel()
+        opening = nil
         source?.cancel()
         source = nil
         checkTask?.cancel()
@@ -69,6 +88,10 @@ public final class DownloadsWatcher {
     }
 
     private func names() -> [String] {
+        Self.names(in: folder)
+    }
+
+    nonisolated private static func names(in folder: URL) -> [String] {
         (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
     }
 }

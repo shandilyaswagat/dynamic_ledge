@@ -23,6 +23,9 @@ public struct IslandLayout: Equatable, Sendable {
     public var stripHeight: CGFloat
     /// Size multiplier for everything inside the shape (Small / Medium / Large).
     public var contentScale: CGFloat
+    /// Height of the camera housing from the top edge, kept black in the Glass theme so the
+    /// notch never shows through. Zero on displays without a notch.
+    public var notchBand: CGFloat
 
     public init(
         canvasSize: CGSize,
@@ -51,6 +54,7 @@ public struct IslandLayout: Equatable, Sendable {
         self.cameraGap = cameraGap
         self.contentScale = contentScale
         self.stripHeight = 0
+        self.notchBand = 0
     }
 
     /// The values SwiftUI interpolates during a spring.
@@ -211,6 +215,12 @@ public struct LayoutEngine: Equatable, Sendable {
 
     /// Width of Home, Tray, Clipboard and the grid in the elongated layout: as wide as the
     /// screen allows, up to a limit, so the widgets sit in one long row.
+    /// How many characters of an approval request fit on a line: 12 pt monospaced text in the
+    /// usual expanded width, less the panel's and the text box's padding.
+    var agentCharactersPerLine: Int {
+        max(20, Int((expandedWidth / scale - 64) / 7.3))
+    }
+
     public var elongatedWidth: CGFloat {
         let room = screen.size.width - 2 * (IslandMetrics.Nook.elongatedEdge + IslandMetrics.expandedFlare)
         return max(nookWidth, min(room, (IslandMetrics.Nook.elongatedMaxWidth * scale).rounded()))
@@ -297,11 +307,14 @@ public struct LayoutEngine: Equatable, Sendable {
                 + (home.hasMediaSwitcher ? IslandMetrics.ContentHeight.mediaSwitcher : 0)
         case .expanded(.timer), .expanded(.stopwatch): IslandMetrics.ContentHeight.timer
         case .expanded(.call): IslandMetrics.ContentHeight.call
+        case .expanded(.download): IslandMetrics.ContentHeight.download
         case .nook(.launcher): IslandMetrics.Nook.launcherBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.clipboard):
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset
         case .alert(.timerFinished): IslandMetrics.ContentHeight.timerFinished
+        case .alert(.agentRequest(let request)):
+            IslandMetrics.ContentHeight.agentRequest(lines: request.reviewLineCount(charactersPerLine: agentCharactersPerLine))
         case .drop: IslandMetrics.ContentHeight.drop
         default: nil
         }
@@ -316,6 +329,7 @@ public struct LayoutEngine: Equatable, Sendable {
     public func layout(for presentation: IslandPresentation, home: HomeContent, hovering: Bool) -> IslandLayout {
         var layout = notchLayout(for: presentation, home: home)
         layout.contentScale = scale
+        layout.notchBand = isVirtualNotch ? 0 : notch.maxY
 
         if hovering, presentation.isRestingPill {
             // Grows sideways and down; the top stays fused to the screen edge.
@@ -328,7 +342,8 @@ public struct LayoutEngine: Equatable, Sendable {
             )
         }
 
-        if appearance.pitchBlack {
+        if appearance.pitchBlack || appearance.theme == .glass {
+            // Glass draws its own edge.
             layout.shadow = 0
             layout.stroke = 0
         }
@@ -397,7 +412,7 @@ public struct LayoutEngine: Equatable, Sendable {
                 let diameter = bubbleDiameter
                 layout.bubble = CGRect(x: layout.pill.maxX + bubbleGap, y: (height - diameter) / 2, width: diameter, height: diameter)
             }
-        case .alert(let alert) where alert != .timerFinished:
+        case .alert(let alert) where !alert.usesExpandedLayout:
             let size = alertBodySize(for: alert)
             layout.pill = shape(body: size.width, height: size.height, flare: IslandMetrics.compactFlare)
             layout.bottomRadius = min(size.height * 0.42, 16)

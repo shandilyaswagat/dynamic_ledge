@@ -11,28 +11,34 @@ struct IslandRootView: View {
         let presentation = model.presentation(onDisplay: display.id)
         let layout = model.layout(onDisplay: display.id, metrics: display.metrics)
         let liquid = model.settings.liquidAnimations && !reduceMotion
+        let appearance = model.settings.appearance
 
         ZStack(alignment: .topLeading) {
             // Only the bubble splitting off (or merging back) melts; the notch itself keeps crisp
             // edges as it opens and closes.
-            KeyframeAnimator(initialValue: 0.0, trigger: presentation.topology.split) { pulse in
-                IslandSurface(layout: layout, pulse: pulse, liquid: liquid)
-            } keyframes: { _ in
-                KeyframeTrack {
-                    CubicKeyframe(1, duration: 0.08)
-                    SpringKeyframe(0, duration: 0.6, spring: .smooth)
+            if appearance.theme == .glass {
+                GlassSurface(layout: layout, tint: appearance.glassTint)
+                    .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
+            } else {
+                KeyframeAnimator(initialValue: 0.0, trigger: presentation.topology.split) { pulse in
+                    IslandSurface(layout: layout, pulse: pulse, liquid: liquid)
+                } keyframes: { _ in
+                    KeyframeTrack {
+                        CubicKeyframe(1, duration: 0.08)
+                        SpringKeyframe(0, duration: 0.6, spring: .smooth)
+                    }
                 }
+                .frame(width: layout.canvasSize.width, height: layout.canvasSize.height)
             }
-            .frame(width: layout.canvasSize.width, height: layout.canvasSize.height)
 
             IslandContentLayer(model: model, presentation: presentation, layout: layout)
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
-        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion), value: presentation)
+        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion, theme: appearance.theme), value: presentation)
         .animation(Motion.settings, value: model.settings.appearance)
         // Lyrics arriving, a second app playing, Clipboard's search bar: the shape eases to fit.
-        .animation(reduceMotion ? nil : Motion.resize, value: model.homeContent)
-        .animation(reduceMotion ? nil : Motion.hover, value: model.isHoveringPill)
+        .animation(reduceMotion ? nil : Motion.resize(appearance.theme), value: model.homeContent)
+        .animation(reduceMotion ? nil : Motion.hover(appearance.theme), value: model.isHoveringPill)
         .environment(\.colorScheme, .dark)
         // The panel is intentionally non-activating, so publish a stable action while it is
         // tucked away. This keeps Voice Control and automation able to open the same Home view
@@ -73,7 +79,7 @@ struct IslandContentLayer: View {
                     .frame(width: layout.content.width, height: layout.content.height)
                     .offset(x: layout.content.minX - layout.pill.minX, y: layout.content.minY - layout.pill.minY)
                     .id(ContentKey(presentation))
-                    .transition(nookWasOpen && presentation.homeTab != nil ? .nookTab : .islandContent)
+                    .transition(contentTransition)
             }
         }
         .overlay(alignment: .topLeading) {
@@ -103,6 +109,11 @@ struct IslandContentLayer: View {
         .position(x: layout.pill.midX, y: layout.pill.midY)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Dynamic Ledge"))
+    }
+
+    private var contentTransition: AnyTransition {
+        if nookWasOpen && presentation.homeTab != nil { return .nookTab }
+        return model.settings.appearance.theme == .glass ? .glassContent : .islandContent
     }
 
     private var hasBubble: Bool {
@@ -169,6 +180,8 @@ struct NotchContent: View {
             StopwatchExpandedView(model: model)
         case .expanded(.call):
             CallExpandedView(model: model)
+        case .expanded(.download):
+            DownloadExpandedView(model: model)
         case .expanded(.stats):
             // Stats opens in the nook; this only covers the moment before that switch.
             StatsPanelBody(model: model)
@@ -269,6 +282,7 @@ private struct ActivityHeader: View {
         case .stopwatch: "Stopwatch"
         case .nowPlaying: "Now Playing"
         case .call: model.calls.session?.isCall == false ? "Microphone" : "Call"
+        case .download: "Downloading"
         case .stats: "Stats"
         }
     }

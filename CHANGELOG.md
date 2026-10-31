@@ -7,6 +7,49 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- **Glass theme.** Pick **Glass** in Settings › Appearance for a smoked-glass notch: black around
+  the camera, easing into frosted glass along the bottom edge, which catches the light. It moves
+  with softer, springier motion, and a slider sets how dark the glass stays. Black stays the
+  default.
+- **Download progress.** While Safari, Chrome or another browser downloads into your Downloads
+  folder, the notch shows how far along it is. Open it to see the file, how much is left and
+  roughly how long, with buttons to show it in Finder or stop it. Part of the Finished downloads
+  setting.
+- **Approve coding assistants from the notch.** Claude Code, Codex, Copilot CLI, Antigravity and
+  Cursor each have a switch in Settings › Activities. When one wants to run a command or change a
+  file, the notch shows what it wants to do, with Allow and Deny. Close it, or leave it for two
+  minutes, and the assistant asks in its own window as usual. Claude Code, Codex and Copilot CLI
+  only ask the notch when they would ask you anyway; Antigravity and Cursor ask before every
+  terminal command. Switching one on adds a hook to its settings file, and switching it off takes
+  it out again. Codex asks you to review new hooks once (/hooks). Long commands and file changes
+  make the notch a little taller, and you can scroll through and select the whole request. The
+  hook only trusts answers from the same copy of Dynamic Ledge, so right after an update,
+  approvals go to the assistant's own window until Dynamic Ledge restarts.
+- **Scrolling titles.** Long song and video titles scroll in the open music view while they play,
+  so you can read the whole name. They stay still when paused or with Reduce Motion on.
+- **Anonymous usage count.** Once a day the app sends TelemetryDeck a random, hashed ID with the
+  app and macOS versions, so I can see how many Macs use it. Nothing about you or what you do is
+  sent.
+
+### Changed
+- **Signed with Dynamic Ledge's own certificate.** macOS now keeps Accessibility, Camera, Calendar
+  and other permissions when the app updates. Because of the switch, this one update may ask you
+  to allow them once more.
+- **The update button.** A new version shows as an **Update** pill when you open the notch, then
+  shrinks to a round download button beside the grid. Point at it to see the label again.
+- Smoother opening and closing: the notch's shape is now drawn by the graphics card instead of
+  being redrawn on the CPU for every frame.
+
+### Removed
+- The "Connected" alert for AirPods and other headphones. macOS already shows it at the top of
+  the screen, so the notch was repeating it.
+
+### Fixed
+- The notch no longer freezes while macOS asks for access to your Downloads folder.
+- Turning on an assistant keeps its settings file as a link when it is one (for example into a
+  dotfiles folder), and keeps the file's permissions.
+
 ## [1.4.1] - 2026-10-30
 
 ### Added

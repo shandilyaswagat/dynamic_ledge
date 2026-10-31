@@ -47,8 +47,25 @@ public final class Updater {
     /// Debug builds: pretend a release is out, to see how the notch announces it.
     public func simulateAvailable(_ release: ReleaseInfo) {
         state = .available(release)
+        noteFound(release)
     }
     #endif
+
+    /// An update found in the last day gets the full "Update" pill when the notch opens; after
+    /// that, just the round download button.
+    public var isUpdateRecent: Bool {
+        guard let release = availableRelease,
+              defaults.string(forKey: Key.foundVersion) == release.version.description,
+              let found = defaults.object(forKey: Key.foundAt) as? Date else { return false }
+        return Date().timeIntervalSince(found) < 24 * 3600
+    }
+
+    /// Remembers when a version was first found, across launches.
+    private func noteFound(_ release: ReleaseInfo) {
+        guard defaults.string(forKey: Key.foundVersion) != release.version.description else { return }
+        defaults.set(release.version.description, forKey: Key.foundVersion)
+        defaults.set(Date(), forKey: Key.foundAt)
+    }
 
     public var availableRelease: ReleaseInfo? {
         if case .available(let release) = state { return release }
@@ -93,6 +110,7 @@ public final class Updater {
                 self.defaults.set(Date(), forKey: Key.lastCheck)
                 if let current = self.currentVersion, release.version > current {
                     self.state = .available(release)
+                    self.noteFound(release)
                     let announced = self.defaults.string(forKey: Key.announced)
                     if !userInitiated, announced != release.version.description {
                         self.defaults.set(release.version.description, forKey: Key.announced)
@@ -291,5 +309,7 @@ public final class Updater {
     private enum Key {
         static let lastCheck = "updates.lastCheck"
         static let announced = "updates.announced"
+        static let foundVersion = "updates.foundVersion"
+        static let foundAt = "updates.foundAt"
     }
 }

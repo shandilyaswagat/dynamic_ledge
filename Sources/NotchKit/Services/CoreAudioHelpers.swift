@@ -66,6 +66,21 @@ enum AudioHW {
         }
     }
 
+    static func outputDevices() -> [AudioDeviceID] {
+        objects(system, address(kAudioHardwarePropertyDevices)).filter { device in
+            var streams = address(kAudioDevicePropertyStreams, scope: kAudioObjectPropertyScopeOutput)
+            var size: UInt32 = 0
+            return AudioObjectGetPropertyDataSize(device, &streams, 0, nil, &size) == noErr && size > 0
+        }
+    }
+
+    /// Makes `device` the Mac's sound output. True when macOS accepted it.
+    static func setDefaultOutputDevice(_ device: AudioDeviceID) -> Bool {
+        var address = address(kAudioHardwarePropertyDefaultOutputDevice)
+        var id = device
+        return AudioObjectSetPropertyData(system, &address, 0, nil, UInt32(MemoryLayout<AudioDeviceID>.size), &id) == noErr
+    }
+
     static func isRunningSomewhere(_ device: AudioDeviceID) -> Bool {
         let running: UInt32 = value(device, address(kAudioDevicePropertyDeviceIsRunningSomewhere), default: 0)
         return running != 0

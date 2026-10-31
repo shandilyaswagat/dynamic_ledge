@@ -6,6 +6,8 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
     case timer
     case stopwatch
     case nowPlaying
+    /// Files downloading into Downloads, with how far along they are.
+    case download
     /// Memory and CPU, when Stats is on and nothing else is happening. Never shares the notch:
     /// any other activity replaces it.
     case stats
@@ -17,7 +19,8 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
         case .timer: 1
         case .stopwatch: 2
         case .nowPlaying: 3
-        case .stats: 4
+        case .download: 4
+        case .stats: 5
         }
     }
 }
@@ -40,6 +43,8 @@ public enum IslandAlert: Equatable, Sendable {
     case download(URL)
     /// A new version of the app is out.
     case updateAvailable(version: String)
+    /// A coding assistant wants to use a tool and is waiting for Allow or Deny.
+    case agentRequest(AgentRequest)
 
     public enum LevelKind: String, Sendable, Hashable {
         case volume
@@ -57,6 +62,7 @@ public enum IslandAlert: Equatable, Sendable {
         case shortcut
         case download
         case update
+        case agent
     }
 
     public var kind: Kind {
@@ -70,6 +76,7 @@ public enum IslandAlert: Equatable, Sendable {
         case .shortcut: .shortcut
         case .download: .download
         case .updateAvailable: .update
+        case .agentRequest: .agent
         }
     }
 
@@ -87,12 +94,22 @@ public enum IslandAlert: Equatable, Sendable {
         case .shortcut: 2.5
         case .download: 5
         case .updateAvailable: 6
+        // The request answers itself (back to the assistant's own prompt) a little earlier.
+        case .agentRequest: 125
         }
     }
 
     /// Urgent alerts interrupt an expanded view; the rest wait for it to close.
     public var isUrgent: Bool {
-        self == .timerFinished
+        usesExpandedLayout
+    }
+
+    /// Opens the notch fully, with buttons, instead of a short pill.
+    public var usesExpandedLayout: Bool {
+        switch self {
+        case .timerFinished, .agentRequest: true
+        default: false
+        }
     }
 
     /// Feedback for something the user just did (volume keys): shown at once, never queued

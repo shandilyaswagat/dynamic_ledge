@@ -23,6 +23,9 @@ public final class IslandModel {
     public let keepAwake = KeepAwakeService()
     public let microphone = MicrophoneMute()
     public let downloads: DownloadsWatcher
+    public let downloadProgress = DownloadProgressMonitor()
+    /// Permission requests from coding assistants.
+    public let agents = AgentBridge()
     public let reminders = RemindersService()
     public let stats = StatsService()
     public let todos: TodoStore
@@ -36,6 +39,7 @@ public final class IslandModel {
     public var isEditingShortcuts = false
     public let hotKeys = HotKeys()
     public let updater = Updater()
+    let usage = UsageReporter()
     let camera = CameraAccess()
 
     /// What the Timer panel starts, and the minutes picked on its ruler.
@@ -146,6 +150,7 @@ public final class IslandModel {
         nowPlaying.lingerDuration = settings.pausedMediaLinger
         nowPlaying.appFilter = settings.mediaAppFilter
         nowPlaying.onAppSeen = { [weak self] identifier in self?.settings.noteMediaApp(identifier) }
+        agents.onChange = { [weak self] in self?.syncAgentAlert() }
         observeActivities()
         observeSettings()
         observeLyrics()
@@ -155,16 +160,32 @@ public final class IslandModel {
         nowPlaying.start()
         calls.start()
         power.start()
-        audioRoute.start()
+        // No headphones alert: macOS already shows AirPods connecting at the top of the screen.
+        // The monitor stays for a later animated AirPods alert.
         calendar.start()
         levels.start()
         if settings.clipboardEnabled { clipboard.start() }
-        if settings.downloadsEnabled { downloads.start() }
+        if settings.downloadsEnabled {
+            downloads.start()
+            downloadProgress.start()
+        }
+        agents.enabledKinds = settings.agentApprovals
+        if settings.agentApprovalsEnabled {
+            agents.start()
+            // Keeps each hook pointing at this copy of the app, for example after it moved.
+            for kind in settings.agentApprovals {
+                if let command = AgentHookSettings.currentCommand(socket: agents.socketPath, kind: kind),
+                   !AgentHookSettings.isCurrent(kind, command: command) {
+                    try? AgentHookSettings.install(kind, command: command)
+                }
+            }
+        }
         microphone.start()
         if settings.remindersEnabled { reminders.start() }
         syncStatsSampling()
         if settings.keyboardShortcutsEnabled { hotKeys.register() }
         if settings.checksForUpdates { updater.startAutomaticChecks() }
+        if settings.sharesUsage { usage.start(isNewInstall: !settings.hasShownWelcome) }
         if !settings.hasShownWelcome {
             settings.hasShownWelcome = true
             Task { [weak self] in
@@ -183,11 +204,14 @@ public final class IslandModel {
         levels.stop()
         clipboard.stop()
         downloads.stop()
+        downloadProgress.stop()
+        agents.stop()
         microphone.stop()
         reminders.stop()
         stats.stop()
         hotKeys.unregister()
         updater.stopAutomaticChecks()
+        usage.stop()
         keepAwake.turnOff()
         notes.save()
         alarm.stop()
@@ -249,6 +273,7 @@ public final class IslandModel {
         if settings.timerEnabled, timer.isActive { active.insert(.timer) }
         if settings.timerEnabled, stopwatch.isActive { active.insert(.stopwatch) }
         if settings.nowPlayingEnabled, nowPlaying.isActivityVisible { active.insert(.nowPlaying) }
+        if settings.downloadsEnabled, !downloadProgress.items.isEmpty { active.insert(.download) }
         // Stats fills the notch only when nothing else is happening.
         if settings.statsEnabled, active.isEmpty { active.insert(.stats) }
         return active
@@ -523,6 +548,9 @@ public final class IslandModel {
         case .alert(.download(let url)):
             NSWorkspace.shared.activateFileViewerSelecting([url])
             dismissAlert()
+        case .alert(.agentRequest):
+            // Needs an answer from its buttons; a stray click mustn't count as one.
+            break
         case .alert(.updateAvailable):
             dismissAlert()
             onOpenAbout?()
@@ -622,6 +650,11 @@ public final class IslandModel {
             stopTimerAlarm()
             return
         }
+        if case .agentRequest(let request) = alerts.current {
+            // Closing it sends the question back to the assistant's own window.
+            agents.answer(request.id, .ask)
+            return
+        }
         alerts.dismissCurrent()
         pumpAlerts()
         scheduleAlertExpiry()
@@ -637,6 +670,29 @@ public final class IslandModel {
         case .download: settings.downloadsEnabled
         case .updateAvailable: true
         case .timerFinished, .welcome, .shortcut: true
+        // The bridge's list follows the settings.
+        case .agentRequest(let request): agents.enabledKinds.contains(request.kind)
+        }
+    }
+
+    /// Answers the request on show.
+    public func answerAgent(_ decision: AgentDecision) {
+        guard case .agentRequest(let request) = alerts.current else { return }
+        agents.answer(request.id, decision)
+    }
+
+    /// Keeps the notch showing the oldest waiting request, one at a time.
+    private func syncAgentAlert() {
+        let head = agents.pending.first
+        if case .agentRequest(let shown) = alerts.current, shown.id != head?.id {
+            alerts.dismissCurrent()
+            scheduleAlertExpiry()
+        }
+        if let head, alerts.current != .agentRequest(head), !alerts.pending.contains(.agentRequest(head)) {
+            alerts.removeAll(of: .agent)
+            receive(.agentRequest(head))
+        } else {
+            pumpAlerts()
         }
     }
 
@@ -655,9 +711,11 @@ public final class IslandModel {
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, let self else { return }
             let wasTimer = self.alerts.current == .timerFinished
+            let agentRequest: AgentRequest? = if case .agentRequest(let request) = self.alerts.current { request } else { nil }
             let removed = self.alerts.expire(now: Date())
             self.alertTask = nil
             if removed {
+                if let agentRequest { self.agents.answer(agentRequest.id, .ask) }
                 if wasTimer {
                     // Nobody stopped it: clear the finished timer along with its alert.
                     self.alarm.stop()
@@ -938,10 +996,12 @@ public final class IslandModel {
             _ = settings.clipboardEnabled
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
+            _ = settings.agentApprovals
             _ = settings.remindersEnabled
             _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
             _ = settings.checksForUpdates
+            _ = settings.sharesUsage
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -960,10 +1020,15 @@ public final class IslandModel {
                 if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
+                if self.settings.sharesUsage { self.usage.start(isNewInstall: false) } else { self.usage.stop() }
+                self.agents.enabledKinds = self.settings.agentApprovals
+                if self.settings.agentApprovalsEnabled { self.agents.start() } else { self.agents.stop() }
                 if self.settings.downloadsEnabled {
                     self.downloads.start()
+                    self.downloadProgress.start()
                 } else {
                     self.downloads.stop()
+                    self.downloadProgress.stop()
                 }
                 if self.settings.clipboardEnabled {
                     self.clipboard.start()

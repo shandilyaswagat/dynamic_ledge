@@ -39,10 +39,11 @@ extension TimerMode {
 enum Motion {
     /// Spring for a change of presentation, picked by where the shape is going. Opening has a
     /// little give, like the iPhone's island; closing settles without a bounce.
-    static func shape(to presentation: IslandPresentation, reduceMotion: Bool) -> Animation {
+    static func shape(to presentation: IslandPresentation, reduceMotion: Bool, theme: NotchTheme = .black) -> Animation {
         if reduceMotion {
             return .easeInOut(duration: 0.2)
         }
+        if theme == .glass { return glassShape(to: presentation) }
         switch presentation {
         case .hidden(peek: true):
             return .spring(response: 0.34, dampingFraction: 0.72)
@@ -58,10 +59,35 @@ enum Motion {
         }
     }
 
+    /// Glass moves like a drop of liquid: a touch slower, with more give as it opens and a soft
+    /// settle as it closes.
+    private static func glassShape(to presentation: IslandPresentation) -> Animation {
+        switch presentation {
+        case .hidden(peek: true):
+            .spring(response: 0.4, dampingFraction: 0.64)
+        case .hidden:
+            .spring(response: 0.5, dampingFraction: 0.92)
+        case .idle, .compact:
+            .spring(response: 0.5, dampingFraction: 0.7)
+        case .alert:
+            .spring(response: 0.52, dampingFraction: 0.68)
+        case .expanded, .nook, .drop:
+            .spring(response: 0.56, dampingFraction: 0.74)
+        }
+    }
+
     static let settings = Animation.spring(response: 0.3, dampingFraction: 1)
     /// The open notch growing or shrinking to fit what's in it.
     static let resize = Animation.spring(response: 0.38, dampingFraction: 0.86)
     static let hover = Animation.spring(response: 0.3, dampingFraction: 0.68)
+
+    static func resize(_ theme: NotchTheme) -> Animation {
+        theme == .glass ? .spring(response: 0.46, dampingFraction: 0.8) : resize
+    }
+
+    static func hover(_ theme: NotchTheme) -> Animation {
+        theme == .glass ? .spring(response: 0.36, dampingFraction: 0.6) : hover
+    }
 }
 
 /// Sizes inside the compact shape scale with its thickness and with Small / Medium / Large.
@@ -112,6 +138,21 @@ extension AnyTransition {
                 active: BlurFade(blur: 4, scale: 0.97, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
             ).animation(.easeIn(duration: 0.12))
+        )
+    }
+
+    /// The Glass theme's version: content condenses out of the glass more slowly, with a deeper
+    /// blur, so it reads as forming inside the liquid rather than appearing on top of it.
+    static var glassContent: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: BlurFade(blur: 10, scale: 0.9, opacity: 0),
+                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
+            ).animation(.smooth(duration: 0.44).delay(0.08)),
+            removal: .modifier(
+                active: BlurFade(blur: 6, scale: 0.96, opacity: 0),
+                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
+            ).animation(.easeIn(duration: 0.14))
         )
     }
 

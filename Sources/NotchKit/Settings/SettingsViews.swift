@@ -196,9 +196,29 @@ struct AppearanceSettingsView: View {
             }
 
             Section {
-                Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
+                Picker("Theme", selection: $settings.appearance.theme) {
+                    Text("Black").tag(NotchTheme.black)
+                    Text("Glass").tag(NotchTheme.glass)
+                }
+                .pickerStyle(.segmented)
+                if settings.appearance.theme == .glass {
+                    LabeledContent("Glass") {
+                        HStack(spacing: 8) {
+                            Text("Clear").font(.caption).foregroundStyle(.secondary)
+                            Slider(value: $settings.appearance.glassTint, in: NotchAppearance.glassTintRange)
+                                .frame(minWidth: 180)
+                            Text("Tinted").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
+                }
+            } header: {
+                Text("Look")
             } footer: {
-                Text("The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
+                Text(settings.appearance.theme == .glass
+                    ? "Frosted glass that blurs what’s behind it, with softer, springier motion. The part around the camera stays black. More tint is easier to read over bright windows."
+                    : "The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -282,10 +302,11 @@ struct ActivitiesSettingsView: View {
                 NowPlayingAppsSection(settings: settings)
             }
 
+            CodingAssistantSection(settings: settings)
+
             Section("Alerts") {
                 IconToggle(title: "Charging", detail: nil, symbol: "bolt.fill", color: .green, isOn: $settings.chargingAlertsEnabled)
                 IconToggle(title: "Low Battery", detail: "At 20% and 10%", symbol: "battery.25percent", color: .red, isOn: $settings.lowBatteryAlertsEnabled)
-                IconToggle(title: "Headphones", detail: "When AirPods or other Bluetooth headphones connect", symbol: "airpodspro", color: .gray, isOn: $settings.headphoneAlertsEnabled)
                 IconToggle(title: "Volume & Brightness", detail: "Shows the level in the notch when you change it", symbol: "speaker.wave.2.fill", color: .indigo, isOn: $settings.levelsEnabled)
             }
 
@@ -302,6 +323,66 @@ struct ActivitiesSettingsView: View {
 
     private static func label(for seconds: TimeInterval) -> String {
         seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
+    }
+}
+
+/// Coding assistants' permission requests, answered from the notch.
+private struct CodingAssistantSection: View {
+    @Bindable var settings: SettingsStore
+    @State private var problem: (kind: AgentKind, text: String)?
+
+    var body: some View {
+        Section {
+            ForEach(AgentKind.allCases) { kind in
+                IconToggle(title: LocalizedStringKey(kind.displayName), detail: LocalizedStringKey(Self.detail(kind)), symbol: Self.symbol(kind), color: .orange, isOn: enabled(kind))
+                if let problem, problem.kind == kind {
+                    Text(problem.text)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        } header: {
+            Text("Coding Assistants")
+        } footer: {
+            Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. Switching one on adds a hook to that assistant’s settings file; switching it off removes it. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
+        }
+    }
+
+    private static func detail(_ kind: AgentKind) -> String {
+        let file = AgentHookSettings.displayPath(for: kind)
+        return kind.asksOnlyWhenNeeded
+            ? "Only when it would ask you anyway · \(file)"
+            : "Asks before every terminal command · \(file)"
+    }
+
+    private static func symbol(_ kind: AgentKind) -> String {
+        switch kind {
+        case .claude, .codex, .copilot: "terminal.fill"
+        case .antigravity, .cursor: "chevron.left.forwardslash.chevron.right"
+        }
+    }
+
+    private func enabled(_ kind: AgentKind) -> Binding<Bool> {
+        Binding {
+            settings.agentApprovals.contains(kind)
+        } set: { isOn in
+            problem = nil
+            let file = AgentHookSettings.displayPath(for: kind)
+            do {
+                if isOn {
+                    guard let command = AgentHookSettings.currentCommand(socket: AgentBridge.defaultSocketPath, kind: kind) else { return }
+                    try AgentHookSettings.install(kind, command: command)
+                    settings.agentApprovals.insert(kind)
+                } else {
+                    try AgentHookSettings.uninstall(kind)
+                    settings.agentApprovals.remove(kind)
+                }
+            } catch AgentHookSettings.Failure.unreadable {
+                problem = (kind, "Couldn’t read \(file), so it was left as it is. Check that it’s valid JSON.")
+            } catch {
+                problem = (kind, "Couldn’t save \(file).")
+            }
+        }
     }
 }
 
@@ -582,7 +663,7 @@ private struct UpdatesBox: View {
                 }
             }
             .font(.callout)
-            Text("Checking asks GitHub for the latest version. It's the only time Dynamic Ledge goes online.")
+            Text("Checking asks GitHub for the latest version.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

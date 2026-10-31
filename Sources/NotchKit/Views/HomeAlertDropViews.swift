@@ -45,6 +45,8 @@ struct AlertView: View {
             .accessibilityElement(children: .combine)
         case .timerFinished:
             TimerFinishedView(model: model)
+        case .agentRequest(let request):
+            AgentRequestView(model: model, request: request)
         case .welcome:
             AlertRow(cameraGap: cameraGap) {
                 Text(Greeting.text(fullName: NSFullUserName()))
@@ -385,5 +387,85 @@ private struct LevelBar: View {
             }
         }
         .animation(.spring(duration: 0.2, bounce: 0), value: value)
+    }
+}
+
+/// A coding assistant asking to use a tool: who, what, and Deny / Allow. Closing the notch
+/// instead sends the question back to the assistant's own window.
+private struct AgentRequestView: View {
+    let model: IslandModel
+    let request: AgentRequest
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8 * s) {
+            HStack(spacing: 8 * s) {
+                Image(systemName: "terminal.fill")
+                    .font(.system(size: 13 * s, weight: .semibold))
+                    .foregroundStyle(NotchColor.orange)
+                Text(request.agent)
+                    .font(.system(size: 13 * s, weight: .semibold))
+                    .foregroundStyle(.white)
+                if !request.project.isEmpty {
+                    Text(request.project)
+                        .font(.system(size: 12 * s, weight: .medium))
+                        .foregroundStyle(NotchColor.secondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 4 * s)
+                Text(request.title)
+                    .font(.system(size: 12 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .lineLimit(1)
+            }
+            ScrollView(.vertical) {
+                Text(verbatim: request.reviewDetail.isEmpty ? request.toolName : request.visibleReviewDetail)
+                    .font(.system(size: 12 * s, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(.horizontal, 10 * s)
+                    .padding(.vertical, 6 * s)
+            }
+            .id(request.id)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Color.white.opacity(0.08)))
+            .accessibilityLabel(Text("Full request. Scroll to review all details."))
+            HStack(spacing: 8 * s) {
+                Button("Ask in \(request.agent)") { model.answerAgent(.ask) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .accessibilityHint(Text("Closes this and answers in the assistant's own window"))
+                Spacer(minLength: 0)
+                AgentButton(title: "Deny", tint: NotchColor.red) { model.answerAgent(.deny) }
+                AgentButton(title: "Allow", tint: NotchColor.green, prominent: true) { model.answerAgent(.allow) }
+            }
+        }
+        .padding(.horizontal, 20 * s)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("\(request.agent) wants to \(request.title.lowercased())"))
+    }
+}
+
+private struct AgentButton: View {
+    let title: LocalizedStringKey
+    let tint: Color
+    var prominent = false
+    let action: () -> Void
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(prominent ? .black : tint)
+                .padding(.horizontal, 16 * s)
+                .frame(height: 26 * s)
+                .background(Capsule().fill(prominent ? tint : tint.opacity(0.2)))
+        }
+        .buttonStyle(.plain)
     }
 }

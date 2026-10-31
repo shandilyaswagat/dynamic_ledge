@@ -63,6 +63,8 @@ public final class SettingsStore {
             defaults.set(value.nookLayout.rawValue, forKey: Key.nookLayout)
             defaults.set(value.width, forKey: Key.width)
             defaults.set(value.height, forKey: Key.height)
+            defaults.set(value.theme.rawValue, forKey: Key.theme)
+            defaults.set(value.glassTint, forKey: Key.glassTint)
         }
     }
 
@@ -94,6 +96,13 @@ public final class SettingsStore {
         MediaAppFilter(mode: nowPlayingAppMode, allowed: Set(nowPlayingApps))
     }
 
+    /// Coding assistants whose permission requests the notch answers. None until asked for:
+    /// switching one on adds a hook to that assistant's settings.
+    public var agentApprovals: Set<AgentKind> {
+        didSet { defaults.set(AgentKind.allCases.filter(agentApprovals.contains).map(\.rawValue), forKey: Key.agentApprovalKinds) }
+    }
+
+    public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
@@ -120,6 +129,9 @@ public final class SettingsStore {
     public var keyboardShortcutsEnabled: Bool { didSet { defaults.set(keyboardShortcutsEnabled, forKey: Key.keyboardShortcuts) } }
     /// Look for a new version on GitHub once a day.
     public var checksForUpdates: Bool { didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) } }
+    /// Send one anonymous signal a day, so the developer can count how many Macs use the app. Not
+    /// shown in Settings (it carries no personal data); `defaults write` can turn it off.
+    public var sharesUsage: Bool { didSet { defaults.set(sharesUsage, forKey: Key.sharesUsage) } }
     /// Focus session length and the break after it, in minutes.
     public var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: Key.focusMinutes) } }
     public var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: Key.breakMinutes) } }
@@ -178,7 +190,9 @@ public final class SettingsStore {
             height: defaults.object(forKey: Key.height) as? Double ?? standard.height,
             pitchBlack: defaults.object(forKey: Key.pitchBlack) as? Bool ?? standard.pitchBlack,
             size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size,
-            nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout
+            nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout,
+            theme: defaults.string(forKey: Key.theme).flatMap(NotchTheme.init(rawValue:)) ?? standard.theme,
+            glassTint: defaults.object(forKey: Key.glassTint) as? Double ?? standard.glassTint
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
@@ -202,6 +216,12 @@ public final class SettingsStore {
         nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
         recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
+        if let saved = defaults.stringArray(forKey: Key.agentApprovalKinds) {
+            agentApprovals = Set(saved.compactMap(AgentKind.init(rawValue:)))
+        } else {
+            // Builds before other assistants had one switch, for Claude Code.
+            agentApprovals = defaults.bool(forKey: Key.agentApprovals) ? [.claude] : []
+        }
         timerEnabled = defaults.object(forKey: Key.timer) as? Bool ?? true
         callsEnabled = defaults.object(forKey: Key.calls) as? Bool ?? true
         airDropEnabled = defaults.object(forKey: Key.airDrop) as? Bool ?? true
@@ -219,6 +239,7 @@ public final class SettingsStore {
         lockScreenEnabled = defaults.object(forKey: Key.lockScreen) as? Bool ?? false
         keyboardShortcutsEnabled = defaults.object(forKey: Key.keyboardShortcuts) as? Bool ?? true
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
+        sharesUsage = defaults.object(forKey: Key.sharesUsage) as? Bool ?? true
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
         focusMinutes = Self.focusChoices.contains(focus) ? focus : 25
         let rest = defaults.object(forKey: Key.breakMinutes) as? Int ?? 5
@@ -299,6 +320,8 @@ public final class SettingsStore {
         static let pitchBlack = "shape.pitchBlack"
         static let size = "shape.size"
         static let nookLayout = "shape.nookLayout"
+        static let theme = "shape.theme"
+        static let glassTint = "shape.glassTint"
         static let width = "shape.width"
         static let height = "shape.height"
         static let showWhenIdle = "behavior.showWhenIdle"
@@ -314,6 +337,9 @@ public final class SettingsStore {
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
         static let lyrics = "activity.lyrics"
+        /// The single Claude Code switch from earlier builds, read once to carry it over.
+        static let agentApprovals = "activity.agentApprovals"
+        static let agentApprovalKinds = "activity.agentApprovalKinds"
         static let nowPlayingAppMode = "nowPlaying.appMode"
         static let nowPlayingApps = "nowPlaying.apps"
         static let recentMediaApps = "nowPlaying.recentApps"
@@ -335,6 +361,7 @@ public final class SettingsStore {
         static let lockScreen = "general.lockScreen"
         static let keyboardShortcuts = "general.keyboardShortcuts"
         static let checksForUpdates = "general.checksForUpdates"
+        static let sharesUsage = "general.sharesUsage"
         static let focusMinutes = "timer.focusMinutes"
         static let breakMinutes = "timer.breakMinutes"
         static let calendar = "home.calendar"

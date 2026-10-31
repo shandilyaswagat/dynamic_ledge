@@ -2,7 +2,7 @@
 # Builds a universal release app and packages it as build/DynamicNotch.dmg. The file keeps its
 # old name on purpose: apps from 1.3.x and earlier look for exactly this name to update.
 #
-#   SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"   required for distribution
+#   SIGN_IDENTITY="Dynamic Ledge" (self-made certificate) or "Developer ID Application: …"
 #   NOTARY_PROFILE=profile-name   a `xcrun notarytool store-credentials` profile; when set,
 #                                 the DMG is notarized and stapled
 #   VERSION / BUILD_NUMBER      see build-app.sh
@@ -25,12 +25,13 @@ ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
 hdiutil create -volname "Dynamic Ledge" -srcfolder "$STAGING" -ov -format UDZO -quiet "$DMG"
 
-if [[ "${SIGN_IDENTITY:--}" != "-" ]]; then
+# Only a Developer ID signature on the disk image means anything to Gatekeeper.
+if [[ "${SIGN_IDENTITY:--}" == "Developer ID"* ]]; then
     codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
 fi
 
 if [[ -n "${NOTARY_PROFILE:-}" ]]; then
-    if [[ "${SIGN_IDENTITY:--}" == "-" ]]; then
+    if [[ "${SIGN_IDENTITY:--}" != "Developer ID"* ]]; then
         echo "✗ Notarization needs a Developer ID SIGN_IDENTITY" >&2
         exit 1
     fi

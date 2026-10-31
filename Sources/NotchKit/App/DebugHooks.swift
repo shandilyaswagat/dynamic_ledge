@@ -65,6 +65,9 @@ final class DebugHooks {
         case "fakeupdate":
             let base = "https://github.com/shandilyaswagat/dynamic_ledge/releases"
             model.updater.simulateAvailable(ReleaseInfo(version: SemanticVersion("9.9.9")!, diskImage: URL(string: base + "/download/v9.9.9/DynamicNotch.dmg")!, checksum: nil, signedManifest: URL(string: base + "/download/v9.9.9/DynamicNotch.update.json")!, page: URL(string: base)!))
+        // Starts the approval socket without touching Claude Code's settings.
+        // Only the running app: saving the setting would add hooks to real tools on next launch.
+        case "agentserver": model.agents.enabledKinds = Set(AgentKind.allCases); model.agents.start()
         case "stopwatch": model.stopwatch.start()
         case "awake": model.keepAwake.toggle()
         case "download": model.receive(.download(URL(fileURLWithPath: parts.dropFirst().first ?? "/tmp/Report.pdf")))
@@ -83,7 +86,8 @@ final class DebugHooks {
             let line = "presentation=\(model.presentation) active=\(model.activeActivities.map(\.rawValue).sorted()) "
                 + "playing=\(String(describing: info?.isPlaying)) lingering=\(model.nowPlaying.isLingering) "
                 + "title=\(info?.title ?? "-") rate=\(info?.playbackRate ?? -1) expand=\(String(describing: model.expandTarget)) "
-                + "hoverNotch=\(model.isHoveringNotch) hoverPill=\(model.isHoveringPill) notch=\(model.engine.notchInWindow) virtual=\(model.engine.isVirtualNotch)\n"
+                + "hoverNotch=\(model.isHoveringNotch) hoverPill=\(model.isHoveringPill) notch=\(model.engine.notchInWindow) virtual=\(model.engine.isVirtualNotch) "
+                + "downloads=\(model.downloadProgress.items.map { "\($0.name) \($0.completed)/\($0.total)" }) alert=\(String(describing: model.alerts.current)) agents=\(model.agents.isRunning) socket=\(model.agents.socketPath)\n"
             let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DynamicNotch-debug.txt")
             if let handle = try? FileHandle(forWritingTo: url) {
                 handle.seekToEndOfFile()

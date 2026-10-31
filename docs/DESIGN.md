@@ -201,9 +201,9 @@ Times read like the Clock app: `4:59`, `1:02:03`; track time left reads `-3:01`.
 
 ## Coding-assistant approval details
 
-Requests longer than 72 characters or containing line breaks temporarily use the elongated
-width (up to 1240 pt, bounded by the screen) with 208 pt of content. Short requests use the
-usual expanded width and 112 pt of content. This does not change the user's nook layout.
+The panel always keeps the usual expanded width. Up to two wrapped lines fit the usual 112 pt
+of content; each line after that adds 15 pt, up to eight lines (202 pt). Anything longer
+scrolls.
 The entire request is selectable and vertically scrollable, with no line limit or ellipsis;
 Allow, Deny and Ask in the assistant remain visible below it. Each new request resets scrolling.
 File edits and other tools show complete arguments. Invisible controls and direction changes

@@ -77,23 +77,47 @@ public struct AgentRequest: Equatable, Sendable, Identifiable {
     public var detail: String
 
     /// Complete tool arguments used for approval, never a shortened file or tool summary.
-    public var reviewDetail: String
-
-    /// Make invisible control and direction changes visible rather than letting them conceal
-    /// parts of a command. Ordinary line breaks and tabs keep their readable layout.
-    public var visibleReviewDetail: String {
-        reviewDetail.unicodeScalars.map { scalar in
-            if (scalar.properties.generalCategory == .control && scalar != "\n" && scalar != "\t")
-                || scalar.properties.generalCategory == .format {
-                return "\\u{\(String(scalar.value, radix: 16))}"
-            }
-            return String(scalar)
-        }.joined()
+    public var reviewDetail: String {
+        didSet { (visibleReviewDetail, reviewLineLengths) = Self.review(reviewDetail) }
     }
 
-    /// Long or multiline requests temporarily use the elongated approval panel.
-    public var needsExpandedReview: Bool {
-        visibleReviewDetail.count > 72 || reviewDetail.contains("\n") || reviewDetail.contains("\r")
+    /// `reviewDetail` with invisible control and direction characters spelled out, so they
+    /// can't hide part of a command. Line breaks and tabs keep their layout.
+    public private(set) var visibleReviewDetail: String
+    /// Characters in each of the first lines, enough to size the panel.
+    private var reviewLineLengths: [Int]
+
+    /// Lines the request takes when wrapped at `charactersPerLine`, counted only as far as the
+    /// panel grows; the rest scrolls.
+    public func reviewLineCount(charactersPerLine: Int) -> Int {
+        let width = max(charactersPerLine, 1)
+        var lines = 0
+        for length in reviewLineLengths {
+            lines += max(1, (length + width - 1) / width)
+            if lines >= IslandMetrics.ContentHeight.agentRequestLines { break }
+        }
+        return min(lines, IslandMetrics.ContentHeight.agentRequestLines)
+    }
+
+    /// Worked out once per request: the layout asks for it on every animation frame, and a
+    /// file edit can be long.
+    private static func review(_ detail: String) -> (visible: String, lines: [Int]) {
+        var visible = ""
+        visible.reserveCapacity(detail.utf8.count)
+        for scalar in detail.unicodeScalars {
+            let category = scalar.properties.generalCategory
+            if (category == .control && scalar != "\n" && scalar != "\t") || category == .format {
+                visible += "\\u{\(String(scalar.value, radix: 16))}"
+            } else {
+                visible.unicodeScalars.append(scalar)
+            }
+        }
+        var lines: [Int] = []
+        for line in visible.split(separator: "\n", omittingEmptySubsequences: false) {
+            lines.append(line.count)
+            if lines.count >= IslandMetrics.ContentHeight.agentRequestLines { break }
+        }
+        return (visible, lines)
     }
 
     /// "Claude Code", "Codex" and so on.
@@ -107,6 +131,7 @@ public struct AgentRequest: Equatable, Sendable, Identifiable {
         self.title = title
         self.detail = detail
         self.reviewDetail = detail
+        (visibleReviewDetail, reviewLineLengths) = Self.review(detail)
     }
 
     /// Reads what a tool's hook was given. Nil when it isn't something to ask about.

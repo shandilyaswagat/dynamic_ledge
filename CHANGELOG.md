@@ -7,12 +7,7 @@ last one.
 
 ## [Unreleased]
 
-### Fixed
-- Coding-assistant approvals now verify the responding app before trusting its answer. If verification fails, the assistant asks in its own window.
-- Long approval commands temporarily widen the notch. You can scroll and select the complete request, including file changes, without a hidden ending.
-
 ### Added
-- Long song and video titles scroll while playing, so you can read the full name.
 - **Glass theme.** Pick **Glass** in Settings › Appearance for a smoked-glass notch: black around
   the camera, easing into frosted glass along the bottom edge, which catches the light. It moves
   with softer, springier motion, and a slider sets how dark the glass stays. Black stays the
@@ -27,7 +22,12 @@ last one.
   minutes, and the assistant asks in its own window as usual. Claude Code, Codex and Copilot CLI
   only ask the notch when they would ask you anyway; Antigravity and Cursor ask before every
   terminal command. Switching one on adds a hook to its settings file, and switching it off takes
-  it out again. Codex asks you to review new hooks once (/hooks).
+  it out again. Codex asks you to review new hooks once (/hooks). Long commands and file changes
+  make the notch a little taller, and you can scroll through and select the whole request. The
+  hook only trusts answers from the same copy of Dynamic Ledge, so right after an update,
+  approvals go to the assistant's own window until Dynamic Ledge restarts.
+- **Scrolling titles.** Long song and video titles scroll in the open music view while they play,
+  so you can read the whole name. They stay still when paused or with Reduce Motion on.
 - **Anonymous usage count.** Once a day the app sends TelemetryDeck a random, hashed ID with the
   app and macOS versions, so I can see how many Macs use it. Nothing about you or what you do is
   sent.
@@ -46,7 +46,6 @@ last one.
   the screen, so the notch was repeating it.
 
 ### Fixed
-- Pausing music or video could cut off the song title. The full title area now stays readable.
 - The notch no longer freezes while macOS asks for access to your Downloads folder.
 - Turning on an assistant keeps its settings file as a link when it is one (for example into a
   dotfiles folder), and keeps the file's permissions.

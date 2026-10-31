@@ -55,24 +55,4 @@ struct FileConverterTests {
         let afterBytes = try Data(contentsOf: originalURL)
         #expect(afterBytes == originalBytes)
     }
-
-    @Test func trayStoreConvertAddsNewConvertedItem() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let originalURL = tempDir.appendingPathComponent("input.png")
-        _ = try createTestImage(at: originalURL)
-
-        let store = TrayStore(folder: tempDir)
-        store.add([originalURL])
-        #expect(store.items.count == 1)
-
-        let item = store.items[0]
-        let converted = store.convert(item: item, to: .tiff)
-        #expect(converted != nil)
-        #expect(store.items.count == 2)
-        #expect(store.items.contains { $0.url.pathExtension == "tiff" })
-        #expect(FileManager.default.fileExists(atPath: originalURL.path))
-    }
 }

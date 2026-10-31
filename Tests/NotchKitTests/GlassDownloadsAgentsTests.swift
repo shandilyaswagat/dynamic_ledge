@@ -149,11 +149,11 @@ struct AgentRequestTests {
         let command = String(repeating: "echo safe; ", count: 100) + "echo last-command"
         let request = try #require(AgentRequest(claudeHookInput: hookInput("Bash", ["command": command])))
         #expect(request.reviewDetail == command)
-        #expect(request.needsExpandedReview)
-        let multiline = try #require(AgentRequest(claudeHookInput: hookInput("Bash", ["command": "ls\npwd"])))
-        #expect(multiline.needsExpandedReview)
+        #expect(request.reviewLineCount(charactersPerLine: 60) == IslandMetrics.ContentHeight.agentRequestLines)
+        let multiline = try #require(AgentRequest(claudeHookInput: hookInput("Bash", ["command": "ls\npwd\nwhoami"])))
+        #expect(multiline.reviewLineCount(charactersPerLine: 60) == 3)
         let short = try #require(AgentRequest(claudeHookInput: hookInput("Bash", ["command": "ls"])))
-        #expect(!short.needsExpandedReview)
+        #expect(short.reviewLineCount(charactersPerLine: 60) == 1)
         let edit = try #require(AgentRequest(claudeHookInput: hookInput("Edit", ["file_path": "/a", "old_string": "before", "new_string": "after"])))
         #expect(edit.reviewDetail.contains("before"))
         #expect(edit.reviewDetail.contains("after"))
@@ -168,17 +168,23 @@ struct AgentRequestTests {
         #expect(request.visibleReviewDetail == "echo a\\u{d}\\u{202e}hidden")
     }
 
-    @Test func longApprovalTemporarilyWidensTheNotch() {
+    @Test func longApprovalGrowsOnlyAsTallAsItNeeds() {
         let engine = LayoutEngine(screen: .sample, appearance: .standard)
         let short = AgentRequest(project: "app", toolName: "Bash", title: "Run a command", detail: "ls")
-        var long = short
-        long.reviewDetail = String(repeating: "command ", count: 100)
-        let normal = engine.layout(for: .alert(.agentRequest(short)), homeHasMedia: false, hovering: false)
-        let expanded = engine.layout(for: .alert(.agentRequest(long)), homeHasMedia: false, hovering: false)
-        #expect(expanded.content.width > normal.content.width)
-        #expect(expanded.content.height > normal.content.height)
-        #expect(expanded.pill.maxY <= engine.windowSize.height)
-        #expect(engine.layout(for: .alert(.agentRequest(short)), homeHasMedia: false, hovering: false) == normal)
+        func layout(_ text: String) -> IslandLayout {
+            var request = short
+            request.reviewDetail = text
+            return engine.layout(for: .alert(.agentRequest(request)), homeHasMedia: false, hovering: false)
+        }
+        let normal = layout("ls")
+        let twoLines = layout(String(repeating: "x", count: engine.agentCharactersPerLine + 5))
+        let fourLines = layout("a\nb\nc\nd")
+        let huge = layout(String(repeating: "command ", count: 1_000))
+        #expect(twoLines == normal, "two lines fit the usual panel")
+        #expect(fourLines.content.height > normal.content.height)
+        #expect(huge.content.height > fourLines.content.height)
+        #expect(huge.content.width == normal.content.width, "never wider than usual")
+        #expect(huge.pill.maxY <= engine.windowSize.height)
     }
 
     @Test func ignoresOtherInput() {

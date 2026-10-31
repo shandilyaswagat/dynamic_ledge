@@ -86,4 +86,4 @@ to the assistant's own prompt. Restart the app after updating it. This does not 
 whose app binary, assistant hook settings, or running app process has already been compromised.
 
 Approval requests retain complete review arguments separately from their short description.
-Long requests alone widen the panel; their text stays scrollable within a bounded height.
+Long requests make the panel taller, never wider, up to eight lines; the rest scrolls.

@@ -215,6 +215,12 @@ public struct LayoutEngine: Equatable, Sendable {
 
     /// Width of Home, Tray, Clipboard and the grid in the elongated layout: as wide as the
     /// screen allows, up to a limit, so the widgets sit in one long row.
+    /// How many characters of an approval request fit on a line: 12 pt monospaced text in the
+    /// usual expanded width, less the panel's and the text box's padding.
+    var agentCharactersPerLine: Int {
+        max(20, Int((expandedWidth / scale - 64) / 7.3))
+    }
+
     public var elongatedWidth: CGFloat {
         let room = screen.size.width - 2 * (IslandMetrics.Nook.elongatedEdge + IslandMetrics.expandedFlare)
         return max(nookWidth, min(room, (IslandMetrics.Nook.elongatedMaxWidth * scale).rounded()))
@@ -308,7 +314,7 @@ public struct LayoutEngine: Equatable, Sendable {
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset
         case .alert(.timerFinished): IslandMetrics.ContentHeight.timerFinished
         case .alert(.agentRequest(let request)):
-            request.needsExpandedReview ? IslandMetrics.ContentHeight.agentRequestExpanded : IslandMetrics.ContentHeight.agentRequest
+            IslandMetrics.ContentHeight.agentRequest(lines: request.reviewLineCount(charactersPerLine: agentCharactersPerLine))
         case .drop: IslandMetrics.ContentHeight.drop
         default: nil
         }
@@ -426,12 +432,7 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.cameraGap = cameraGap
         default:
             let contentHeight = expandedContentHeight(for: presentation, home: home) ?? IslandMetrics.ContentHeight.timer
-            let width: CGFloat
-            if case .alert(.agentRequest(let request)) = presentation, request.needsExpandedReview {
-                width = min(elongatedWidth, screen.size.width - 2 * (IslandMetrics.screenEdgeInset + IslandMetrics.expandedFlare))
-            } else {
-                width = expandedWidth
-            }
+            let width = expandedWidth
             layout.pill = shape(body: width, height: expandedHeight(content: contentHeight), flare: IslandMetrics.expandedFlare)
             layout.flare = IslandMetrics.expandedFlare
             layout.bottomRadius = (IslandMetrics.notchExpandedRadius * scale).rounded()

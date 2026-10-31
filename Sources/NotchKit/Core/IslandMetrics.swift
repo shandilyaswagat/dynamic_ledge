@@ -26,6 +26,7 @@ public enum IslandMetrics {
         public static let download: CGFloat = 72
         /// Who's asking, what they want to do, and Allow / Deny.
         public static let agentRequest: CGFloat = 112
+        public static let agentRequestExpanded: CGFloat = 208
         public static let drop: CGFloat = 100
         public static let timerFinished: CGFloat = 72
         /// The row of app buttons in the music view when several apps are playing.
@@ -33,7 +34,7 @@ public enum IslandMetrics {
         /// The line of lyrics in the music view, for songs that have timed lyrics.
         public static let lyrics: CGFloat = 30
         /// Tallest expanded content; sizes the window.
-        public static let maximum: CGFloat = max(nowPlaying + lyrics + mediaSwitcher, Nook.launcherBody + Nook.bodyTopInset)
+        public static let maximum: CGFloat = max(agentRequestExpanded, max(nowPlaying + lyrics + mediaSwitcher, Nook.launcherBody + Nook.bodyTopInset))
     }
 
     /// The Home, Tray and Mirror tabs share one fixed-size "nook", like the paid notch apps:

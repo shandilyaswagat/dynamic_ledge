@@ -39,9 +39,7 @@ struct NowPlayingExpandedView: View {
                 .accessibilityLabel(Text(service.appName.map { "Open \($0)" } ?? "Open player"))
 
                 VStack(alignment: .leading, spacing: 2 * s) {
-                    Text(info?.title ?? "")
-                        .font(.system(size: 15 * s, weight: .semibold))
-                        .foregroundStyle(.white)
+                    MediaTitle(title: info?.title ?? "", isPlaying: info?.isPlaying == true, fontSize: 15 * s)
                     Text(info?.artist.isEmpty == false ? info?.artist ?? "" : service.appName ?? "")
                         .font(.system(size: 13 * s))
                         .foregroundStyle(NotchColor.secondaryText)
@@ -355,9 +353,7 @@ private struct OtherSourceView: View {
             HStack(spacing: 12 * s) {
                 ArtworkView(artwork: source.artwork, fallbackIcon: source.icon, size: 56 * s, cornerRadius: 13 * s)
                 VStack(alignment: .leading, spacing: 2 * s) {
-                    Text(source.info.title)
-                        .font(.system(size: 15 * s, weight: .semibold))
-                        .foregroundStyle(.white)
+                    MediaTitle(title: source.info.title, isPlaying: source.info.isPlaying, fontSize: 15 * s)
                     Text(source.info.artist.isEmpty ? source.name : source.info.artist)
                         .font(.system(size: 13 * s))
                         .foregroundStyle(NotchColor.secondaryText)

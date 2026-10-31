@@ -182,6 +182,7 @@ Dark-mode system colours, since the surface is always black.
 | Content swap | old: fade + blur 4 + scale 0.97 out in 0.12 s; new: fade + blur 6 + scale 0.92 → 1 in a 0.34 s smooth curve after 0.06 s. Both scale from the top edge, so content grows out of the notch |
 | Liquid pulse (bubble split) | strength 0 → 1 in 0.08 s, back to 0 over 0.6 s |
 | Now Playing bars | 4 capsules, Core Animation keyframe loops of 1.2–1.9 s; resting height 28 % when paused |
+| Long Now Playing titles | Continuous horizontal loop at 25 pt/s, with a 32 pt gap; only while playing and only if the title is too wide. Paused and Reduce Motion show a still, truncated title. Sizes scale with the notch |
 | Timer done | bell swings ±16° |
 
 Reduce Motion replaces springs with a 0.2 s ease and turns the liquid effect off.
@@ -197,3 +198,13 @@ Reduce Motion replaces springs with a 0.2 s ease and turns the liquid effect off
 Short, sentence case, no exclamation marks: "Charging", "Low Battery", "Connected", "Timer",
 "Done", "Drop to AirDrop", "Release to AirDrop", "On Call", "Using Microphone".
 Times read like the Clock app: `4:59`, `1:02:03`; track time left reads `-3:01`.
+
+## Coding-assistant approval details
+
+Requests longer than 72 characters or containing line breaks temporarily use the elongated
+width (up to 1240 pt, bounded by the screen) with 208 pt of content. Short requests use the
+usual expanded width and 112 pt of content. This does not change the user's nook layout.
+The entire request is selectable and vertically scrollable, with no line limit or ellipsis;
+Allow, Deny and Ask in the assistant remain visible below it. Each new request resets scrolling.
+File edits and other tools show complete arguments. Invisible controls and direction changes
+are shown as Unicode escapes so they cannot hide command text.

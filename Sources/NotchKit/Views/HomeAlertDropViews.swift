@@ -419,16 +419,20 @@ private struct AgentRequestView: View {
                     .foregroundStyle(NotchColor.secondaryText)
                     .lineLimit(1)
             }
-            Text(request.detail.isEmpty ? request.toolName : request.detail)
-                .font(.system(size: 12 * s, weight: .regular, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.9))
-                .lineLimit(2)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, minHeight: 34 * s, alignment: .topLeading)
-                .padding(.horizontal, 10 * s)
-                .padding(.vertical, 6 * s)
-                .background(RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Color.white.opacity(0.08)))
-                .help(request.detail)
+            ScrollView(.vertical) {
+                Text(verbatim: request.reviewDetail.isEmpty ? request.toolName : request.visibleReviewDetail)
+                    .font(.system(size: 12 * s, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(.horizontal, 10 * s)
+                    .padding(.vertical, 6 * s)
+            }
+            .id(request.id)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Color.white.opacity(0.08)))
+            .accessibilityLabel(Text("Full request. Scroll to review all details."))
             HStack(spacing: 8 * s) {
                 Button("Ask in \(request.agent)") { model.answerAgent(.ask) }
                     .buttonStyle(.plain)

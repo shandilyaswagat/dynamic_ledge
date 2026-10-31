@@ -32,6 +32,9 @@ and you forget it's there.
 
 Here's what it shows:
 
+Long song and video titles scroll in the open music view while they play, so you can read the
+whole name. They stay still when paused or when Reduce Motion is on.
+
 - Whatever music is playing, from any app (or just the ones you pick, like Spotify), with the
   album art and play/pause/skip
 - Timers, counting down right next to the camera
@@ -248,3 +251,7 @@ Dynamic Ledge is free software, © 2026 Swagat Shandilya and contributors. You c
 and change it under the [GNU General Public License, version 3](LICENSE) or (at your choice) any
 later version. If you share a changed version, it has to stay free under the same license, with
 its source code available.
+
+Long coding-assistant requests temporarily open a wider notch with scrollable, selectable details.
+Short commands keep the usual size. Approval hooks verify that the reply comes from the same
+signed app build; if verification fails, the assistant asks in its own window instead.

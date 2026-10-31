@@ -74,3 +74,16 @@ command: `timer:<seconds>`, `pause`, `cancel`, `home`, `expand`, `collapse`, `ch
 ```bash
 osascript -l JavaScript -e 'ObjC.import("Foundation"); $.NSDistributedNotificationCenter.defaultCenter.postNotificationNameObjectUserInfoDeliverImmediately("DynamicNotch.debug", "charging", $(), true)'
 ```
+
+## Approval hook authentication
+
+Before sending request details and again before accepting a reply, `AgentHookClient` checks
+the connected Unix socket peer's UID and kernel audit token. Security.framework validates the
+running peer against this hook executable's code hash. Merely occupying the socket pathname,
+matching the app's name, or running as the same user is insufficient. Both sides must run the
+same signed build (ad-hoc signatures are supported); unsigned or mismatched builds fall back
+to the assistant's own prompt. Restart the app after updating it. This does not protect a Mac
+whose app binary, assistant hook settings, or running app process has already been compromised.
+
+Approval requests retain complete review arguments separately from their short description.
+Long requests alone widen the panel; their text stays scrollable within a bounded height.

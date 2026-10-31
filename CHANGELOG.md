@@ -7,7 +7,12 @@ last one.
 
 ## [Unreleased]
 
+### Fixed
+- Coding-assistant approvals now verify the responding app before trusting its answer. If verification fails, the assistant asks in its own window.
+- Long approval commands temporarily widen the notch. You can scroll and select the complete request, including file changes, without a hidden ending.
+
 ### Added
+- Long song and video titles scroll while playing, so you can read the full name.
 - **Glass theme.** Pick **Glass** in Settings › Appearance for a smoked-glass notch: black around
   the camera, easing into frosted glass along the bottom edge, which catches the light. It moves
   with softer, springier motion, and a slider sets how dark the glass stays. Black stays the
@@ -41,6 +46,7 @@ last one.
   the screen, so the notch was repeating it.
 
 ### Fixed
+- Pausing music or video could cut off the song title. The full title area now stays readable.
 - The notch no longer freezes while macOS asks for access to your Downloads folder.
 - Turning on an assistant keeps its settings file as a link when it is one (for example into a
   dotfiles folder), and keeps the file's permissions.

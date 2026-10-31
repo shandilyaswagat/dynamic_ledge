@@ -307,7 +307,8 @@ public struct LayoutEngine: Equatable, Sendable {
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset
         case .alert(.timerFinished): IslandMetrics.ContentHeight.timerFinished
-        case .alert(.agentRequest): IslandMetrics.ContentHeight.agentRequest
+        case .alert(.agentRequest(let request)):
+            request.needsExpandedReview ? IslandMetrics.ContentHeight.agentRequestExpanded : IslandMetrics.ContentHeight.agentRequest
         case .drop: IslandMetrics.ContentHeight.drop
         default: nil
         }
@@ -425,7 +426,12 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.cameraGap = cameraGap
         default:
             let contentHeight = expandedContentHeight(for: presentation, home: home) ?? IslandMetrics.ContentHeight.timer
-            let width = expandedWidth
+            let width: CGFloat
+            if case .alert(.agentRequest(let request)) = presentation, request.needsExpandedReview {
+                width = min(elongatedWidth, screen.size.width - 2 * (IslandMetrics.screenEdgeInset + IslandMetrics.expandedFlare))
+            } else {
+                width = expandedWidth
+            }
             layout.pill = shape(body: width, height: expandedHeight(content: contentHeight), flare: IslandMetrics.expandedFlare)
             layout.flare = IslandMetrics.expandedFlare
             layout.bottomRadius = (IslandMetrics.notchExpandedRadius * scale).rounded()

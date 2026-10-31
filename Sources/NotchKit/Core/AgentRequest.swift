@@ -76,6 +76,26 @@ public struct AgentRequest: Equatable, Sendable, Identifiable {
     /// The command, file or address it applies to.
     public var detail: String
 
+    /// Complete tool arguments used for approval, never a shortened file or tool summary.
+    public var reviewDetail: String
+
+    /// Make invisible control and direction changes visible rather than letting them conceal
+    /// parts of a command. Ordinary line breaks and tabs keep their readable layout.
+    public var visibleReviewDetail: String {
+        reviewDetail.unicodeScalars.map { scalar in
+            if (scalar.properties.generalCategory == .control && scalar != "\n" && scalar != "\t")
+                || scalar.properties.generalCategory == .format {
+                return "\\u{\(String(scalar.value, radix: 16))}"
+            }
+            return String(scalar)
+        }.joined()
+    }
+
+    /// Long or multiline requests temporarily use the elongated approval panel.
+    public var needsExpandedReview: Bool {
+        visibleReviewDetail.count > 72 || reviewDetail.contains("\n") || reviewDetail.contains("\r")
+    }
+
     /// "Claude Code", "Codex" and so on.
     public var agent: String { kind.displayName }
 
@@ -86,10 +106,8 @@ public struct AgentRequest: Equatable, Sendable, Identifiable {
         self.toolName = toolName
         self.title = title
         self.detail = detail
+        self.reviewDetail = detail
     }
-
-    /// The longest detail kept; the notch shows two lines of it.
-    static let maximumDetail = 600
 
     /// Reads what a tool's hook was given. Nil when it isn't something to ask about.
     public init?(hookInput data: Data, kind: AgentKind, id: UUID = UUID()) {
@@ -137,8 +155,16 @@ public struct AgentRequest: Equatable, Sendable, Identifiable {
             project: parsed.cwd.isEmpty ? "" : URL(fileURLWithPath: parsed.cwd).lastPathComponent,
             toolName: parsed.tool,
             title: title,
-            detail: String(detail.prefix(Self.maximumDetail))
+            detail: detail
         )
+        if parsed.tool == "Bash", let command = parsed.input["command"] as? String,
+           Set(parsed.input.keys).isSubset(of: ["command", "description"]) {
+            reviewDetail = command
+        } else {
+            guard let complete = try? JSONSerialization.data(withJSONObject: parsed.input, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]),
+                  let text = String(data: complete, encoding: .utf8) else { return nil }
+            reviewDetail = text
+        }
     }
 
     /// Kept for hooks written by earlier builds, which only handled Claude Code.

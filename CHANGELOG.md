@@ -7,6 +7,8 @@ last one.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-31
+
 ### Added
 - **Glass theme.** Pick **Glass** in Settings › Appearance for a smoked-glass notch: black around
   the camera, easing into frosted glass along the bottom edge, which catches the light. It moves
@@ -324,6 +326,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.4.2]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.2
 [1.4.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.1
 [1.4.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.0
 [1.3.5]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.3.5

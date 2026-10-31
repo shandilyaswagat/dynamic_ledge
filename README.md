@@ -221,6 +221,14 @@ Applications folder, and keeps all your settings. Homebrew moves you to the new 
 
 ## What's new
 
+**1.4.2**:
+
+- A **Glass** theme: smoked glass that fades into frosted glass, picked in Settings › Appearance
+- **Download progress** in the notch while your browser downloads, with Stop and Show in Finder
+- **Allow or Deny** Claude Code, Codex, Copilot CLI, Antigravity and Cursor right from the notch
+- Long song titles **scroll** while they play
+- Keeps its permissions when it updates (this update may ask for them once more)
+
 **1.4.1**:
 
 - A new **Home** with whatever's live up front, then your next event and timers, side by side

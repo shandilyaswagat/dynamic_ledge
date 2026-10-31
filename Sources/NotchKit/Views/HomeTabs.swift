@@ -141,21 +141,31 @@ private struct UpdatePill: View {
                 let installs = updater.canInstallInPlace(release)
                 let expanded = showsLabel || isHovering
                 Button { updater.install(release) } label: {
-                    HStack(spacing: 4 * s) {
-                        Image(systemName: "arrow.down")
-                            .font(.system(size: 11 * s, weight: .heavy))
+                    Group {
                         if expanded {
-                            Text(installs ? "Update" : "Download")
-                                .font(.system(size: 11 * s, weight: .semibold))
-                                .fixedSize()
-                                .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                            HStack(spacing: 3 * s) {
+                                Image(systemName: "arrow.down")
+                                    .font(.system(size: 9 * s, weight: .heavy))
+                                Text(installs ? "Update" : "Download")
+                                    .font(.system(size: 10.5 * s, weight: .semibold))
+                                    .fixedSize()
+                            }
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 8 * s)
+                            .frame(height: 18 * s)
+                            .background(Capsule().fill(Color.white))
+                            .brightness(isHovering ? -0.06 : 0)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .trailing)))
+                        } else {
+                            // The same size as the grid and Settings icons beside it; white
+                            // instead of grey so it still stands out.
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 12 * s, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
                         }
                     }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, expanded ? 9 * s : 0)
                     .frame(minWidth: 22 * s, minHeight: 22 * s)
-                    .background(Capsule().fill(Color.white))
-                    .brightness(isHovering ? -0.06 : 0)
                     .contentShape(Capsule())
                 }
                 .buttonStyle(PressableButtonStyle())

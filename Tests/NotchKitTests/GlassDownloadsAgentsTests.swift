@@ -184,26 +184,26 @@ struct ClaudeHookSettingsTests {
         {"model": "opus", "hooks": {"PermissionRequest": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "mine.sh"}]}],
                                      "Stop": [{"hooks": [{"type": "command", "command": "say done"}]}]}}
         """)
-        let command = ClaudeHookSettings.command(executable: "/Applications/Dynamic Ledge.app/Contents/MacOS/DynamicNotch", socket: "/tmp/a b.sock")
+        let command = AgentHookSettings.command(executable: "/Applications/Dynamic Ledge.app/Contents/MacOS/DynamicNotch", socket: "/tmp/a b.sock", kind: .claude)
         #expect(command == "'/Applications/Dynamic Ledge.app/Contents/MacOS/DynamicNotch' --agent-hook '/tmp/a b.sock'")
 
-        try ClaudeHookSettings.install(command: command, at: url)
-        #expect(ClaudeHookSettings.isInstalled(at: url))
-        #expect(ClaudeHookSettings.isCurrent(command: command, at: url))
+        try AgentHookSettings.install(.claude, command: command, at: url)
+        #expect(AgentHookSettings.isInstalled(.claude, at: url))
+        #expect(AgentHookSettings.isCurrent(.claude, command: command, at: url))
         var settings = read(url)
         #expect(settings["model"] as? String == "opus")
         var groups = (settings["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]
         #expect(groups?.count == 2, "the user's own hook stays")
 
         // Installing again (say after the app moved) replaces ours instead of adding a second.
-        try ClaudeHookSettings.install(command: command.replacingOccurrences(of: "Applications", with: "Apps"), at: url)
+        try AgentHookSettings.install(.claude, command: command.replacingOccurrences(of: "Applications", with: "Apps"), at: url)
         groups = (read(url)["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]
         #expect(groups?.count == 2)
-        #expect(!ClaudeHookSettings.isCurrent(command: command, at: url))
+        #expect(!AgentHookSettings.isCurrent(.claude, command: command, at: url))
 
-        try ClaudeHookSettings.uninstall(at: url)
+        try AgentHookSettings.uninstall(.claude, at: url)
         settings = read(url)
-        #expect(!ClaudeHookSettings.isInstalled(at: url))
+        #expect(!AgentHookSettings.isInstalled(.claude, at: url))
         groups = (settings["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]
         #expect(groups?.count == 1)
         #expect((settings["hooks"] as? [String: Any])?["Stop"] != nil)
@@ -211,16 +211,16 @@ struct ClaudeHookSettingsTests {
 
     @Test func createsTheFileAndTidiesUp() throws {
         let url = temporaryFile(nil)
-        try ClaudeHookSettings.install(command: "'x' --agent-hook 's'", at: url)
-        #expect(ClaudeHookSettings.isInstalled(at: url))
-        try ClaudeHookSettings.uninstall(at: url)
+        try AgentHookSettings.install(.claude, command: "'x' --agent-hook 's'", at: url)
+        #expect(AgentHookSettings.isInstalled(.claude, at: url))
+        try AgentHookSettings.uninstall(.claude, at: url)
         #expect(read(url).isEmpty, "nothing of ours is left behind")
     }
 
     @Test func leavesABrokenFileAlone() {
         let url = temporaryFile("{ this isn't json")
-        #expect(throws: ClaudeHookSettings.Failure.unreadable) {
-            try ClaudeHookSettings.install(command: "'x' --agent-hook 's'", at: url)
+        #expect(throws: AgentHookSettings.Failure.unreadable) {
+            try AgentHookSettings.install(.claude, command: "'x' --agent-hook 's'", at: url)
         }
         #expect((try? String(contentsOf: url, encoding: .utf8)) == "{ this isn't json")
     }
@@ -315,14 +315,14 @@ struct AgentAlertTests {
     @Test func showsOneRequestAtATimeAndClosingAsksInTerminal() async throws {
         let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
         let settings = SettingsStore(defaults: defaults)
-        settings.agentApprovalsEnabled = true
+        settings.agentApprovals = [.claude]
         let model = IslandModel(
             settings: settings,
             tray: TrayStore(folder: nil),
             clipboard: ClipboardMonitor(pasteboard: NSPasteboard(name: NSPasteboard.Name("NotchTests-\(UUID().uuidString)"))),
             notes: NotesStore(defaults: defaults)
         )
-        let first = AgentRequest(agent: "Claude Code", project: "app", toolName: "Bash", title: "Run a command", detail: "ls")
+        let first = AgentRequest(kind: .claude, project: "app", toolName: "Bash", title: "Run a command", detail: "ls")
         let alert = IslandAlert.agentRequest(first)
         #expect(alert.isUrgent)
         #expect(alert.usesExpandedLayout)
@@ -345,9 +345,156 @@ struct ClaudeHookSymlinkTests {
         let link = folder.appendingPathComponent("settings.json")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
 
-        try ClaudeHookSettings.install(command: "'x' --agent-hook 's'", at: link)
+        try AgentHookSettings.install(.claude, command: "'x' --agent-hook 's'", at: link)
         #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) == real.path, "still a link")
-        #expect(ClaudeHookSettings.isInstalled(at: real))
+        #expect(AgentHookSettings.isInstalled(.claude, at: real))
         #expect((try? FileManager.default.attributesOfItem(atPath: real.path)[.posixPermissions] as? Int) == 0o600)
+    }
+}
+
+@Suite("Every coding assistant")
+struct AgentKindsTests {
+    private func json(_ object: [String: Any]) -> Data { try! JSONSerialization.data(withJSONObject: object) }
+    private func decode(_ data: Data) -> [String: Any] { (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:] }
+
+    @Test func readsEachAssistantsInput() {
+        let codex = AgentRequest(hookInput: json([
+            "hook_event_name": "PermissionRequest", "tool_name": "apply_patch", "cwd": "/w/site",
+            "tool_input": ["command": "*** Begin Patch\n*** Update File: src/a.ts\n*** Add File: b.ts\n*** End Patch"],
+        ]), kind: .codex)
+        #expect(codex?.agent == "Codex")
+        #expect(codex?.title == "Edit files")
+        #expect(codex?.detail == "src/a.ts, b.ts")
+        #expect(codex?.project == "site")
+
+        let antigravity = AgentRequest(hookInput: json([
+            "toolCall": ["name": "run_command", "args": ["CommandLine": "npm run build"]],
+            "workspacePaths": ["/w/app"], "conversationId": "c",
+        ]), kind: .antigravity)
+        #expect(antigravity?.title == "Run a command")
+        #expect(antigravity?.detail == "npm run build")
+        #expect(antigravity?.project == "app")
+        #expect(AgentRequest(hookInput: json(["toolCall": ["name": "view_file", "args": [:]]]), kind: .antigravity) == nil)
+
+        let cursor = AgentRequest(hookInput: json([
+            "hook_event_name": "beforeShellExecution", "command": "git push", "cwd": "", "workspace_roots": ["/w/repo"],
+        ]), kind: .cursor)
+        #expect(cursor?.detail == "git push")
+        #expect(cursor?.project == "repo", "an empty cwd falls back to the workspace")
+
+        let copilot = AgentRequest(hookInput: json(["toolName": "shell", "toolArgs": "{\"command\":\"ls -la\"}", "cwd": "/w/x"]), kind: .copilot)
+        #expect(copilot?.title == "Run a command")
+        #expect(copilot?.detail == "ls -la")
+    }
+
+    @Test func answersInEachAssistantsFormat() {
+        #expect(AgentKind.codex.output(for: .allow) == AgentKind.claude.output(for: .allow), "Codex shares Claude Code's format")
+        #expect(AgentKind.codex.output(for: .ask).isEmpty)
+        #expect(decode(AgentKind.antigravity.output(for: .allow))["decision"] as? String == "allow")
+        #expect(decode(AgentKind.antigravity.output(for: .deny))["reason"] != nil)
+        #expect(decode(AgentKind.antigravity.fallbackOutput)["decision"] as? String == "ask", "never a failure, which would block the command")
+        #expect(decode(AgentKind.cursor.output(for: .deny))["permission"] as? String == "deny")
+        #expect(decode(AgentKind.cursor.fallbackOutput)["permission"] as? String == "ask")
+        #expect(decode(AgentKind.copilot.output(for: .allow))["behavior"] as? String == "allow")
+        #expect(AgentKind.copilot.fallbackOutput.isEmpty)
+    }
+
+    @Test func hookCommandNamesTheAssistant() {
+        #expect(!AgentHookSettings.command(executable: "/a", socket: "/s", kind: .claude).contains("--agent "), "Claude Code's hook stays as before")
+        #expect(AgentHookSettings.command(executable: "/a", socket: "/s", kind: .cursor).hasSuffix("--agent cursor"))
+    }
+
+    private func temporaryFile(_ contents: String?) -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("agents-\(UUID().uuidString)/hooks.json")
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let contents { try? Data(contents.utf8).write(to: url) }
+        return url
+    }
+
+    @Test func installsInEachFormat() throws {
+        for kind in AgentKind.allCases {
+            let url = temporaryFile(nil)
+            let command = AgentHookSettings.command(executable: "/App", socket: "/s", kind: kind)
+            try AgentHookSettings.install(kind, command: command, at: url)
+            try AgentHookSettings.install(kind, command: command, at: url)
+            #expect(AgentHookSettings.isCurrent(kind, command: command, at: url), "\(kind)")
+            let hooks = decode(try Data(contentsOf: url))["hooks"] as? [String: Any] ?? [:]
+            #expect(hooks.count == 1, "\(kind)")
+            #expect((hooks.values.first as? [Any])?.count == 1, "installing twice keeps one hook for \(kind)")
+            try AgentHookSettings.uninstall(kind, at: url)
+            #expect(!AgentHookSettings.isInstalled(kind, at: url), "\(kind)")
+        }
+    }
+
+    @Test func cursorKeepsOtherHooks() throws {
+        let url = temporaryFile(#"{"version": 1, "hooks": {"beforeShellExecution": [{"command": "./audit.sh"}], "afterFileEdit": [{"command": "./fmt.sh"}]}}"#)
+        try AgentHookSettings.install(.cursor, command: "'x' --agent-hook 's' --agent cursor", at: url)
+        var hooks = decode(try Data(contentsOf: url))["hooks"] as? [String: Any] ?? [:]
+        #expect((hooks["beforeShellExecution"] as? [Any])?.count == 2)
+        try AgentHookSettings.uninstall(.cursor, at: url)
+        let settings = decode(try Data(contentsOf: url))
+        hooks = settings["hooks"] as? [String: Any] ?? [:]
+        #expect((hooks["beforeShellExecution"] as? [[String: Any]])?.first?["command"] as? String == "./audit.sh")
+        #expect(hooks["afterFileEdit"] != nil)
+        #expect(settings["version"] as? Int == 1)
+    }
+
+    @Test func copilotsOwnFileIsRemoved() throws {
+        let url = temporaryFile(nil)
+        try AgentHookSettings.install(.copilot, command: "'x' --agent-hook 's' --agent copilot", at: url)
+        let entry = ((decode(try Data(contentsOf: url))["hooks"] as? [String: Any])?["permissionRequest"] as? [[String: Any]])?.first
+        #expect(entry?["bash"] as? String == "'x' --agent-hook 's' --agent copilot")
+        #expect(entry?["timeoutSec"] as? Int == AgentHookSettings.timeout)
+        try AgentHookSettings.uninstall(.copilot, at: url)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @MainActor
+    @Test func settingsCarryOverTheOldClaudeSwitch() {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        defaults.set(true, forKey: "activity.agentApprovals")
+        #expect(SettingsStore(defaults: defaults).agentApprovals == [.claude])
+        let settings = SettingsStore(defaults: defaults)
+        settings.agentApprovals = [.codex, .cursor]
+        #expect(SettingsStore(defaults: defaults).agentApprovals == [.codex, .cursor])
+    }
+}
+
+@MainActor
+@Suite("Every assistant round trip")
+struct AgentKindsBridgeTests {
+    @Test func eachAssistantGetsItsOwnAnswer() async throws {
+        let path = "/tmp/dl-\(UUID().uuidString.prefix(8)).sock"
+        let bridge = AgentBridge(socketPath: path)
+        bridge.start()
+        defer { bridge.stop() }
+        let inputs: [AgentKind: [String: Any]] = [
+            .codex: ["hook_event_name": "PermissionRequest", "tool_name": "Bash", "tool_input": ["command": "ls"], "cwd": "/w"],
+            .antigravity: ["toolCall": ["name": "run_command", "args": ["CommandLine": "ls"]], "workspacePaths": ["/w"]],
+            .cursor: ["hook_event_name": "beforeShellExecution", "command": "ls", "cwd": "/w"],
+            .copilot: ["toolName": "bash", "toolArgs": ["command": "ls"], "cwd": "/w"],
+        ]
+        for (kind, object) in inputs {
+            let input = try JSONSerialization.data(withJSONObject: object)
+            let reply = Task.detached { AgentHookClient.answer(input: input, socket: path, kind: kind) }
+            for _ in 0..<50 where bridge.pending.isEmpty { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(bridge.pending.first?.kind == kind)
+            bridge.answer(bridge.pending[0].id, .allow)
+            #expect(await reply.value == kind.output(for: .allow), "\(kind)")
+        }
+
+        // Switched off: sent straight back to ask as usual.
+        bridge.enabledKinds = [.claude]
+        let input = try JSONSerialization.data(withJSONObject: inputs[.cursor]!)
+        let reply = await Task.detached { AgentHookClient.answer(input: input, socket: path, kind: .cursor) }.value
+        #expect(reply == AgentKind.cursor.fallbackOutput)
+        #expect(bridge.pending.isEmpty)
+    }
+
+    @Test func noAppMeansAskForEveryAssistant() {
+        let input = Data(#"{"command":"ls"}"#.utf8)
+        for kind in AgentKind.allCases {
+            #expect(AgentHookClient.answer(input: input, socket: "/tmp/none-\(UUID().uuidString.prefix(6)).sock", kind: kind) == kind.fallbackOutput)
+        }
     }
 }

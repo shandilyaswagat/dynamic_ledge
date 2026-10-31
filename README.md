@@ -97,8 +97,9 @@ your pointer at the top centre of the screen for a moment.
 You can make it small, medium or large, whatever looks right on your screen. Prefer something
 lighter than black? Pick the **Glass** theme in Settings › Appearance.
 
-Use Claude Code? Turn on **Claude Code approvals** in Settings › Activities, and when it needs
-your OK to run a command or change a file, you can Allow or Deny it right from the notch.
+Use a coding assistant? Claude Code, Codex, Copilot CLI, Antigravity and Cursor each have a switch
+in Settings › Activities. When one needs your OK to run a command or change a file, you can Allow
+or Deny it right from the notch.
 
 It doesn't need an account and doesn't track anything. It goes online only for a quick daily
 check for a new version and, with Lyrics on, to look up the song that's playing. You can turn

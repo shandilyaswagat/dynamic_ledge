@@ -96,9 +96,13 @@ public final class SettingsStore {
         MediaAppFilter(mode: nowPlayingAppMode, allowed: Set(nowPlayingApps))
     }
 
-    /// Answer Claude Code's permission requests from the notch. Off until asked for: turning it
-    /// on adds a hook to Claude Code's settings.
-    public var agentApprovalsEnabled: Bool { didSet { defaults.set(agentApprovalsEnabled, forKey: Key.agentApprovals) } }
+    /// Coding assistants whose permission requests the notch answers. None until asked for:
+    /// switching one on adds a hook to that assistant's settings.
+    public var agentApprovals: Set<AgentKind> {
+        didSet { defaults.set(AgentKind.allCases.filter(agentApprovals.contains).map(\.rawValue), forKey: Key.agentApprovalKinds) }
+    }
+
+    public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
@@ -209,7 +213,12 @@ public final class SettingsStore {
         nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
         recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
-        agentApprovalsEnabled = defaults.bool(forKey: Key.agentApprovals)
+        if let saved = defaults.stringArray(forKey: Key.agentApprovalKinds) {
+            agentApprovals = Set(saved.compactMap(AgentKind.init(rawValue:)))
+        } else {
+            // Builds before other assistants had one switch, for Claude Code.
+            agentApprovals = defaults.bool(forKey: Key.agentApprovals) ? [.claude] : []
+        }
         timerEnabled = defaults.object(forKey: Key.timer) as? Bool ?? true
         callsEnabled = defaults.object(forKey: Key.calls) as? Bool ?? true
         airDropEnabled = defaults.object(forKey: Key.airDrop) as? Bool ?? true
@@ -324,7 +333,9 @@ public final class SettingsStore {
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
         static let lyrics = "activity.lyrics"
+        /// The single Claude Code switch from earlier builds, read once to carry it over.
         static let agentApprovals = "activity.agentApprovals"
+        static let agentApprovalKinds = "activity.agentApprovalKinds"
         static let nowPlayingAppMode = "nowPlaying.appMode"
         static let nowPlayingApps = "nowPlaying.apps"
         static let recentMediaApps = "nowPlaying.recentApps"

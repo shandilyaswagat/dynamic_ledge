@@ -326,43 +326,61 @@ struct ActivitiesSettingsView: View {
     }
 }
 
-/// Claude Code's permission requests, answered from the notch.
+/// Coding assistants' permission requests, answered from the notch.
 private struct CodingAssistantSection: View {
     @Bindable var settings: SettingsStore
-    @State private var problem: String?
+    @State private var problem: (kind: AgentKind, text: String)?
 
     var body: some View {
         Section {
-            IconToggle(title: "Claude Code approvals", detail: "Allow or deny its requests from the notch", symbol: "terminal.fill", color: .orange, isOn: enabled)
-            if let problem {
-                Text(problem)
-                    .font(.caption)
-                    .foregroundStyle(.red)
+            ForEach(AgentKind.allCases) { kind in
+                IconToggle(title: LocalizedStringKey(kind.displayName), detail: LocalizedStringKey(Self.detail(kind)), symbol: Self.symbol(kind), color: .orange, isOn: enabled(kind))
+                if let problem, problem.kind == kind {
+                    Text(problem.text)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
         } header: {
             Text("Coding Assistants")
         } footer: {
-            Text("When Claude Code needs your OK to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and Claude Code asks in Terminal as usual. Turning this on adds a hook to ~/.claude/settings.json; turning it off removes it. New Claude Code sessions pick it up.")
+            Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. Switching one on adds a hook to that assistant’s settings file; switching it off removes it. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
         }
     }
 
-    private var enabled: Binding<Bool> {
+    private static func detail(_ kind: AgentKind) -> String {
+        let file = AgentHookSettings.displayPath(for: kind)
+        return kind.asksOnlyWhenNeeded
+            ? "Only when it would ask you anyway · \(file)"
+            : "Asks before every terminal command · \(file)"
+    }
+
+    private static func symbol(_ kind: AgentKind) -> String {
+        switch kind {
+        case .claude, .codex, .copilot: "terminal.fill"
+        case .antigravity, .cursor: "chevron.left.forwardslash.chevron.right"
+        }
+    }
+
+    private func enabled(_ kind: AgentKind) -> Binding<Bool> {
         Binding {
-            settings.agentApprovalsEnabled
+            settings.agentApprovals.contains(kind)
         } set: { isOn in
             problem = nil
+            let file = AgentHookSettings.displayPath(for: kind)
             do {
                 if isOn {
-                    guard let command = ClaudeHookSettings.currentCommand(socket: AgentBridge.defaultSocketPath) else { return }
-                    try ClaudeHookSettings.install(command: command)
+                    guard let command = AgentHookSettings.currentCommand(socket: AgentBridge.defaultSocketPath, kind: kind) else { return }
+                    try AgentHookSettings.install(kind, command: command)
+                    settings.agentApprovals.insert(kind)
                 } else {
-                    try ClaudeHookSettings.uninstall()
+                    try AgentHookSettings.uninstall(kind)
+                    settings.agentApprovals.remove(kind)
                 }
-                settings.agentApprovalsEnabled = isOn
-            } catch ClaudeHookSettings.Failure.unreadable {
-                problem = "Couldn’t read ~/.claude/settings.json, so it was left as it is. Check that it’s valid JSON."
+            } catch AgentHookSettings.Failure.unreadable {
+                problem = (kind, "Couldn’t read \(file), so it was left as it is. Check that it’s valid JSON.")
             } catch {
-                problem = "Couldn’t save ~/.claude/settings.json."
+                problem = (kind, "Couldn’t save \(file).")
             }
         }
     }

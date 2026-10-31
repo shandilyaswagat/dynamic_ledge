@@ -168,12 +168,15 @@ public final class IslandModel {
             downloads.start()
             downloadProgress.start()
         }
+        agents.enabledKinds = settings.agentApprovals
         if settings.agentApprovalsEnabled {
             agents.start()
-            // Keeps the hook pointing at this copy of the app, for example after it moved.
-            if let command = ClaudeHookSettings.currentCommand(socket: agents.socketPath),
-               !ClaudeHookSettings.isCurrent(command: command) {
-                try? ClaudeHookSettings.install(command: command)
+            // Keeps each hook pointing at this copy of the app, for example after it moved.
+            for kind in settings.agentApprovals {
+                if let command = AgentHookSettings.currentCommand(socket: agents.socketPath, kind: kind),
+                   !AgentHookSettings.isCurrent(kind, command: command) {
+                    try? AgentHookSettings.install(kind, command: command)
+                }
             }
         }
         microphone.start()
@@ -664,7 +667,8 @@ public final class IslandModel {
         case .download: settings.downloadsEnabled
         case .updateAvailable: true
         case .timerFinished, .welcome, .shortcut: true
-        case .agentRequest: settings.agentApprovalsEnabled
+        // The bridge's list follows the settings.
+        case .agentRequest(let request): agents.enabledKinds.contains(request.kind)
         }
     }
 
@@ -989,7 +993,7 @@ public final class IslandModel {
             _ = settings.clipboardEnabled
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
-            _ = settings.agentApprovalsEnabled
+            _ = settings.agentApprovals
             _ = settings.remindersEnabled
             _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
@@ -1012,6 +1016,7 @@ public final class IslandModel {
                 if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
+                self.agents.enabledKinds = self.settings.agentApprovals
                 if self.settings.agentApprovalsEnabled { self.agents.start() } else { self.agents.stop() }
                 if self.settings.downloadsEnabled {
                     self.downloads.start()

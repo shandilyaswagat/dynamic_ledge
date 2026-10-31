@@ -430,7 +430,7 @@ private struct AgentRequestView: View {
                 .background(RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Color.white.opacity(0.08)))
                 .help(request.detail)
             HStack(spacing: 8 * s) {
-                Button("Ask in Terminal") { model.answerAgent(.ask) }
+                Button("Ask in \(request.agent)") { model.answerAgent(.ask) }
                     .buttonStyle(.plain)
                     .font(.system(size: 11 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)

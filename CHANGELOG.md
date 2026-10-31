@@ -16,10 +16,13 @@ last one.
   folder, the notch shows how far along it is. Open it to see the file, how much is left and
   roughly how long, with buttons to show it in Finder or stop it. Part of the Finished downloads
   setting.
-- **Claude Code approvals.** Turn it on in Settings › Activities, and when Claude Code needs your
-  OK to run a command or change a file, the notch shows what it wants to do with Allow and Deny.
-  Close it, or leave it for two minutes, and Claude Code asks in Terminal as usual. It adds a hook
-  to Claude Code's settings, and takes it out again when you turn it off.
+- **Approve coding assistants from the notch.** Claude Code, Codex, Copilot CLI, Antigravity and
+  Cursor each have a switch in Settings › Activities. When one wants to run a command or change a
+  file, the notch shows what it wants to do, with Allow and Deny. Close it, or leave it for two
+  minutes, and the assistant asks in its own window as usual. Claude Code, Codex and Copilot CLI
+  only ask the notch when they would ask you anyway; Antigravity and Cursor ask before every
+  terminal command. Switching one on adds a hook to its settings file, and switching it off takes
+  it out again. Codex asks you to review new hooks once (/hooks).
 
 ### Changed
 - **The update button.** A new version shows as an **Update** pill when you open the notch, then
@@ -33,8 +36,8 @@ last one.
 
 ### Fixed
 - The notch no longer freezes while macOS asks for access to your Downloads folder.
-- Turning on Claude Code approvals keeps `~/.claude/settings.json` as a link when it is one (for
-  example into a dotfiles folder), and keeps its permissions.
+- Turning on an assistant keeps its settings file as a link when it is one (for example into a
+  dotfiles folder), and keeps the file's permissions.
 
 ## [1.4.1] - 2026-10-30
 

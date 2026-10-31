@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Receives permission requests from coding assistants and holds each one until it's answered
-/// from the notch. Claude Code runs our hook (`AgentHookClient`), which passes the request over
+/// from the notch. The assistant runs our hook (`AgentHookClient`), which passes the request over
 /// a private socket that only this user can open, and waits for the answer.
 @MainActor
 @Observable
@@ -19,7 +19,7 @@ public final class AgentBridge {
 
     /// Answered with `ask` a little before Claude Code gives up on the hook, so the assistant
     /// always gets a reply and falls back to its own prompt.
-    static let answerWithin: TimeInterval = TimeInterval(ClaudeHookSettings.timeout - 10)
+    static let answerWithin: TimeInterval = TimeInterval(AgentHookSettings.timeout - 10)
 
     public let socketPath: String
 
@@ -51,18 +51,22 @@ public final class AgentBridge {
 
     public func answer(_ id: UUID, _ decision: AgentDecision) {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
-        pending.remove(at: index)
+        let request = pending.remove(at: index)
         timeouts.removeValue(forKey: id)?.cancel()
         if let connection = connections.removeValue(forKey: id) {
-            server?.respond(on: connection, with: decision.claudeHookOutput)
+            server?.respond(on: connection, with: request.kind.output(for: decision))
         }
         onChange?()
     }
 
+    /// Only these assistants are shown; anything else is sent back to ask as usual.
+    @ObservationIgnored public var enabledKinds: Set<AgentKind> = Set(AgentKind.allCases)
+
     private func received(_ data: Data, on connection: Int32) {
-        guard let request = AgentRequest(claudeHookInput: data) else {
+        let (kind, input) = Self.unwrap(data)
+        guard enabledKinds.contains(kind), let request = AgentRequest(hookInput: input, kind: kind) else {
             // Not something we show: let the assistant ask as usual.
-            server?.respond(on: connection, with: AgentDecision.ask.claudeHookOutput)
+            server?.respond(on: connection, with: kind.fallbackOutput)
             return
         }
         pending.append(request)
@@ -74,6 +78,17 @@ public final class AgentBridge {
             self?.answer(id, .ask)
         }
         onChange?()
+    }
+
+    /// The hook sends `{"agent": kind, "input": …}`. Hooks from earlier builds sent Claude Code's
+    /// input as it came.
+    static func unwrap(_ data: Data) -> (AgentKind, Data) {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let name = object["agent"] as? String, let kind = AgentKind(rawValue: name),
+              let input = object["input"],
+              JSONSerialization.isValidJSONObject(input),
+              let inner = try? JSONSerialization.data(withJSONObject: input) else { return (.claude, data) }
+        return (kind, inner)
     }
 
     /// The assistant stopped waiting (it was interrupted, or quit).

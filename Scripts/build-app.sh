@@ -3,7 +3,8 @@
 # name (DynamicNotch), so settings, permissions and updates carry over.
 #
 #   CONFIG=release|debug        default: release
-#   SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
+#   SIGN_IDENTITY="Dynamic Ledge"   the self-made certificate releases use (see docs/SHIPPING.md),
+#                               or "Developer ID Application: Name (TEAMID)" later
 #                               default: "-" (ad-hoc, runs only on this Mac)
 #   VERSION=x.y.z               default: the VERSION file
 #   BUILD_NUMBER=n              default: number of commits, so it always goes up
@@ -79,10 +80,11 @@ echo "› Signing with: $SIGN_IDENTITY"
 xattr -dr com.apple.FinderInfo "$APP" 2>/dev/null || true
 xattr -dr com.apple.ResourceFork "$APP" 2>/dev/null || true
 SIGN_FLAGS=(--force --options runtime)
-if [[ "$SIGN_IDENTITY" == "-" ]]; then
-    SIGN_FLAGS+=(--timestamp=none)
-else
+# Apple's timestamp only matters for Developer ID (notarization needs it).
+if [[ "$SIGN_IDENTITY" == "Developer ID"* ]]; then
     SIGN_FLAGS+=(--timestamp)
+else
+    SIGN_FLAGS+=(--timestamp=none)
 fi
 # Inside out: the helper library first, then the app.
 codesign "${SIGN_FLAGS[@]}" --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/libNotchMediaBridge.dylib"

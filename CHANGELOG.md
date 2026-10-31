@@ -28,6 +28,9 @@ last one.
   sent.
 
 ### Changed
+- **Signed with Dynamic Ledge's own certificate.** macOS now keeps Accessibility, Camera, Calendar
+  and other permissions when the app updates. Because of the switch, this one update may ask you
+  to allow them once more.
 - **The update button.** A new version shows as an **Update** pill when you open the notch, then
   shrinks to a round download button beside the grid. Point at it to see the label again.
 - Smoother opening and closing: the notch's shape is now drawn by the graphics card instead of

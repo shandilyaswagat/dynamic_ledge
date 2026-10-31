@@ -31,6 +31,11 @@ git fetch --tags --quiet origin
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && fail "$TAG already exists. Bump VERSION"
 grep -q "^## \[$VERSION\]" CHANGELOG.md || fail "CHANGELOG.md has no '## [$VERSION]' section"
 command -v gh >/dev/null || fail "The GitHub CLI (gh) is needed"
+# Every release is signed with the same certificate, so macOS keeps people's permissions
+# (Accessibility, Camera, Calendar…) across updates. See docs/SHIPPING.md.
+export SIGN_IDENTITY="${SIGN_IDENTITY:-Dynamic Ledge}"
+security find-identity -p codesigning | grep -qF "\"$SIGN_IDENTITY\"" \
+    || fail "No '$SIGN_IDENTITY' signing certificate in your keychain. See docs/SHIPPING.md"
 
 # Release notes: this version's changelog section, plus install steps for new users.
 NOTES="$(mktemp)"

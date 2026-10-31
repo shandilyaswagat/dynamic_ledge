@@ -5,10 +5,11 @@ Playing helper uses a private macOS framework, which App Review does not allow).
 
 There are two stages:
 
-| | Now: unsigned | Later: signed and notarized |
+| | Now: self-made certificate (from 1.4.2) | Later: Developer ID, notarized |
 |---|---|---|
 | Cost | Free | Apple Developer Program, $99 a year |
 | What users see on first open | "Not Opened" warning, then **Open Anyway** in Privacy & Security | One normal "downloaded from the internet" prompt |
+| Permissions after an update | Kept (same certificate every release) | Kept |
 | What changes in the README | Install steps 3–4 and the Terminal option | Remove those steps and the note above them |
 
 Release assets are always named `DynamicNotch.dmg`, so the README's link
@@ -104,7 +105,32 @@ key existed) labels its update button **Download** and opens the release page in
 copies need one manual download. Plan key rotation by
 shipping a trusted update with the next public key before retiring the old signing key.
 
-## Making a release now (ad-hoc Apple signature)
+## The signing certificate (self-made, from 1.4.2)
+
+Releases are signed with a certificate made on this Mac, named **Dynamic Ledge** (RSA 3072,
+code signing only, valid until 2046, SHA-1 `550FBF3C14AB222F3467030647CF473FBF5543F0`). Apple
+doesn't vouch for it, so Gatekeeper still shows the first-open warning. What it buys: macOS
+recognises the app by this certificate instead of by each build, so Accessibility, Camera,
+Calendar and the other permissions survive updates. Up to 1.4.1 releases were ad-hoc signed, so
+updating to 1.4.2 asks for those permissions once more; after that they stick.
+
+`Scripts/release.sh` signs with it by default (`SIGN_IDENTITY="Dynamic Ledge"`) and stops if
+it isn't in the keychain. Local and QA builds stay ad-hoc unless you pass `SIGN_IDENTITY`.
+
+**Never lose or replace it.** A new certificate means every user grants permissions again. The
+backup is in `~/.dynamic-notch/` beside the update key (outside the repo; never commit it):
+`codesign.p12` (certificate and private key), `codesign.p12.password` and `codesign-cert.pem`.
+Keep a copy of the folder somewhere safe offline too. To set it up on another Mac:
+
+```bash
+security import ~/.dynamic-notch/codesign.p12 -k ~/Library/Keychains/login.keychain-db -P "$(cat ~/.dynamic-notch/codesign.p12.password)" -T /usr/bin/codesign
+```
+
+Keychain lists it as "not trusted"; that's expected for a self-made certificate and doesn't stop
+signing. Moving to Developer ID later is a one-time change of the same kind: users grant
+permissions once more.
+
+## Making a release now (self-made certificate)
 
 1. On main, change `VERSION`, add the matching `## [x.y.z] - date` section to `CHANGELOG.md`,
    and commit.

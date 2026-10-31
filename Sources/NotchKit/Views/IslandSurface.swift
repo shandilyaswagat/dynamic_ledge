@@ -17,9 +17,44 @@ struct IslandSurface: View, Animatable {
 
     var body: some View {
         let strength = liquid ? min(1, pulse) : 0
+        Group {
+            if GooMath.blurRadius(strength: strength) > 0.2 {
+                liquidCanvas(strength: strength)
+            } else {
+                plainShapes
+            }
+        }
+        .shadow(color: .black.opacity(0.35 * min(layout.shadow, 1)), radius: 18, y: 8)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// Most of the time: plain black shapes, which the graphics card draws as they move.
+    private var plainShapes: some View {
+        let opacity = min(1, layout.pillOpacity * 20)
+        let hasBubble = layout.bubble.width > 0.5 && layout.bubble.height > 0.5
+        return ZStack(alignment: .topLeading) {
+            IslandShape(topRadius: layout.topRadius, bottomRadius: layout.bottomRadius, flare: layout.flare)
+                .fill(Color.black.opacity(opacity))
+                .frame(width: max(layout.pill.width, 1), height: max(layout.pill.height, 1))
+                .offset(x: layout.pill.minX, y: layout.pill.minY)
+                .opacity(opacity > 0.001 ? 1 : 0)
+            if hasBubble {
+                Ellipse()
+                    .fill(Color.black)
+                    .frame(width: layout.bubble.width, height: layout.bubble.height)
+                    .offset(x: layout.bubble.minX, y: layout.bubble.minY)
+            }
+        }
+        .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
+    }
+
+    /// Only while the bubble splits off or merges back: the liquid "goo", which needs a blur
+    /// and an alpha threshold over both shapes, so it's drawn into a canvas.
+    private func liquidCanvas(strength: Double) -> some View {
         let layout = layout
         let scale = displayScale
-        Canvas(opaque: false, rendersAsynchronously: false) { context, _ in
+        return Canvas(opaque: false, rendersAsynchronously: false) { context, _ in
             let main = IslandPath.path(in: layout.pill, topRadius: layout.topRadius, bottomRadius: layout.bottomRadius, flare: layout.flare)
             // The shape stays solid while it moves and only vanishes once it is back inside the
             // notch (or the top edge), instead of fading in and out.
@@ -56,9 +91,6 @@ struct IslandSurface: View, Animatable {
             // The blur softens edges that touch the screen top; a crisp copy keeps them sharp.
             context.fill(main, with: mainShading)
         }
-        .shadow(color: .black.opacity(0.35 * min(layout.shadow, 1)), radius: 18, y: 8)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 

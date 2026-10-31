@@ -187,8 +187,15 @@ public enum ClaudeHookSettings {
     private static func write(_ settings: [String: Any], to url: URL) throws {
         do {
             let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try data.write(to: url, options: .atomic)
+            // Many people keep this file as a link into a dotfiles folder: write through the link
+            // instead of replacing it, and keep the file's permissions.
+            let target = url.resolvingSymlinksInPath()
+            let permissions = (try? FileManager.default.attributesOfItem(atPath: target.path))?[.posixPermissions]
+            try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: target, options: .atomic)
+            if let permissions {
+                try? FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: target.path)
+            }
         } catch {
             throw Failure.unwritable
         }

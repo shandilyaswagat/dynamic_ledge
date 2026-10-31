@@ -332,3 +332,22 @@ struct AgentAlertTests {
         #expect(model.alerts.current == alert, "a stray click doesn't answer it")
     }
 }
+
+@Suite("Claude Code settings through a link")
+struct ClaudeHookSymlinkTests {
+    @Test func writesThroughALinkAndKeepsPermissions() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("dotfiles-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let real = folder.appendingPathComponent("claude-settings.json")
+        try Data(#"{"model": "opus"}"#.utf8).write(to: real)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: real.path)
+        let link = folder.appendingPathComponent("settings.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+
+        try ClaudeHookSettings.install(command: "'x' --agent-hook 's'", at: link)
+        #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) == real.path, "still a link")
+        #expect(ClaudeHookSettings.isInstalled(at: real))
+        #expect((try? FileManager.default.attributesOfItem(atPath: real.path)[.posixPermissions] as? Int) == 0o600)
+    }
+}

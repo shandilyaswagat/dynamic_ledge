@@ -121,11 +121,17 @@ struct BackToHomeButton: View {
 }
 
 /// Shows up beside the grid button when a new version is out: one click installs it and
-/// relaunches (or opens the download page when this copy can't update itself).
+/// relaunches (or opens the download page when this copy can't update itself). A fresh update
+/// opens as an "Update" pill, then shrinks to a round download button after a moment; pointing
+/// at it brings the label back.
 private struct UpdatePill: View {
     let model: IslandModel
+    @State private var showsLabel = false
     @State private var isHovering = false
     @Environment(\.notchScale) private var s
+
+    /// How long the full pill stays before it shrinks.
+    private static let labelTime: Duration = .seconds(3.5)
 
     var body: some View {
         let updater = model.updater
@@ -133,24 +139,39 @@ private struct UpdatePill: View {
             switch updater.state {
             case .available(let release):
                 let installs = updater.canInstallInPlace(release)
+                let expanded = showsLabel || isHovering
                 Button { updater.install(release) } label: {
-                    Label(installs ? "Update" : "Download", systemImage: "arrow.down.circle.fill")
-                        .labelStyle(.titleAndIcon)
-                        .font(.system(size: 11 * s, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 9 * s)
-                        .frame(height: 22 * s)
-                        .background(Capsule().fill(NotchColor.blue))
-                        .brightness(isHovering ? 0.08 : 0)
-                        .contentShape(Capsule())
+                    HStack(spacing: 4 * s) {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 11 * s, weight: .heavy))
+                        if expanded {
+                            Text(installs ? "Update" : "Download")
+                                .font(.system(size: 11 * s, weight: .semibold))
+                                .fixedSize()
+                                .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                        }
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, expanded ? 9 * s : 0)
+                    .frame(minWidth: 22 * s, minHeight: 22 * s)
+                    .background(Capsule().fill(Color.white))
+                    .brightness(isHovering ? -0.06 : 0)
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(PressableButtonStyle())
                 .onHover { isHovering = $0 }
+                .animation(.spring(duration: 0.4, bounce: 0.2), value: expanded)
                 .help(installs
                       ? "Version \(release.version.description) is out. Click to install it and relaunch."
                       : "Version \(release.version.description) is out. Click to download it.")
                 .accessibilityLabel(Text("Update to version \(release.version.description)"))
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
+                .task(id: release.version.description) {
+                    guard updater.isUpdateRecent else { return }
+                    showsLabel = true
+                    try? await Task.sleep(for: Self.labelTime)
+                    showsLabel = false
+                }
             case .installing:
                 HStack(spacing: 5 * s) {
                     ProgressView().controlSize(.mini)

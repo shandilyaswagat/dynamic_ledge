@@ -99,20 +99,21 @@ struct GlassSurface: View, Animatable {
             let eased = t * t * (3 - 2 * t)
             stops.append(.init(color: .black.opacity(Self.bodyShade - (Self.bodyShade - bottom) * eased), location: start + (1 - start) * t))
         }
+        // Gradient views clipped by the shape, rather than a shape filled with a gradient: the
+        // graphics card draws these as the shape changes every frame, instead of the CPU.
         return ZStack {
-            pillShape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
-            pillShape.fill(
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(0), location: 0),
-                        .init(color: .white.opacity(0), location: 0.82),
-                        .init(color: .white.opacity(0.16), location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom)
+            LinearGradient(
+                stops: [
+                    .init(color: .white.opacity(0), location: 0),
+                    .init(color: .white.opacity(0), location: 0.82),
+                    .init(color: .white.opacity(0.16), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
             )
         }
+        .clipShape(pillShape)
         .placed(in: layout.pill)
     }
 
@@ -121,21 +122,18 @@ struct GlassSurface: View, Animatable {
     private var rim: some View {
         let height = max(layout.pill.height, 1)
         let band = min(1, (layout.notchBand + 8) / height)
-        return pillShape
-            .stroke(
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(0), location: 0),
-                        .init(color: .white.opacity(0), location: band),
-                        .init(color: .white.opacity(0.08), location: max(band, Self.fadeStart)),
-                        .init(color: .white.opacity(0.5), location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                lineWidth: 1
-            )
-            .placed(in: layout.pill)
+        return LinearGradient(
+            stops: [
+                .init(color: .white.opacity(0), location: 0),
+                .init(color: .white.opacity(0), location: band),
+                .init(color: .white.opacity(0.08), location: max(band, Self.fadeStart)),
+                .init(color: .white.opacity(0.5), location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .mask(pillShape.stroke(lineWidth: 1))
+        .placed(in: layout.pill)
     }
 }
 

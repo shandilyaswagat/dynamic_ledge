@@ -21,12 +21,20 @@ last one.
   Close it, or leave it for two minutes, and Claude Code asks in Terminal as usual. It adds a hook
   to Claude Code's settings, and takes it out again when you turn it off.
 
+### Changed
+- **The update button.** A new version shows as an **Update** pill when you open the notch, then
+  shrinks to a round download button beside the grid. Point at it to see the label again.
+- Smoother opening and closing: the notch's shape is now drawn by the graphics card instead of
+  being redrawn on the CPU for every frame.
+
 ### Removed
 - The "Connected" alert for AirPods and other headphones. macOS already shows it at the top of
   the screen, so the notch was repeating it.
 
 ### Fixed
 - The notch no longer freezes while macOS asks for access to your Downloads folder.
+- Turning on Claude Code approvals keeps `~/.claude/settings.json` as a link when it is one (for
+  example into a dotfiles folder), and keeps its permissions.
 
 ## [1.4.1] - 2026-10-30
 

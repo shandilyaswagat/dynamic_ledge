@@ -124,7 +124,8 @@ public final class DownloadProgressMonitor {
                 name: DownloadProgressItem.displayName(for: url),
                 completed: completed,
                 total: total,
-                secondsLeft: entry.rate.secondsLeft(completed: completed, total: total),
+                // Whole seconds, so the notch redraws when the text changes, not on every sample.
+                secondsLeft: entry.rate.secondsLeft(completed: completed, total: total).map { $0.rounded() },
                 startedAt: entry.startedAt
             ))
         }

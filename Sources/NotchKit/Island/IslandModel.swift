@@ -39,6 +39,7 @@ public final class IslandModel {
     public var isEditingShortcuts = false
     public let hotKeys = HotKeys()
     public let updater = Updater()
+    let usage = UsageReporter()
     let camera = CameraAccess()
 
     /// What the Timer panel starts, and the minutes picked on its ruler.
@@ -184,6 +185,7 @@ public final class IslandModel {
         syncStatsSampling()
         if settings.keyboardShortcutsEnabled { hotKeys.register() }
         if settings.checksForUpdates { updater.startAutomaticChecks() }
+        if settings.sharesUsage { usage.start(isNewInstall: !settings.hasShownWelcome) }
         if !settings.hasShownWelcome {
             settings.hasShownWelcome = true
             Task { [weak self] in
@@ -209,6 +211,7 @@ public final class IslandModel {
         stats.stop()
         hotKeys.unregister()
         updater.stopAutomaticChecks()
+        usage.stop()
         keepAwake.turnOff()
         notes.save()
         alarm.stop()
@@ -998,6 +1001,7 @@ public final class IslandModel {
             _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
             _ = settings.checksForUpdates
+            _ = settings.sharesUsage
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -1016,6 +1020,7 @@ public final class IslandModel {
                 if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
+                if self.settings.sharesUsage { self.usage.start(isNewInstall: false) } else { self.usage.stop() }
                 self.agents.enabledKinds = self.settings.agentApprovals
                 if self.settings.agentApprovalsEnabled { self.agents.start() } else { self.agents.stop() }
                 if self.settings.downloadsEnabled {

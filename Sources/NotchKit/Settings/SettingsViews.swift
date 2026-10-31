@@ -663,7 +663,7 @@ private struct UpdatesBox: View {
                 }
             }
             .font(.callout)
-            Text("Checking asks GitHub for the latest version. It's the only time Dynamic Ledge goes online.")
+            Text("Checking asks GitHub for the latest version.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

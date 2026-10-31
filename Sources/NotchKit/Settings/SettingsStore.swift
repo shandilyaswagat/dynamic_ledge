@@ -129,6 +129,9 @@ public final class SettingsStore {
     public var keyboardShortcutsEnabled: Bool { didSet { defaults.set(keyboardShortcutsEnabled, forKey: Key.keyboardShortcuts) } }
     /// Look for a new version on GitHub once a day.
     public var checksForUpdates: Bool { didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) } }
+    /// Send one anonymous signal a day, so the developer can count how many Macs use the app. Not
+    /// shown in Settings (it carries no personal data); `defaults write` can turn it off.
+    public var sharesUsage: Bool { didSet { defaults.set(sharesUsage, forKey: Key.sharesUsage) } }
     /// Focus session length and the break after it, in minutes.
     public var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: Key.focusMinutes) } }
     public var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: Key.breakMinutes) } }
@@ -236,6 +239,7 @@ public final class SettingsStore {
         lockScreenEnabled = defaults.object(forKey: Key.lockScreen) as? Bool ?? false
         keyboardShortcutsEnabled = defaults.object(forKey: Key.keyboardShortcuts) as? Bool ?? true
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
+        sharesUsage = defaults.object(forKey: Key.sharesUsage) as? Bool ?? true
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
         focusMinutes = Self.focusChoices.contains(focus) ? focus : 25
         let rest = defaults.object(forKey: Key.breakMinutes) as? Int ?? 5
@@ -357,6 +361,7 @@ public final class SettingsStore {
         static let lockScreen = "general.lockScreen"
         static let keyboardShortcuts = "general.keyboardShortcuts"
         static let checksForUpdates = "general.checksForUpdates"
+        static let sharesUsage = "general.sharesUsage"
         static let focusMinutes = "timer.focusMinutes"
         static let breakMinutes = "timer.breakMinutes"
         static let calendar = "home.calendar"

@@ -101,9 +101,9 @@ Use a coding assistant? Claude Code, Codex, Copilot CLI, Antigravity and Cursor 
 in Settings › Activities. When one needs your OK to run a command or change a file, you can Allow
 or Deny it right from the notch.
 
-It doesn't need an account and doesn't track anything. It goes online only for a quick daily
-check for a new version and, with Lyrics on, to look up the song that's playing. You can turn
-both off in Settings. All of this is free.
+It doesn't need an account and doesn't track what you do. It goes online only for a quick daily
+check for a new version, a daily anonymous "still in use" count (see below) and, with Lyrics on,
+to look up the song that's playing. All of this is free.
 
 ## Installing it
 
@@ -176,9 +176,11 @@ through your browser, so leave the browser unticked.
 
 **Is it safe?** All the code is right here in this repo, so anyone can look through it (it's free
 software, see [License](#license)). The app
-doesn't collect anything. It goes online only to check GitHub for a new version and, if you have
-Lyrics on, to look up the song that's playing on lrclib.net (just its name, artist, album and
-length). That warning during install only shows up because
+doesn't collect anything about you. It goes online only to check GitHub for a new version, to send
+one anonymous signal a day to [TelemetryDeck](https://telemetrydeck.com) so I can count how many
+Macs use it (a random ID, hashed, with the app and macOS versions, nothing else) and, if you have
+Lyrics on, to look up the song
+that's playing on lrclib.net (just its name, artist, album and length). That warning during install only shows up because
 I haven't registered the app with Apple yet. I'm planning to do that later.
 
 **Why is it asking for my camera or calendar?** Only if you use those bits. It asks for the camera

@@ -23,6 +23,9 @@ last one.
   only ask the notch when they would ask you anyway; Antigravity and Cursor ask before every
   terminal command. Switching one on adds a hook to its settings file, and switching it off takes
   it out again. Codex asks you to review new hooks once (/hooks).
+- **Anonymous usage count.** Once a day the app sends TelemetryDeck a random, hashed ID with the
+  app and macOS versions, so I can see how many Macs use it. Nothing about you or what you do is
+  sent.
 
 ### Changed
 - **The update button.** A new version shows as an **Update** pill when you open the notch, then

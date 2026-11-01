@@ -50,7 +50,8 @@ And when you click it, you get a little home base right under the notch:
 - **Sound output** right in the music view: switch between your speakers, AirPods or a display
 - **Files Tray**, a handy spot to drop files you'll need again in a minute. Drag files onto the notch
   to put them there, and drag them back out when you're ready. Pin the ones you want to keep around.
-  Right-click an image to save a copy as PNG, JPEG, HEIC, TIFF or GIF
+  Zip everything in it into one file, merge its PDFs and images into one PDF, or right-click an
+  image to save a copy as PNG, JPEG, HEIC, TIFF or GIF
 - **Clipboard**, the last few things you copied. Search them, pin the ones you reuse, and click one
   to copy it again. Passwords are skipped, and only pinned clips are saved
 - **Notes**, a little scratchpad for phone numbers, to-dos, whatever
@@ -103,7 +104,9 @@ lighter than black? Pick the **Glass** theme in Settings › Appearance.
 
 Use a coding assistant? Claude Code, Codex, Copilot CLI, Antigravity and Cursor each have a switch
 in Settings › Activities. When one needs your OK to run a command or change a file, you can Allow
-or Deny it right from the notch. Long requests can be scrolled, so you can read all of it.
+or Deny it right from the notch. Long requests can be scrolled, so you can read all of it. Claude
+Code, Codex and Cursor also tell the notch when they've finished, so you can look away while they
+work.
 
 It doesn't need an account and doesn't track what you do. It goes online only for a quick daily
 check for a new version, a daily anonymous "still in use" count (see below) and, with Lyrics on,

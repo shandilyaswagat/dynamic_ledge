@@ -30,6 +30,20 @@ public enum AgentKind: String, CaseIterable, Sendable, Codable, Identifiable {
         }
     }
 
+    /// True when the tool can also tell the notch it has finished (a "stop" hook). Copilot CLI and
+    /// Antigravity have no such hook.
+    public var reportsFinishing: Bool {
+        switch self {
+        case .claude, .codex, .cursor: true
+        case .copilot, .antigravity: false
+        }
+    }
+
+    /// What the finished hook prints: nothing to change, so the tool just stops.
+    public var finishedOutput: Data {
+        self == .cursor ? Data("{}".utf8) : Data()
+    }
+
     /// What the hook prints when the notch gives no answer (the app isn't running, or the person
     /// closed it): the tool's own prompt, as if there were no hook. Antigravity blocks a command
     /// whose hook fails, so it's told to ask instead.
@@ -270,6 +284,8 @@ public enum AgentHookSettings {
     /// Marks our hook, so it's found again whatever path the app is at.
     public static let flag = "--agent-hook"
     public static let agentFlag = "--agent"
+    /// Marks the hook that only says the assistant has finished.
+    public static let finishedFlag = "--finished"
     /// Seconds the assistant waits for an answer before asking in its own window.
     public static let timeout = 120
 
@@ -285,6 +301,22 @@ public enum AgentHookSettings {
         case grouped(event: String, matcher: String)
         /// `version: 1, hooks.<event>: [{...entry}]` (Cursor, Copilot CLI).
         case flat(event: String, entry: (String) -> [String: Any])
+    }
+
+    /// Where the "finished" hook goes, for the tools that have one.
+    static func finishedLayout(for kind: AgentKind) -> Layout? {
+        switch kind {
+        case .claude, .codex: .grouped(event: "Stop", matcher: "")
+        case .cursor: .flat(event: "stop") { ["command": $0] }
+        case .copilot, .antigravity: nil
+        }
+    }
+
+    /// The layouts for every hook of ours this tool gets, each with its command.
+    static func hooks(for kind: AgentKind, command: String) -> [(Layout, String)] {
+        var hooks = [(layout(for: kind), command)]
+        if let finished = finishedLayout(for: kind) { hooks.append((finished, command + " " + finishedFlag)) }
+        return hooks
     }
 
     static func layout(for kind: AgentKind) -> Layout {
@@ -342,7 +374,7 @@ public enum AgentHookSettings {
     /// True when our hook is there with exactly this command (false after the app moved).
     public static func isCurrent(_ kind: AgentKind, command: String, at url: URL? = nil) -> Bool {
         guard let settings = try? readExisting(url ?? defaultURL(for: kind)) else { return false }
-        return commands(in: settings, kind: kind).contains(command)
+        return hooks(for: kind, command: command).allSatisfy { commands(in: settings, layout: $0.0).contains($0.1) }
     }
 
     /// Adds the hook (replacing an older one of ours, say from before the app moved).
@@ -350,19 +382,21 @@ public enum AgentHookSettings {
         let url = url ?? defaultURL(for: kind)
         var settings = try read(url)
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
-        switch layout(for: kind) {
-        case .grouped(let event, let matcher):
-            var groups = (hooks[event] as? [[String: Any]] ?? []).compactMap(withoutOurs)
-            groups.append([
-                "matcher": matcher,
-                "hooks": [["type": "command", "command": command, "timeout": timeout]],
-            ])
-            hooks[event] = groups
-        case .flat(let event, let entry):
-            var entries = (hooks[event] as? [[String: Any]] ?? []).filter { !isOurs(entryCommand($0)) }
-            entries.append(entry(command))
-            hooks[event] = entries
-            if settings["version"] == nil { settings["version"] = 1 }
+        for (layout, command) in Self.hooks(for: kind, command: command) {
+            switch layout {
+            case .grouped(let event, let matcher):
+                var groups = (hooks[event] as? [[String: Any]] ?? []).compactMap(withoutOurs)
+                groups.append([
+                    "matcher": matcher,
+                    "hooks": [["type": "command", "command": command, "timeout": timeout]],
+                ])
+                hooks[event] = groups
+            case .flat(let event, let entry):
+                var entries = (hooks[event] as? [[String: Any]] ?? []).filter { !isOurs(entryCommand($0)) }
+                entries.append(entry(command))
+                hooks[event] = entries
+                if settings["version"] == nil { settings["version"] = 1 }
+            }
         }
         settings["hooks"] = hooks
         try write(settings, to: url)
@@ -372,19 +406,22 @@ public enum AgentHookSettings {
         let url = url ?? defaultURL(for: kind)
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         var settings = try read(url)
-        guard commands(in: settings, kind: kind).contains(where: isOurs),
+        let layouts = [layout(for: kind)] + [finishedLayout(for: kind)].compactMap { $0 }
+        guard layouts.contains(where: { commands(in: settings, layout: $0).contains(where: isOurs) }),
               var hooks = settings["hooks"] as? [String: Any] else { return }
-        let event: String
-        let kept: [[String: Any]]
-        switch layout(for: kind) {
-        case .grouped(let name, _):
-            event = name
-            kept = (hooks[name] as? [[String: Any]] ?? []).compactMap(withoutOurs)
-        case .flat(let name, _):
-            event = name
-            kept = (hooks[name] as? [[String: Any]] ?? []).filter { !isOurs(entryCommand($0)) }
+        for layout in layouts {
+            let event: String
+            let kept: [[String: Any]]
+            switch layout {
+            case .grouped(let name, _):
+                event = name
+                kept = (hooks[name] as? [[String: Any]] ?? []).compactMap(withoutOurs)
+            case .flat(let name, _):
+                event = name
+                kept = (hooks[name] as? [[String: Any]] ?? []).filter { !isOurs(entryCommand($0)) }
+            }
+            if kept.isEmpty { hooks[event] = nil } else { hooks[event] = kept }
         }
-        if kept.isEmpty { hooks[event] = nil } else { hooks[event] = kept }
         if hooks.isEmpty { settings["hooks"] = nil } else { settings["hooks"] = hooks }
         if case .flat = layout(for: kind), settings.keys.sorted() == ["version"] { settings = [:] }
         // A file that was only ever ours (Copilot's) goes away completely.
@@ -433,8 +470,12 @@ public enum AgentHookSettings {
 
     /// Every hook command registered for the event this tool uses.
     private static func commands(in settings: [String: Any], kind: AgentKind) -> [String] {
+        commands(in: settings, layout: layout(for: kind))
+    }
+
+    private static func commands(in settings: [String: Any], layout: Layout) -> [String] {
         let hooks = settings["hooks"] as? [String: Any] ?? [:]
-        switch layout(for: kind) {
+        switch layout {
         case .grouped(let event, _):
             let groups = hooks[event] as? [[String: Any]] ?? []
             return groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }.compactMap { $0["command"] as? String }

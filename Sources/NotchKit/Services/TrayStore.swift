@@ -75,20 +75,45 @@ public final class TrayStore {
 
     public func reportFailure(_ message: String) { statusMessage = message }
 
+    /// Files on disk, in the order shown: what Zip and Merge PDF work on. Web links are left out.
+    public var files: [URL] {
+        ordered.filter { $0.sourceURL?.isFileURL != false }.map(\.url)
+    }
+
+    /// Merge PDF needs at least two PDFs or images.
+    public var canMergePDF: Bool { files.filter(TrayActions.canMerge).count >= 2 }
+
+    /// Compresses these files into one .zip next to the first, and adds it to the tray.
+    public func zip(_ urls: [URL]) {
+        run("Couldn't make the .zip.") { try TrayActions.zip(urls) }
+    }
+
+    /// Joins the tray's PDFs and images into one PDF next to the first, and adds it to the tray.
+    public func mergePDFs() {
+        let urls = files
+        run("Couldn't make the PDF.") { try TrayActions.mergePDF(urls) }
+    }
+
+    /// Makes a file off the main thread, then adds it, or says what went wrong.
+    private func run(_ failure: String, _ make: @escaping @Sendable () throws -> URL) {
+        Task {
+            let result = await Task.detached(priority: .userInitiated) { Result { try make() } }.value
+            switch result {
+            case .success(let url): add([url])
+            case .failure: statusMessage = failure
+            }
+        }
+    }
+
     /// Saves a copy of an image in another format beside the original, and adds the copy to the
     /// tray. The original is never changed. Large images convert off the main thread.
     public func convert(_ item: Item, to format: FileExportFormat) {
         let source = item.url
-        Task {
-            let result = await Task.detached(priority: .userInitiated) {
-                Result { try FileConverter.convertImage(at: source, to: format, destinationFolder: source.deletingLastPathComponent()) }
-            }.value
-            switch result {
-            case .success(let url): add([url])
-            case .failure: statusMessage = "Couldn't save the \(format.displayName) copy next to the original."
-            }
+        run("Couldn't save the \(format.displayName) copy next to the original.") {
+            try FileConverter.convertImage(at: source, to: format, destinationFolder: source.deletingLastPathComponent())
         }
     }
+
 
     // MARK: Changes
 

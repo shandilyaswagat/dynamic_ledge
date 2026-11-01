@@ -166,6 +166,10 @@ public final class IslandModel {
         nowPlaying.appFilter = settings.mediaAppFilter
         nowPlaying.onAppSeen = { [weak self] identifier in self?.settings.noteMediaApp(identifier) }
         agents.onChange = { [weak self] in self?.syncAgentAlert() }
+        agents.onFinished = { [weak self] kind, project in
+            guard let self, self.settings.agentFinishedAlerts else { return }
+            self.receive(.agentFinished(agent: kind.displayName, project: project))
+        }
         observeActivities()
         observeSettings()
         observeLyrics()
@@ -698,6 +702,7 @@ public final class IslandModel {
         case .timerFinished, .welcome, .shortcut: true
         // The bridge's list follows the settings.
         case .agentRequest(let request): agents.enabledKinds.contains(request.kind)
+        case .agentFinished: settings.agentFinishedAlerts
         }
     }
 

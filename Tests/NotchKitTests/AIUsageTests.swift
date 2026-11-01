@@ -64,7 +64,6 @@ struct AIUsageResetTimeTests {
 struct AIUsageServiceTests {
     @Test func automaticRefreshChecksImmediatelyAndStartsOnlyOnce() async throws {
         let defaults = makeDefaults()
-        defaults.set(false, forKey: "aiUsage.claudeEnabled")
         defaults.set(false, forKey: "aiUsage.codexEnabled")
         defaults.set(false, forKey: "aiUsage.antigravityEnabled")
         let service = AIUsageService(defaults: defaults)
@@ -85,7 +84,6 @@ struct AIUsageServiceTests {
     private func makeDefaults() -> UserDefaults {
         let defaults = UserDefaults(suiteName: "AIUsageTests-\(UUID().uuidString)")!
         // Never read this Mac's real assistants in unit tests.
-        defaults.set(false, forKey: "aiUsage.claudeEnabled")
         defaults.set(false, forKey: "aiUsage.codexEnabled")
         defaults.set(false, forKey: "aiUsage.antigravityEnabled")
         return defaults
@@ -110,10 +108,10 @@ struct AIUsageServiceTests {
 
         let w1 = AIUsageWindow(name: "W1", usedPercent: 40, sourceDescription: "A") // 60% rem
         let w2 = AIUsageWindow(name: "W2", usedPercent: 85, sourceDescription: "B") // 15% rem
-        let u1 = AIProviderUsage(provider: .claudeCode, status: .active, windows: [w1], attribution: "A")
+        let u1 = AIProviderUsage(provider: .antigravity, status: .active, windows: [w1], attribution: "A")
         let u2 = AIProviderUsage(provider: .codex, status: .active, windows: [w2], attribution: "B")
 
-        let state: [AIProvider: AIProviderUsage] = [.claudeCode: u1, .codex: u2]
+        let state: [AIProvider: AIProviderUsage] = [.antigravity: u1, .codex: u2]
         defaults.set(try? JSONEncoder().encode(state), forKey: "aiUsageCachedState")
         let restored = AIUsageService(defaults: defaults)
 
@@ -152,10 +150,10 @@ struct CodexSubscriptionTests {
 struct AIUsageVisibilityTests {
     @Test func onlyShowsSelectedConnectedProviders() {
         let connected = AIProviderUsage(provider: .codex, status: .active, attribution: "test")
-        let disconnected = AIProviderUsage(provider: .claudeCode, status: .signedOut("Sign in"), attribution: "test")
-        let values: [AIProvider: AIProviderUsage] = [.codex: connected, .claudeCode: disconnected]
-        #expect(AIUsageSelection.visible(values, selected: [.claudeCode, .codex]).map(\.provider) == [.codex])
-        #expect(AIUsageSelection.visible(values, selected: [.claudeCode]).isEmpty)
+        let disconnected = AIProviderUsage(provider: .antigravity, status: .signedOut("Sign in"), attribution: "test")
+        let values: [AIProvider: AIProviderUsage] = [.codex: connected, .antigravity: disconnected]
+        #expect(AIUsageSelection.visible(values, selected: [.antigravity, .codex]).map(\.provider) == [.codex])
+        #expect(AIUsageSelection.visible(values, selected: [.antigravity]).isEmpty)
         #expect(AIUsageSelection.visible(values, selected: []).isEmpty)
         #expect(AIUsageSelection.visible([:], selected: [.codex]).isEmpty)
     }

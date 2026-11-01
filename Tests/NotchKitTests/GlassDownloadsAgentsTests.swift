@@ -461,11 +461,46 @@ struct AgentKindsTests {
             try AgentHookSettings.install(kind, command: command, at: url)
             #expect(AgentHookSettings.isCurrent(kind, command: command, at: url), "\(kind)")
             let hooks = decode(try Data(contentsOf: url))["hooks"] as? [String: Any] ?? [:]
-            #expect(hooks.count == 1, "\(kind)")
-            #expect((hooks.values.first as? [Any])?.count == 1, "installing twice keeps one hook for \(kind)")
+            #expect(hooks.count == (kind.reportsFinishing ? 2 : 1), "\(kind)")
+            #expect(hooks.values.allSatisfy { ($0 as? [Any])?.count == 1 }, "installing twice keeps one hook each for \(kind)")
             try AgentHookSettings.uninstall(kind, at: url)
             #expect(!AgentHookSettings.isInstalled(kind, at: url), "\(kind)")
+            let left = FileManager.default.fileExists(atPath: url.path) ? decode(try Data(contentsOf: url))["hooks"] : nil
+            #expect(left == nil, "uninstalling takes every hook of ours for \(kind)")
         }
+    }
+
+    @Test func finishedHooksGoWhereEachToolLooks() throws {
+        let claude = temporaryFile(nil)
+        let command = AgentHookSettings.command(executable: "/App", socket: "/s", kind: .claude)
+        try AgentHookSettings.install(.claude, command: command, at: claude)
+        let stop = ((decode(try Data(contentsOf: claude))["hooks"] as? [String: Any])?["Stop"] as? [[String: Any]])?.first
+        let stopCommand = (stop?["hooks"] as? [[String: Any]])?.first?["command"] as? String
+        #expect(stopCommand == command + " --finished")
+
+        let cursor = temporaryFile(nil)
+        try AgentHookSettings.install(.cursor, command: "'x' --agent-hook 's' --agent cursor", at: cursor)
+        let entry = ((decode(try Data(contentsOf: cursor))["hooks"] as? [String: Any])?["stop"] as? [[String: Any]])?.first
+        #expect(entry?["command"] as? String == "'x' --agent-hook 's' --agent cursor --finished")
+
+        // An older install with only the approval hook isn't current, so launch adds the other.
+        let old = temporaryFile(#"{"hooks": {"PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "\#(command)"}]}]}}"#)
+        #expect(!AgentHookSettings.isCurrent(.claude, command: command, at: old))
+        #expect(AgentHookSettings.isCurrent(.claude, command: command, at: claude))
+    }
+
+    @Test func finishedNoticesCarryOnlyTheFolderName() throws {
+        let notice = try JSONSerialization.data(withJSONObject: ["agent": "codex", "finished": true, "project": "dynamic_ledge"])
+        #expect(AgentBridge.finished(notice)?.0 == .codex)
+        #expect(AgentBridge.finished(notice)?.1 == "dynamic_ledge")
+        let copilot = try JSONSerialization.data(withJSONObject: ["agent": "copilot", "finished": true])
+        #expect(AgentBridge.finished(copilot) == nil, "Copilot CLI has no finished hook")
+        let request = try JSONSerialization.data(withJSONObject: ["agent": "claude", "input": ["hook_event_name": "PermissionRequest"]])
+        #expect(AgentBridge.finished(request) == nil)
+        #expect(AgentHookClient.project(in: ["cwd": "/Users/me/code/app", "transcript_path": "/secret"]) == "app")
+        #expect(AgentHookClient.project(in: ["workspace_roots": ["/w/site"]]) == "site")
+        #expect(AgentKind.cursor.finishedOutput == Data("{}".utf8))
+        #expect(AgentKind.claude.finishedOutput.isEmpty)
     }
 
     @Test func cursorKeepsOtherHooks() throws {

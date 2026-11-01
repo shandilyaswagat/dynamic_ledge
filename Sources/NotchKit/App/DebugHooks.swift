@@ -81,6 +81,7 @@ final class DebugHooks {
         case "brightness": model.receive(.level(.brightness, value: Double(parts.dropFirst().first ?? "") ?? 0.4, muted: false))
         case "event": model.receive(.upcomingEvent(title: "Design review", minutes: 5))
         case "shortcutdone": model.receive(.shortcut(name: "Morning Routine", succeeded: true))
+        case "agentdone": model.receive(.agentFinished(agent: "Claude Code", project: "dynamic_ledge"))
         case "dump":
             let info = model.nowPlaying.info
             let line = "presentation=\(model.presentation) active=\(model.activeActivities.map(\.rawValue).sorted()) "

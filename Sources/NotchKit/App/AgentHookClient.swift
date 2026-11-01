@@ -11,7 +11,14 @@ public enum AgentHookClient {
         let socket = arguments.indices.contains(index + 1) ? arguments[index + 1] : AgentBridge.defaultSocketPath
         let kind = arguments.firstIndex(of: AgentHookSettings.agentFlag)
             .flatMap { arguments.indices.contains($0 + 1) ? AgentKind(rawValue: arguments[$0 + 1]) : nil } ?? .claude
-        let output = answer(input: FileHandle.standardInput.readDataToEndOfFile(), socket: socket, kind: kind)
+        let input = FileHandle.standardInput.readDataToEndOfFile()
+        if arguments.contains(AgentHookSettings.finishedFlag) {
+            // Just news for the notch: tell it, never wait for it, and let the tool stop.
+            _ = exchange(input: input, socket: socket, kind: kind, finished: true)
+            FileHandle.standardOutput.write(kind.finishedOutput)
+            exit(0)
+        }
+        let output = answer(input: input, socket: socket, kind: kind)
         FileHandle.standardOutput.write(output)
         exit(0)
     }
@@ -21,9 +28,11 @@ public enum AgentHookClient {
         return reply.isEmpty ? kind.fallbackOutput : reply
     }
 
-    /// Authenticate the connected process, not the replaceable socket pathname. Pin to this
-    /// build's code hash, including for ad-hoc signed builds. An update requires restarting
-    /// the app; a mismatch safely leaves approval to the assistant. Audit tokens avoid PID reuse.
+    /// Authenticate the connected process, not the replaceable socket pathname. The app must
+    /// meet this copy's designated requirement: for a release, any build signed with the
+    /// Dynamic Ledge certificate under the same app ID, so approvals keep working when the app
+    /// on disk is updated before the running one restarts. An ad-hoc test build's requirement
+    /// is its exact code hash. Audit tokens avoid PID reuse.
     static func trustsPeer(_ fd: Int32) -> Bool {
         authenticatedPeer(fd) != nil
     }
@@ -43,25 +52,23 @@ public enum AgentHookClient {
               let peer,
               SecCodeCopySelf([], &own) == errSecSuccess, let own else { return nil }
         var ownStatic: SecStaticCode?
-        var information: CFDictionary?
-        guard SecCodeCopyStaticCode(own, [], &ownStatic) == errSecSuccess, let ownStatic,
-              SecCodeCopySigningInformation(ownStatic, [], &information) == errSecSuccess,
-              let info = information as? [String: Any],
-              let hash = info[kSecCodeInfoUnique as String] as? Data, !hash.isEmpty else { return nil }
-        let hex = hash.map { String(format: "%02x", $0) }.joined()
         var requirement: SecRequirement?
-        guard SecRequirementCreateWithString(("cdhash H\"" + hex + "\"") as CFString, [], &requirement) == errSecSuccess,
+        guard SecCodeCopyStaticCode(own, [], &ownStatic) == errSecSuccess, let ownStatic,
+              SecCodeCopyDesignatedRequirement(ownStatic, [], &requirement) == errSecSuccess,
               let requirement else { return nil }
         guard SecCodeCheckValidity(peer, [], requirement) == errSecSuccess else { return nil }
         return peer
     }
 
     /// The app's reply, or nothing.
-    private static func exchange(input: Data, socket path: String, kind: AgentKind) -> Data {
+    private static func exchange(input: Data, socket path: String, kind: AgentKind, finished: Bool = false) -> Data {
         guard !input.isEmpty, input.count <= AgentSocketServer.maximumRequest else { return Data() }
-        // Tell the app which assistant is asking.
-        guard let inner = try? JSONSerialization.jsonObject(with: input),
-              let wrapped = try? JSONSerialization.data(withJSONObject: ["agent": kind.rawValue, "input": inner]) else { return Data() }
+        // Tell the app which assistant is asking. A finished notice carries only the folder name.
+        guard let inner = try? JSONSerialization.jsonObject(with: input) else { return Data() }
+        let message: [String: Any] = finished
+            ? ["agent": kind.rawValue, "finished": true, "project": Self.project(in: inner)]
+            : ["agent": kind.rawValue, "input": inner]
+        guard let wrapped = try? JSONSerialization.data(withJSONObject: message) else { return Data() }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return Data() }
         defer { close(fd) }
@@ -69,7 +76,7 @@ public enum AgentHookClient {
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
         // Give up a little before the assistant does: Antigravity blocks a command whose hook
         // times out, so it must always get an answer.
-        var limit = timeval(tv_sec: AgentHookSettings.timeout - 5, tv_usec: 0)
+        var limit = timeval(tv_sec: finished ? 2 : AgentHookSettings.timeout - 5, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &limit, socklen_t(MemoryLayout<timeval>.size))
 
         var address = sockaddr_un()
@@ -93,7 +100,7 @@ public enum AgentHookClient {
             }
             return true
         }
-        guard sent else { return Data() }
+        guard sent, !finished else { return Data() }
 
         var reply = Data()
         var chunk = [UInt8](repeating: 0, count: 4096)
@@ -105,5 +112,14 @@ public enum AgentHookClient {
         }
         guard SecCodeCheckValidity(peer, [], nil) == errSecSuccess, let newline = reply.firstIndex(of: 0x0A) else { return Data() }
         return Data(reply[..<newline])
+    }
+
+    /// The name of the folder the assistant worked in, from whichever field its tool uses.
+    static func project(in input: Any) -> String {
+        let object = input as? [String: Any] ?? [:]
+        let folder = (object["cwd"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? (object["workspace_roots"] as? [String])?.first
+            ?? ""
+        return folder.isEmpty ? "" : URL(fileURLWithPath: folder).lastPathComponent
     }
 }

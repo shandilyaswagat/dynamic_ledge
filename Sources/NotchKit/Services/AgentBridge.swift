@@ -12,6 +12,8 @@ public final class AgentBridge {
 
     /// Called whenever `pending` changes.
     @ObservationIgnored public var onChange: (() -> Void)?
+    /// An assistant finished its work, in this project folder.
+    @ObservationIgnored public var onFinished: ((AgentKind, String) -> Void)?
 
     @ObservationIgnored private var server: AgentSocketServer?
     @ObservationIgnored private var connections: [UUID: Int32] = [:]
@@ -63,6 +65,11 @@ public final class AgentBridge {
     @ObservationIgnored public var enabledKinds: Set<AgentKind> = Set(AgentKind.allCases)
 
     private func received(_ data: Data, on connection: Int32) {
+        if let (kind, project) = Self.finished(data) {
+            server?.respond(on: connection, with: Data())
+            if enabledKinds.contains(kind) { onFinished?(kind, project) }
+            return
+        }
         let (kind, input) = Self.unwrap(data)
         guard enabledKinds.contains(kind), let request = AgentRequest(hookInput: input, kind: kind) else {
             // Not something we show: let the assistant ask as usual.
@@ -78,6 +85,14 @@ public final class AgentBridge {
             self?.answer(id, .ask)
         }
         onChange?()
+    }
+
+    /// A finished notice: `{"agent": kind, "finished": true, "project": name}`.
+    nonisolated static func finished(_ data: Data) -> (AgentKind, String)? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object["finished"] as? Bool == true,
+              let name = object["agent"] as? String, let kind = AgentKind(rawValue: name), kind.reportsFinishing else { return nil }
+        return (kind, String((object["project"] as? String ?? "").prefix(80)))
     }
 
     /// The hook sends `{"agent": kind, "input": …}`. Hooks from earlier builds sent Claude Code's

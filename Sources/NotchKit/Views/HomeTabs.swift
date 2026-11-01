@@ -525,25 +525,49 @@ struct TrayBody: View {
                     .padding(.top, 8 * s)
                     .padding(.bottom, 6 * s)
                 }
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) { model.tray.removeAll() }
-                } label: {
-                    Image(systemName: "xmark.bin.fill")
-                        .font(.system(size: 13 * s, weight: .semibold))
-                        .foregroundStyle(NotchColor.secondaryText)
-                        .frame(width: 28 * s, height: 28 * s)
-                        .background(Circle().fill(NotchColor.buttonFill))
+                VStack(spacing: 6 * s) {
+                    TrayActionButton(symbol: "doc.zipper", label: "Zip everything into one file") {
+                        model.tray.zip(model.tray.files)
+                    }
+                    .disabled(model.tray.files.isEmpty)
+                    TrayActionButton(symbol: "doc.on.doc.fill", label: "Merge the PDFs and images into one PDF") {
+                        model.tray.mergePDFs()
+                    }
+                    .disabled(!model.tray.canMergePDF)
+                    TrayActionButton(symbol: "xmark.bin.fill", label: model.tray.pinnedCount > 0 ? "Clear the tray (pinned items stay)" : "Clear the tray") {
+                        withAnimation(.snappy(duration: 0.25)) { model.tray.removeAll() }
+                    }
+                    // Clearing leaves pinned items, so it's only offered when there's something else.
+                    .disabled(model.tray.pinnedCount == items.count)
                 }
-                .buttonStyle(PressableButtonStyle())
-                .help(model.tray.pinnedCount > 0 ? "Clear the tray (pinned items stay)" : "Clear the tray")
-                .accessibilityLabel(Text("Clear the tray"))
-                // Clearing leaves pinned items, so it's only offered when there's something else.
-                .disabled(model.tray.pinnedCount == items.count)
-                .opacity(model.tray.pinnedCount == items.count ? 0.4 : 1)
             }
             .frame(maxHeight: .infinity)
             .animation(.snappy(duration: 0.25), value: items.map(\.id))
         }
+    }
+}
+
+/// A round button beside the tray's items. Dimmed while it has nothing to work on.
+private struct TrayActionButton: View {
+    let symbol: String
+    let label: LocalizedStringKey
+    let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.secondaryText)
+                .frame(width: 28 * s, height: 28 * s)
+                .background(Circle().fill(NotchColor.buttonFill))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .opacity(isEnabled ? 1 : 0.4)
+        .help(label)
+        .accessibilityLabel(Text(label))
     }
 }
 
@@ -623,6 +647,9 @@ struct TrayItemView: View {
             Button("Show in Finder") { model.tray.revealInFinder(item) }
             Button("Send with AirDrop") { model.airDrop([item.url]) }
             Button(item.isPinned ? "Unpin" : "Pin") { model.tray.togglePin(item.id) }
+            if item.sourceURL?.isFileURL != false {
+                Button("Compress") { model.tray.zip([item.url]) }
+            }
             let formats = FileConverter.availableExportFormats(for: item.url)
             if !formats.isEmpty {
                 Menu("Convert to") {

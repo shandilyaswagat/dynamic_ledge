@@ -599,10 +599,19 @@ private struct CodingAssistantSection: View {
                         .foregroundStyle(.red)
                 }
             }
+            Toggle(isOn: $settings.agentFinishedAlerts) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Tell me when it's done")
+                    Text("A short alert when Claude Code, Codex or Cursor finishes")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .disabled(!settings.agentApprovals.contains(where: \.reportsFinishing))
         } header: {
             Text("Approvals")
         } footer: {
-            Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. Switching one on adds a hook to that assistant’s settings file; switching it off removes it. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
+            Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. Switching one on adds a hook to that assistant’s settings file (Claude Code, Codex and Cursor get a second one that says when they finish); switching it off removes them. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
         }
     }
 
@@ -652,7 +661,7 @@ private struct AIUsageSettingsSection: View {
         Section {
             IconToggle(
                 title: "AI Agent Usage",
-                detail: "How much of each coding assistant's limits you've used, and when they reset",
+                detail: "How much of Codex's and Antigravity's limits you've used, and when they reset",
                 symbol: "sparkles",
                 color: .purple,
                 isOn: $settings.aiUsageEnabled
@@ -660,14 +669,13 @@ private struct AIUsageSettingsSection: View {
         } header: {
             Text("AI Agent Usage")
         } footer: {
-            Text("Off until you turn it on. Everything is read on this Mac and nothing is sent anywhere. No API keys are needed.")
+            Text("Off until you turn it on. Everything is read on this Mac and nothing is sent anywhere. No API keys are needed. Claude Code isn't listed: it keeps your limits only on Anthropic's servers, which would mean using your Claude sign-in.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
 
         if settings.aiUsageEnabled {
             Section {
-                provider(.claudeCode, isOn: $settings.aiUsageClaudeEnabled)
                 provider(.codex, isOn: $settings.aiUsageCodexEnabled)
                 provider(.antigravity, isOn: $settings.aiUsageAntigravityEnabled)
             } header: {
@@ -978,7 +986,6 @@ struct AboutSettingsView: View {
 
             Section {
                 link("Website", detail: "talvioh.vercel.app", destination: Self.website)
-                link("Source Code", detail: "GitHub", destination: Self.repository)
                 link("Report a Problem", detail: "GitHub Issues", destination: Self.repository.appending(path: "issues"))
                 link("License", detail: "GNU GPL 3.0", destination: Self.repository.appending(path: "blob/main/LICENSE"))
             } footer: {

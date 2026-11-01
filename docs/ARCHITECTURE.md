@@ -79,11 +79,19 @@ osascript -l JavaScript -e 'ObjC.import("Foundation"); $.NSDistributedNotificati
 
 Before sending request details and again before accepting a reply, `AgentHookClient` checks
 the connected Unix socket peer's UID and kernel audit token. Security.framework validates the
-running peer against this hook executable's code hash. Merely occupying the socket pathname,
-matching the app's name, or running as the same user is insufficient. Both sides must run the
-same signed build (ad-hoc signatures are supported); unsigned or mismatched builds fall back
-to the assistant's own prompt. Restart the app after updating it. This does not protect a Mac
+running peer against this hook executable's designated requirement: for releases, the app ID
+and the Dynamic Ledge certificate, so an updated app on disk and the older one still running
+trust each other; for ad-hoc test builds, the exact code hash. Merely occupying the socket
+pathname, matching the app's name, or running as the same user is insufficient. Unsigned or
+mismatched builds fall back to the assistant's own prompt. This does not protect a Mac
 whose app binary, assistant hook settings, or running app process has already been compromised.
 
 Approval requests retain complete review arguments separately from their short description.
 Long requests make the panel taller, never wider, up to eight lines; the rest scrolls.
+
+## Finished notices
+
+Claude Code, Codex and Cursor also get a "stop" hook (`--finished`). It sends the app only the
+assistant's name and the project folder's name, over the same authenticated socket, never waits
+for an answer, and prints nothing that changes what the assistant does. Copilot CLI and
+Antigravity have no stop hook.

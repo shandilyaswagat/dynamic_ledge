@@ -113,6 +113,23 @@ struct AlertView: View {
             }
             .help("Click to see what's new and install it")
             .accessibilityElement(children: .combine)
+        case .agentFinished(let agent, let project):
+            AlertRow(cameraGap: cameraGap) {
+                HStack(spacing: 6 * s) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(NotchColor.green)
+                        .symbolEffect(.bounce, value: project)
+                    Text(agent)
+                        .lineLimit(1)
+                }
+            } trailing: {
+                Text(project.isEmpty ? "Done" : project)
+                    .foregroundStyle(NotchColor.green)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .help("\(agent) has finished")
+            .accessibilityElement(children: .combine)
         case .shortcut(let name, let succeeded):
             AlertRow(cameraGap: cameraGap) {
                 HStack(spacing: 6 * s) {

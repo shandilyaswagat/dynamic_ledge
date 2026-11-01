@@ -78,73 +78,16 @@ public final class AIUsageService {
         lastError = nil
 
         Task {
-            let claudeEnabled = defaults.object(forKey: "aiUsage.claudeEnabled") as? Bool ?? true
             let codexEnabled = defaults.object(forKey: "aiUsage.codexEnabled") as? Bool ?? true
             let antigravityEnabled = defaults.object(forKey: "aiUsage.antigravityEnabled") as? Bool ?? true
-            let claudeUsage = claudeEnabled ? await fetchClaudeCodeUsage() : AIProviderUsage.unconfigured(for: .claudeCode, message: "Claude tracking is off.")
             let codexUsage = codexEnabled ? await fetchCodexUsage() : AIProviderUsage.unconfigured(for: .codex, message: "Codex tracking is off.")
             let antigravityUsage = antigravityEnabled ? await fetchAntigravityUsage() : AIProviderUsage.unconfigured(for: .antigravity, message: "Antigravity tracking is off.")
 
-            self.usages[.claudeCode] = claudeUsage
             self.usages[.codex] = codexUsage
             self.usages[.antigravity] = antigravityUsage
             self.isRefreshing = false
             self.saveCachedUsages()
         }
-    }
-
-    // MARK: - Claude Code Provider
-
-    public func fetchClaudeCodeUsage() async -> AIProviderUsage {
-        parseLocalClaudeSession() ?? AIProviderUsage(
-            provider: .claudeCode,
-            status: .unconfigured("Claude Code isn't set up on this Mac."),
-            attribution: AIProvider.claudeCode.integrationNotice
-        )
-    }
-
-    /// Inspects local Claude Code CLI configuration file (`~/.claude.json`) if present.
-    private func parseLocalClaudeSession() -> AIProviderUsage? {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let claudeConfigFile = home.appendingPathComponent(".claude.json")
-        guard FileManager.default.fileExists(atPath: claudeConfigFile.path),
-              let data = try? Data(contentsOf: claudeConfigFile),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-
-        let oauthAccount = json["oauthAccount"] as? [String: Any]
-        let email = oauthAccount?["emailAddress"] as? String ?? json["email"] as? String
-        let plan = json["plan"] as? String ?? "Claude Pro / Team"
-
-        // Local observed session usage stats
-        var windows: [AIUsageWindow] = []
-        if let stats = json["sessionStats"] as? [String: Any] {
-            if let usedPercent = stats["usedPercent"] as? Double {
-                let resetTimestamp = stats["resetsAt"] as? TimeInterval
-                let resetsAt = resetTimestamp.map { Date(timeIntervalSince1970: $0) }
-                windows.append(AIUsageWindow(
-                    name: "5-Hour Session Limit",
-                    usedPercent: usedPercent,
-                    resetsAt: resetsAt,
-                    isEstimated: true,
-                    sourceDescription: "Local Claude Code Session (~/.claude.json)"
-                ))
-            }
-        }
-
-        guard !windows.isEmpty else {
-            return AIProviderUsage(provider: .claudeCode, status: .unavailable("Claude Code's local configuration does not provide subscription limits."), attribution: "Claude Code local configuration")
-        }
-        return AIProviderUsage(
-            provider: .claudeCode,
-            status: .active,
-            accountName: email,
-            plan: plan,
-            windows: windows,
-            lastUpdated: Date(),
-            attribution: "Local Claude Code Session (~/.claude.json)"
-        )
     }
 
     // MARK: - OpenAI Codex Provider
@@ -169,8 +112,8 @@ public final class AIUsageService {
 
     private func loadCachedUsages() {
         guard let data = defaults.data(forKey: "aiUsageCachedState"),
+              // Saved by earlier builds with Claude Code in it, this fails and starts fresh.
               let decoded = try? JSONDecoder().decode([AIProvider: AIProviderUsage].self, from: data) else {
-            usages[.claudeCode] = .unconfigured(for: .claudeCode)
             usages[.codex] = .unconfigured(for: .codex)
             usages[.antigravity] = .unconfigured(for: .antigravity)
             return

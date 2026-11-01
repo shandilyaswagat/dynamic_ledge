@@ -5,7 +5,7 @@ import Testing
 struct SettingsSearchTests {
     @Test func matchesFeaturesAndSynonyms() {
         #expect(SettingsSearch.results(for: "LYRICS").contains { $0.page == .media && $0.title == "Lyrics" })
-        #expect(SettingsSearch.results(for: "claude quota").contains { $0.page == .coding })
+        #expect(SettingsSearch.results(for: "codex quota").contains { $0.page == .coding })
         #expect(SettingsSearch.results(for: "software update").contains { $0.page == .update })
     }
 

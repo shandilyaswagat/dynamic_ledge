@@ -20,10 +20,20 @@ last one.
 - **Convert images in the Tray.** Right-click an image and pick **Convert to** for a PNG, JPEG,
   HEIC, TIFF or GIF copy, saved next to the original and added to the Tray. The original isn't
   touched.
+- **Zip and Merge PDF in the Tray.** Buttons beside the Tray put everything in it into one .zip,
+  or its PDFs and images into one PDF, saved next to the first file and added to the Tray.
+  Right-click a file to compress just that one.
+- **"Done" alert for coding assistants.** When Claude Code, Codex or Cursor finishes, the notch
+  says so, with the project's name. Turn it off in Settings › General › Coding Assistants.
 - **Install updates automatically.** An optional switch in Software Update installs a verified
   new version when the daily check finds one, then relaunches. Off by default.
 
+### Fixed
+- Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.
+
 ### Changed
+- AI Agent Usage covers Codex and Antigravity. Claude Code keeps its limits only on Anthropic's
+  servers, which would mean using your Claude sign-in, so it isn't listed.
 - **Settings looks like System Settings.** A sidebar with search, back and forward buttons, the
   page title in the toolbar, and coloured icons inside each page. Now Playing, Coding Assistants,
   About and Software Update open from General. The pictures in Appearance now show the real

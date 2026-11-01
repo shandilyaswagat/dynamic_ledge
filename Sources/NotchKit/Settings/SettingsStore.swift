@@ -103,6 +103,8 @@ public final class SettingsStore {
         didSet { defaults.set(AgentKind.allCases.filter(agentApprovals.contains).map(\.rawValue), forKey: Key.agentApprovalKinds) }
     }
 
+    /// Show a short alert when an assistant with approvals switched on finishes its work.
+    public var agentFinishedAlerts: Bool { didSet { defaults.set(agentFinishedAlerts, forKey: Key.agentFinishedAlerts) } }
     public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
@@ -135,15 +137,13 @@ public final class SettingsStore {
     /// Send one anonymous signal a day, so the developer can count how many Macs use the app. Not
     /// shown in Settings (it carries no personal data); `defaults write` can turn it off.
     public var sharesUsage: Bool { didSet { defaults.set(sharesUsage, forKey: Key.sharesUsage) } }
-    /// Show coding assistants' usage limits, read from their files on this Mac. Off until turned on.
+    /// Show Codex's and Antigravity's usage limits, read on this Mac. Off until turned on.
     public var aiUsageEnabled: Bool { didSet { defaults.set(aiUsageEnabled, forKey: Key.aiUsageEnabled) } }
     public var aiUsageShowHomeWidget: Bool { didSet { defaults.set(aiUsageShowHomeWidget, forKey: Key.aiUsageShowHomeWidget) } }
-    public var aiUsageClaudeEnabled: Bool { didSet { defaults.set(aiUsageClaudeEnabled, forKey: Key.aiUsageClaudeEnabled) } }
     public var aiUsageCodexEnabled: Bool { didSet { defaults.set(aiUsageCodexEnabled, forKey: Key.aiUsageCodexEnabled) } }
     public var aiUsageAntigravityEnabled: Bool { didSet { defaults.set(aiUsageAntigravityEnabled, forKey: Key.aiUsageAntigravityEnabled) } }
     var selectedAIProviders: Set<AIProvider> {
         var selected: Set<AIProvider> = []
-        if aiUsageClaudeEnabled { selected.insert(.claudeCode) }
         if aiUsageCodexEnabled { selected.insert(.codex) }
         if aiUsageAntigravityEnabled { selected.insert(.antigravity) }
         return selected
@@ -258,13 +258,13 @@ public final class SettingsStore {
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         installsUpdatesAutomatically = defaults.object(forKey: Key.installsUpdatesAutomatically) as? Bool ?? false
         sharesUsage = defaults.object(forKey: Key.sharesUsage) as? Bool ?? true
+        agentFinishedAlerts = defaults.object(forKey: Key.agentFinishedAlerts) as? Bool ?? true
         aiUsageEnabled = defaults.object(forKey: Key.aiUsageEnabled) as? Bool ?? false
         // Early test builds stored API keys here in plain text; they are no longer used.
-        for key in ["aiUsageClaudeApiKey", "aiUsageCodexApiKey", "aiUsageCodexOrgId", "aiUsageAntigravityApiKey"] {
+        for key in ["aiUsageClaudeApiKey", "aiUsageCodexApiKey", "aiUsageCodexOrgId", "aiUsageAntigravityApiKey", "aiUsage.claudeEnabled"] {
             defaults.removeObject(forKey: key)
         }
         aiUsageShowHomeWidget = defaults.object(forKey: Key.aiUsageShowHomeWidget) as? Bool ?? true
-        aiUsageClaudeEnabled = defaults.object(forKey: Key.aiUsageClaudeEnabled) as? Bool ?? true
         aiUsageCodexEnabled = defaults.object(forKey: Key.aiUsageCodexEnabled) as? Bool ?? true
         aiUsageAntigravityEnabled = defaults.object(forKey: Key.aiUsageAntigravityEnabled) as? Bool ?? true
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
@@ -391,9 +391,9 @@ public final class SettingsStore {
         static let checksForUpdates = "general.checksForUpdates"
         static let installsUpdatesAutomatically = "general.installsUpdatesAutomatically"
         static let sharesUsage = "general.sharesUsage"
+        static let agentFinishedAlerts = "agents.finishedAlerts"
         static let aiUsageEnabled = "aiUsage.enabled"
         static let aiUsageShowHomeWidget = "aiUsage.showHomeWidget"
-        static let aiUsageClaudeEnabled = "aiUsage.claudeEnabled"
         static let aiUsageCodexEnabled = "aiUsage.codexEnabled"
         static let aiUsageAntigravityEnabled = "aiUsage.antigravityEnabled"
         static let focusMinutes = "timer.focusMinutes"

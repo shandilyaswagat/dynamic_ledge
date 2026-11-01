@@ -1,9 +1,10 @@
 import Foundation
 import SwiftUI
 
-/// Supported AI providers for usage and rate-limit tracking.
+/// Assistants whose usage limits can be read on this Mac. Claude Code isn't one: it keeps its
+/// limits only on Anthropic's servers, reachable only with its sign-in token, which the app
+/// never touches.
 public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
-    case claudeCode = "claudeCode"
     case codex = "codex"
     case antigravity = "antigravity"
 
@@ -11,7 +12,6 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .claudeCode: "Claude Code"
         case .codex: "OpenAI Codex"
         case .antigravity: "Antigravity"
         }
@@ -19,7 +19,6 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
 
     public var shortName: String {
         switch self {
-        case .claudeCode: "Claude"
         case .codex: "Codex"
         case .antigravity: "Antigravity"
         }
@@ -27,7 +26,6 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
 
     public var symbolName: String {
         switch self {
-        case .claudeCode: "terminal.fill"
         case .codex: "cpu.fill"
         case .antigravity: "chevron.left.forwardslash.chevron.right"
         }
@@ -35,7 +33,6 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
 
     public var brandColor: Color {
         switch self {
-        case .claudeCode: Color(red: 0.85, green: 0.45, blue: 0.25)
         case .codex: Color(red: 0.15, green: 0.68, blue: 0.50)
         case .antigravity: Color(red: 0.26, green: 0.52, blue: 0.96)
         }
@@ -43,8 +40,6 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
 
     public var documentationURL: URL {
         switch self {
-        case .claudeCode:
-            URL(string: "https://docs.anthropic.com/en/api/rate-limits")!
         case .codex:
             URL(string: "https://platform.openai.com/docs/guides/rate-limits")!
         case .antigravity:
@@ -55,8 +50,6 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
     /// Explains how data is fetched and privacy guarantees.
     public var integrationNotice: String {
         switch self {
-        case .claudeCode:
-            "Reads Claude Code's settings file (~/.claude.json) on this Mac."
         case .codex:
             "Asks the signed-in Codex app on this Mac for its plan limits."
         case .antigravity:

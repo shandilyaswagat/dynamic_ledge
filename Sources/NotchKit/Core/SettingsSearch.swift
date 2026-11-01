@@ -22,7 +22,7 @@ enum SettingsSearch {
         .init(title: "Lyrics", path: "General › Now Playing", page: .media, keywords: "songs music subtitles"),
         .init(title: "Music apps", path: "General › Now Playing", page: .media, keywords: "media browser spotify youtube filter"),
         .init(title: "Coding Assistants", path: "General", page: .coding, keywords: "claude codex copilot cursor antigravity approval"),
-        .init(title: "AI Agent Usage", path: "General › Coding Assistants", page: .coding, keywords: "tokens quota rate limits reset claude codex"),
+        .init(title: "AI Agent Usage", path: "General › Coding Assistants", page: .coding, keywords: "tokens quota rate limits reset codex antigravity"),
         .init(title: "Open at login", path: "General", page: .general, keywords: "startup launch automatically"),
         .init(title: "Display", path: "General", page: .general, keywords: "screen monitor built in external"),
         .init(title: "Lock Screen", path: "General", page: .general, keywords: "locked screen"),

@@ -194,7 +194,7 @@ public struct LayoutEngine: Equatable, Sendable {
     /// Volume and brightness use a slimmer shape than other alerts.
     private func alertBodySize(for alert: IslandAlert) -> CGSize {
         switch alert {
-        case .upcomingEvent, .shortcut, .download:
+        case .upcomingEvent, .shortcut, .download, .agentFinished:
             // Names need room beside the camera.
             CGSize(width: notch.width + 2 * max(earWidth, (IslandMetrics.namedAlertEarWidth * scale).rounded()), height: compactHeight + (6 * scale).rounded())
         case .level:

@@ -45,6 +45,8 @@ public enum IslandAlert: Equatable, Sendable {
     case updateAvailable(version: String)
     /// A coding assistant wants to use a tool and is waiting for Allow or Deny.
     case agentRequest(AgentRequest)
+    /// A coding assistant finished its work.
+    case agentFinished(agent: String, project: String)
 
     public enum LevelKind: String, Sendable, Hashable {
         case volume
@@ -63,6 +65,7 @@ public enum IslandAlert: Equatable, Sendable {
         case download
         case update
         case agent
+        case agentFinished
     }
 
     public var kind: Kind {
@@ -77,6 +80,7 @@ public enum IslandAlert: Equatable, Sendable {
         case .download: .download
         case .updateAvailable: .update
         case .agentRequest: .agent
+        case .agentFinished: .agentFinished
         }
     }
 
@@ -96,6 +100,7 @@ public enum IslandAlert: Equatable, Sendable {
         case .updateAvailable: 6
         // The request answers itself (back to the assistant's own prompt) a little earlier.
         case .agentRequest: 125
+        case .agentFinished: 4
         }
     }
 

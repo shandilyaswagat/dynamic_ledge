@@ -96,7 +96,7 @@ over the standard nook minimum.
 | Home | one row of widgets, scrolled sideways, split by 1 pt hairlines at 10 % white, 16 pt either side of each. Blue (`#0A84FF`) is the accent |
 | Music 290 | 62 pt artwork, bold title, artist, play/pause and next; a 4 pt bar with a white 10 pt knob (13 pt while dragging); elapsed left, remaining right |
 | Mirror 96 | an 84 pt circle at 9 % white, camera symbol and "Mirror"; a click shows the live, mirrored camera inside the circle |
-| Calendar 300 | the month in 22 pt bold; a strip of 7 days (2 back, 4 ahead); the chosen day 18 pt bold blue with its weekday above, weekends red, a dot under days with events, a blue tick under today; the day's events with a colour bar and a blue "Join" capsule for Meet, Zoom, Teams and Webex |
+| Calendar 300 | the month in 22 pt bold; the days of the month on a wheel, the chosen day in the middle, scaled 1.3× and blue, the others shrinking and fading with distance, weekends red, a dot under days with events, a blue tick under today; the day's events with a colour bar and a blue "Join" capsule for Meet, Zoom, Teams and Webex |
 | Notes 230 | a 12 pt-radius card at 8 % white; formatted text; colour dot bottom left; A (size), B, I, U bottom right |
 | Timer 250 | hours, minutes and seconds on wheels (22 pt rows, 3 visible, faded edges), clear on the left, 1m and 5m, a 34 pt blue play button; while running, a 34 pt light countdown with pause and cancel |
 | To-dos 230 | a "New task…" capsule; tasks with circles that fill blue when done, strike-through, delete on hover; kept on this Mac (up to 50) |

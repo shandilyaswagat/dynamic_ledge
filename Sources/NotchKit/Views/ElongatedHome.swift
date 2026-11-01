@@ -293,11 +293,15 @@ private struct CalendarWidget: View {
     }
 }
 
+/// The days of the month on a wheel, like Apple's pickers: the day in the middle is the chosen
+/// one, largest and in blue, and the days either side shrink and fade the further out they are,
+/// continuously as you scroll. Scroll, or click a day, to bring it to the middle.
 private struct DayStrip: View {
     let today: Date
     let selected: Date
     let events: [CalendarEvent]
     let pick: (Date) -> Void
+    @State private var centered: Date?
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -306,48 +310,86 @@ private struct DayStrip: View {
         let days = CalendarRules.browsableDays(at: today)
         // Worked out once, not once per day in the strip.
         let busyDays = Set(events.map { calendar.startOfDay(for: $0.start) })
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
+        let cell = 34 * s
+        GeometryReader { geometry in
+            ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     ForEach(days, id: \.self) { day in
-                        let isToday = calendar.isDate(day, inSameDayAs: today)
                         let isSelected = calendar.isDate(day, inSameDayAs: selected)
-                        let isWeekend = calendar.isDateInWeekend(day)
-                        let hasEvents = busyDays.contains(day)
-                        Button { pick(day) } label: {
-                            VStack(spacing: 1 * s) {
-                                Text(day.formatted(.dateTime.weekday(isSelected ? .abbreviated : .narrow)).uppercased())
-                                    .font(.system(size: 10 * s, weight: .bold))
-                                    .foregroundStyle(isSelected ? NotchColor.blue : NotchColor.secondaryText)
-                                Text(day.formatted(.dateTime.day(.twoDigits)))
-                                    .font(.system(size: (isSelected ? 18 : 14) * s, weight: isSelected ? .bold : .medium))
-                                    .monospacedDigit()
-                                    .foregroundStyle(isSelected ? NotchColor.blue : (isWeekend ? NotchColor.red.opacity(0.75) : .white.opacity(day < start ? 0.4 : 0.85)))
-                                Circle()
-                                    .fill(hasEvents && !isSelected ? Color.white.opacity(0.45) : .clear)
-                                    .frame(width: 3 * s, height: 3 * s)
-                            }
-                            .frame(width: 30 * s)
+                        Button {
+                            withAnimation(.smooth(duration: 0.4)) { centered = day }
+                        } label: {
+                            DayFace(
+                                day: day,
+                                isSelected: isSelected,
+                                isToday: calendar.isDate(day, inSameDayAs: today),
+                                isPast: day < start,
+                                hasEvents: busyDays.contains(day)
+                            )
+                            .frame(width: cell, height: 48 * s)
                             .contentShape(Rectangle())
-                            .overlay(alignment: .bottom) {
-                                if isToday && !isSelected {
-                                    Capsule().fill(NotchColor.blue).frame(width: 10 * s, height: 2 * s)
-                                }
-                            }
                         }
-                        .buttonStyle(PressableButtonStyle())
+                        .buttonStyle(.plain)
+                        .visualEffect { content, proxy in
+                            // 0 in the middle of the strip, 1 three days out and beyond.
+                            let distance = proxy.frame(in: .scrollView(axis: .horizontal)).midX
+                                - (proxy.bounds(of: .scrollView(axis: .horizontal))?.midX ?? 0)
+                            let t = min(abs(distance) / (cell * 3), 1)
+                            return content
+                                .scaleEffect(1.3 - 0.55 * t)
+                                .opacity(1 - 0.7 * t)
+                        }
                         .id(day)
                         .accessibilityLabel(Text(day.formatted(date: .complete, time: .omitted)))
                     }
                 }
+                .scrollTargetLayout()
             }
             .scrollIndicators(.never)
-            .mask(EdgeFade(width: 14 * s))
-            .onAppear {
-                proxy.scrollTo(calendar.date(byAdding: .day, value: -2, to: start) ?? start, anchor: .leading)
-            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $centered, anchor: .center)
+            // Room either side, so the first and last days can reach the middle too.
+            .contentMargins(.horizontal, max(0, (geometry.size.width - cell) / 2), for: .scrollContent)
+            .mask(EdgeFade(width: 22 * s))
         }
         .frame(height: 48 * s)
+        .onAppear { centered = calendar.startOfDay(for: selected) }
+        .onChange(of: centered) { _, day in
+            if let day, !calendar.isDate(day, inSameDayAs: selected) { pick(day) }
+        }
+        .onChange(of: selected) { _, day in
+            let day = calendar.startOfDay(for: day)
+            if centered.map({ !calendar.isDate($0, inSameDayAs: day) }) ?? true {
+                withAnimation(.smooth(duration: 0.4)) { centered = day }
+            }
+        }
+    }
+}
+
+/// One day on the strip, drawn the same at every size: the wheel does the scaling.
+private struct DayFace: View {
+    let day: Date
+    let isSelected: Bool
+    let isToday: Bool
+    let isPast: Bool
+    let hasEvents: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let weekend = Calendar.current.isDateInWeekend(day)
+        VStack(spacing: 1 * s) {
+            Text(day.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                .font(.system(size: 8 * s, weight: .bold))
+                .foregroundStyle(isSelected ? NotchColor.blue : NotchColor.secondaryText)
+            Text(day.formatted(.dateTime.day(.twoDigits)))
+                .font(.system(size: 15 * s, weight: isSelected ? .bold : .medium))
+                .monospacedDigit()
+                .foregroundStyle(isSelected ? NotchColor.blue : (weekend ? NotchColor.red.opacity(0.75) : .white.opacity(isPast ? 0.4 : 0.9)))
+            Circle()
+                .fill(isToday && !isSelected ? NotchColor.blue : (hasEvents && !isSelected ? Color.white.opacity(0.45) : .clear))
+                .frame(width: 3 * s, height: 3 * s)
+        }
+        .animation(.smooth(duration: 0.25), value: isSelected)
     }
 }
 
@@ -538,9 +580,19 @@ private struct Wheel: View {
                             .font(.system(size: 8 * s, weight: .semibold))
                             .foregroundStyle(NotchColor.secondaryText)
                     }
-                    .foregroundStyle(number == value ? .white : .white.opacity(0.3))
-                    .scaleEffect(number == value ? 1.1 : 0.9)
+                    .foregroundStyle(.white)
                     .frame(height: row)
+                    // Like the Clock app's picker: rows grow, brighten and face you as they near
+                    // the middle, and tilt away above and below it, continuously as it turns.
+                    .visualEffect { content, proxy in
+                        let distance = proxy.frame(in: .scrollView(axis: .vertical)).midY
+                            - (proxy.bounds(of: .scrollView(axis: .vertical))?.midY ?? 0)
+                        let t = max(-1, min(distance / (row * 1.5), 1))
+                        return content
+                            .scaleEffect(1.12 - 0.3 * abs(t))
+                            .opacity(1 - 0.75 * abs(t))
+                            .rotation3DEffect(.degrees(-38 * t), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
+                    }
                     .id(number)
                 }
             }
@@ -557,9 +609,8 @@ private struct Wheel: View {
             if let new, new != value { value = new }
         }
         .onChange(of: value) { _, new in
-            if position != new { withAnimation(.snappy) { position = new } }
+            if position != new { withAnimation(.smooth(duration: 0.4)) { position = new } }
         }
-        .animation(.snappy(duration: 0.2), value: value)
         .accessibilityElement()
         .accessibilityLabel(Text("\(value) \(unit)"))
         .accessibilityAdjustableAction { direction in

@@ -34,6 +34,9 @@ last one.
 - No scroll bars in the notch, even with a mouse connected. They covered the widgets and
   squeezed the timer's wheels. The elongated Home settles on a widget as you scroll and fades
   out at its edges instead of cutting widgets off.
+- The elongated calendar and timer move like Apple's pickers: the day or number in the middle is
+  largest and brightest, and the ones either side shrink and fade smoothly as you scroll. Scroll
+  the days to choose one, or click a day to glide it to the middle.
 
 ## [1.4.2] - 2026-10-31
 

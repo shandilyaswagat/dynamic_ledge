@@ -75,6 +75,21 @@ public final class TrayStore {
 
     public func reportFailure(_ message: String) { statusMessage = message }
 
+    /// Saves a copy of an image in another format beside the original, and adds the copy to the
+    /// tray. The original is never changed. Large images convert off the main thread.
+    public func convert(_ item: Item, to format: FileExportFormat) {
+        let source = item.url
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { try FileConverter.convertImage(at: source, to: format, destinationFolder: source.deletingLastPathComponent()) }
+            }.value
+            switch result {
+            case .success(let url): add([url])
+            case .failure: statusMessage = "Couldn't save the \(format.displayName) copy next to the original."
+            }
+        }
+    }
+
     // MARK: Changes
 
     /// Adds files, skipping ones already in the tray and anything that isn't a file on disk.

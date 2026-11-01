@@ -623,6 +623,14 @@ struct TrayItemView: View {
             Button("Show in Finder") { model.tray.revealInFinder(item) }
             Button("Send with AirDrop") { model.airDrop([item.url]) }
             Button(item.isPinned ? "Unpin" : "Pin") { model.tray.togglePin(item.id) }
+            let formats = FileConverter.availableExportFormats(for: item.url)
+            if !formats.isEmpty {
+                Menu("Convert to") {
+                    ForEach(formats) { format in
+                        Button(format.displayName) { model.tray.convert(item, to: format) }
+                    }
+                }
+            }
             Divider()
             Button("Remove from Tray") { model.tray.remove(item.id) }
         }

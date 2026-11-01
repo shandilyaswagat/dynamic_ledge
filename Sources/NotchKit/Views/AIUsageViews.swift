@@ -72,7 +72,7 @@ public struct AIUsagePanelBody: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 2 * s)
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {

@@ -53,7 +53,7 @@ struct CalendarPanelBody: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .scrollIndicators(.hidden)
+                    .scrollIndicators(.never)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }

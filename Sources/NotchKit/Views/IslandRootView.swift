@@ -40,6 +40,9 @@ struct IslandRootView: View {
         .animation(reduceMotion ? nil : Motion.resize(appearance.theme), value: model.homeContent)
         .animation(reduceMotion ? nil : Motion.hover(appearance.theme), value: model.isHoveringPill)
         .environment(\.colorScheme, .dark)
+        // No scroll bars anywhere in the notch, even when macOS shows them because a mouse is
+        // connected: they'd cover content and squeeze narrow lists like the timer's wheels.
+        .scrollIndicators(.never)
         // The panel is intentionally non-activating, so publish a stable action while it is
         // tucked away. This keeps Voice Control and automation able to open the same Home view
         // that a click on the notch opens without changing the panel's mouse routing.

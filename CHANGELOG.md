@@ -15,6 +15,11 @@ last one.
   and when they reset, in Home or its own panel. It's off until you turn it on in Settings ›
   General › Coding Assistants. Everything is read on this Mac; nothing is sent anywhere and no API
   keys are needed.
+- **Choose where sound plays.** A button in the open music view switches between your Mac's
+  speakers, AirPods and other headphones, and displays with speakers.
+- **Convert images in the Tray.** Right-click an image and pick **Convert to** for a PNG, JPEG,
+  HEIC, TIFF or GIF copy, saved next to the original and added to the Tray. The original isn't
+  touched.
 - **Install updates automatically.** An optional switch in Software Update installs a verified
   new version when the daily check finds one, then relaunches. Off by default.
 
@@ -26,6 +31,9 @@ last one.
 - Calendar has larger dates and a scrollable list of events. In the elongated Home, swipe the
   date strip to move through the month.
 - The elongated Home fits your display's size and scaling, keeping controls readable.
+- No scroll bars in the notch, even with a mouse connected. They covered the widgets and
+  squeezed the timer's wheels. The elongated Home settles on a widget as you scroll and fades
+  out at its edges instead of cutting widgets off.
 
 ## [1.4.2] - 2026-10-31
 

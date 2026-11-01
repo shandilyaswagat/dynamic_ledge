@@ -63,11 +63,19 @@ public enum FileConverter {
         return supportedImageExtensions.contains(ext)
     }
 
-    public static func availableExportFormats(for url: URL) -> [FileExportFormat] {
+    /// Formats this Mac can write. macOS reads WebP but can't save it, so WebP is left out.
+    public static let writableFormats: [FileExportFormat] = {
+        let types = Set(CGImageDestinationCopyTypeIdentifiers() as? [String] ?? [])
+        return FileExportFormat.allCases.filter { types.contains($0.utType.identifier) }
+    }()
+
+    public static func availableExportFormats(for url: URL, writable: [FileExportFormat] = writableFormats) -> [FileExportFormat] {
         guard isConvertible(url: url) else { return [] }
         let currentExt = url.pathExtension.lowercased()
-        return FileExportFormat.allCases.filter { format in
+        return writable.filter { format in
             if format == .jpeg && (currentExt == "jpg" || currentExt == "jpeg") { return false }
+            if format == .tiff && currentExt == "tif" { return false }
+            if format == .heic && currentExt == "heif" { return false }
             return format.rawValue != currentExt
         }
     }

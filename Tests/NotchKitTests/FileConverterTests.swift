@@ -55,4 +55,30 @@ struct FileConverterTests {
         let afterBytes = try Data(contentsOf: originalURL)
         #expect(afterBytes == originalBytes)
     }
+
+    @Test func onlyOffersFormatsThisMacCanSave() {
+        let png = URL(fileURLWithPath: "/tmp/photo.png")
+        #expect(!FileConverter.availableExportFormats(for: png, writable: [.png, .jpeg]).contains(.webp))
+        #expect(FileConverter.availableExportFormats(for: png, writable: [.png, .jpeg]) == [.jpeg])
+        #expect(FileConverter.availableExportFormats(for: URL(fileURLWithPath: "/tmp/scan.tif"), writable: [.tiff, .png]) == [.png])
+    }
+
+    @Test func trayConvertSavesACopyBesideTheOriginalAndAddsIt() async throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let originalURL = tempDir.appendingPathComponent("sample.png")
+        let originalBytes = try createTestImage(at: originalURL)
+
+        let tray = TrayStore(folder: tempDir, defaults: nil)
+        tray.add([originalURL])
+        let item = try #require(tray.items.first)
+        tray.convert(item, to: .jpeg)
+        let deadline = Date().addingTimeInterval(5)
+        while tray.items.count < 2 && Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+
+        let copy = try #require(tray.items.first { $0.url.pathExtension == "jpg" })
+        #expect(copy.url.deletingLastPathComponent().standardizedFileURL == tempDir.standardizedFileURL)
+        #expect(try Data(contentsOf: originalURL) == originalBytes)
+    }
 }

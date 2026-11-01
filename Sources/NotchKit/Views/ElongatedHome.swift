@@ -27,10 +27,21 @@ struct ElongatedHomeBody: View {
                         .frame(maxHeight: .infinity)
                         .padding(.leading, index == 0 ? 0 : 16 * s)
                         .padding(.trailing, index == widgets.count - 1 ? 0 : 16 * s)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 }
             }
+            .scrollTargetLayout()
+            .animation(.smooth(duration: 0.3), value: widgets)
         }
-        .scrollIndicators(.hidden)
+        .scrollIndicators(.never)
+        // Settles on a widget's edge instead of stopping halfway through one.
+        .scrollTargetBehavior(.viewAligned)
+        // Widgets running past either end fade out instead of being cut off. The margins keep
+        // the fade over empty space when the row sits at either end.
+        .contentMargins(.horizontal, 14 * s, for: .scrollContent)
+        // Reaches into the nook's side padding, so the widgets stay where they were.
+        .padding(.horizontal, -14 * s)
+        .mask(EdgeFade(width: 14 * s))
         .padding(.bottom, 2 * s)
         .overlay {
             if widgets.isEmpty {
@@ -84,6 +95,19 @@ struct ElongatedHomeBody: View {
         case .todos: TodosWidget(model: model)
         case .stats: StatsWidget(model: model)
         case .aiUsage: AIUsageElongatedWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
+        }
+    }
+}
+
+/// Opaque in the middle, fading to clear at the left and right edges.
+private struct EdgeFade: View {
+    let width: CGFloat
+
+    var body: some View {
+        HStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: width)
+            Color.black
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: width)
         }
     }
 }
@@ -317,7 +341,8 @@ private struct DayStrip: View {
                     }
                 }
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
+            .mask(EdgeFade(width: 14 * s))
             .onAppear {
                 proxy.scrollTo(calendar.date(byAdding: .day, value: -2, to: start) ?? start, anchor: .leading)
             }
@@ -375,7 +400,7 @@ private struct DayEvents: View {
                     }
                 }
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
         }
     }
 }
@@ -521,7 +546,7 @@ private struct Wheel: View {
             }
             .scrollTargetLayout()
         }
-        .scrollIndicators(.hidden)
+        .scrollIndicators(.never)
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $position, anchor: .center)
         .contentMargins(.vertical, row, for: .scrollContent)
@@ -593,7 +618,7 @@ private struct TodosWidget: View {
                     }
                 }
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, 4 * s)

@@ -47,8 +47,10 @@ And when you click it, you get a little home base right under the notch:
   click a live card to open it. Tap the timer for any length, Pomodoro or a stopwatch, and tap
   your next event to see the month (click any day in it to see what's on)
 - **Lyrics** for songs that have timed lyrics, line by line as they're sung
+- **Sound output** right in the music view: switch between your speakers, AirPods or a display
 - **Files Tray**, a handy spot to drop files you'll need again in a minute. Drag files onto the notch
-  to put them there, and drag them back out when you're ready. Pin the ones you want to keep around
+  to put them there, and drag them back out when you're ready. Pin the ones you want to keep around.
+  Right-click an image to save a copy as PNG, JPEG, HEIC, TIFF or GIF
 - **Clipboard**, the last few things you copied. Search them, pin the ones you reuse, and click one
   to copy it again. Passwords are skipped, and only pinned clips are saved
 - **Notes**, a little scratchpad for phone numbers, to-dos, whatever

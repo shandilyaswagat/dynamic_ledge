@@ -30,6 +30,8 @@ public final class IslandModel {
     public let stats = StatsService()
     public let todos: TodoStore
     public let aiUsage: AIUsageService
+    /// Speakers, headphones and displays the Mac can play through, for the music view's picker.
+    public let audioOutput = AudioOutputService()
     /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
     /// layout). The notch stays open while you type, even if the pointer wanders off.
     public var isTypingInNook = false
@@ -177,6 +179,7 @@ public final class IslandModel {
         // The monitor stays for a later animated AirPods alert.
         calendar.start()
         levels.start()
+        audioOutput.start()
         if settings.clipboardEnabled { clipboard.start() }
         if settings.aiUsageEnabled { aiUsage.startAutomaticRefreshes() }
         if settings.downloadsEnabled {
@@ -217,6 +220,7 @@ public final class IslandModel {
         audioRoute.stop()
         calendar.stop()
         levels.stop()
+        audioOutput.stop()
         clipboard.stop()
         downloads.stop()
         downloadProgress.stop()

@@ -71,10 +71,45 @@ struct NowPlayingExpandedView: View {
                 }
                 GlyphButton(symbol: "forward.fill", size: 19 * s, label: "Next Track") { service.nextTrack() }
             }
+            .frame(maxWidth: .infinity)
+            // Where the sound plays, at the edge like AirPlay in Control Center.
+            .overlay(alignment: .trailing) { AudioOutputPicker(output: model.audioOutput) }
             .padding(.top, 4 * s)
         }
         .padding(.horizontal, 22 * s)
         .frame(maxHeight: .infinity)
+    }
+}
+
+/// Picks the speakers, headphones or display the Mac plays through.
+private struct AudioOutputPicker: View {
+    let output: AudioOutputService
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Menu {
+            ForEach(output.devices) { device in
+                Button {
+                    output.selectDevice(device)
+                } label: {
+                    Label(device.name, systemImage: device.isDefault ? "checkmark" : device.symbol)
+                }
+            }
+        } label: {
+            // Headphones show themselves; anything else gets the AirPlay audio symbol.
+            Image(systemName: output.currentDevice.flatMap { $0.isBluetooth ? $0.symbol : nil } ?? "airplayaudio")
+                .font(.system(size: 14 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.secondaryText)
+                .frame(width: 26 * s, height: 26 * s)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(output.devices.count < 2)
+        .help(output.currentDevice.map { "Playing on \($0.name)" } ?? "Sound output")
+        .accessibilityLabel(Text("Sound output"))
+        .accessibilityValue(Text(output.currentDevice?.name ?? ""))
     }
 }
 

@@ -9,8 +9,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusController: StatusItemController?
     private var settingsController: SettingsWindowController?
     private var lockScreen: LockScreenController?
-    private var openSettingsObserver: NSObjectProtocol?
     #if DEBUG
+    private var openSettingsObserver: NSObjectProtocol?
     private var debugHooks: DebugHooks?
     #endif
 
@@ -37,7 +37,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsController = SettingsWindowController(model: model)
         model.onOpenSettings = { [weak settingsController] in settingsController?.show() }
         model.onOpenSettingsTab = { [weak settingsController] tab in settingsController?.show(tab) }
-        model.onOpenAbout = { [weak settingsController] in settingsController?.show(.about) }
+        model.onOpenSoftwareUpdate = { [weak settingsController] in settingsController?.show(.softwareUpdate) }
 
         self.settings = settings
         self.model = model
@@ -45,6 +45,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         islandWindows = IslandWindowManager(model: model)
         if LockScreenController.isAvailable { lockScreen = LockScreenController(model: model) }
         statusController = StatusItemController(model: model) { [weak settingsController] in settingsController?.show() }
+        #if DEBUG
+        // Lets testing scripts open a Settings page. Release builds don't listen for it.
         openSettingsObserver = DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("DynamicNotch.openSettings"),
             object: nil,
@@ -55,6 +57,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 settingsController?.show(tab)
             }
         }
+        #endif
         let isFirstLaunch = !settings.hasShownWelcome
         model.startServices()
         // The first launch (from Finder or a fresh DMG) shows Home for a moment, so the app

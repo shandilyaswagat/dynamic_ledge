@@ -2,129 +2,10 @@ import Foundation
 import Testing
 @testable import NotchKit
 
-private final class MockNetworking: AIUsageNetworking, @unchecked Sendable {
-    var handler: ((URLRequest) throws -> (Data, URLResponse))?
-
-    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        if let handler {
-            return try handler(request)
-        }
-        throw URLError(.notConnectedToInternet)
-    }
-}
-
 @MainActor
 @Suite("AI Agent Usage - Parsing & Windows")
 struct AIUsageParsingTests {
-    @Test func anthropicHeaderParsingExtractsWindowsCorrectly() {
-        let headers: [AnyHashable: Any] = [
-            "anthropic-ratelimit-requests-limit": "1000",
-            "anthropic-ratelimit-requests-remaining": "800",
-            "anthropic-ratelimit-requests-reset": "2026-11-01T12:00:00Z",
-            "anthropic-ratelimit-tokens-limit": "40000",
-            "anthropic-ratelimit-tokens-remaining": "10000",
-            "anthropic-ratelimit-tokens-reset": "2026-11-01T13:00:00Z",
-            "anthropic-ratelimit-unified-session-used": "42.5",
-            "anthropic-ratelimit-unified-session-reset": "2026-11-01T15:30:00Z"
-        ]
-
-        let windows = AIUsageService.parseAnthropicRateLimitHeaders(headers)
-        #expect(windows.count == 3)
-
-        let reqWindow = windows.first { $0.name == "Requests Window" }
-        #expect(reqWindow != nil)
-        #expect(reqWindow?.usedCount == 200)
-        #expect(reqWindow?.limitCount == 1000)
-        #expect(reqWindow?.usedPercent == 20.0)
-        #expect(reqWindow?.remainingPercent == 80.0)
-
-        let tokenWindow = windows.first { $0.name == "Tokens Window" }
-        #expect(tokenWindow != nil)
-        #expect(tokenWindow?.usedCount == 30000)
-        #expect(tokenWindow?.limitCount == 40000)
-        #expect(tokenWindow?.usedPercent == 75.0)
-        #expect(tokenWindow?.remainingPercent == 25.0)
-
-        let sessionWindow = windows.first { $0.name == "5-Hour Session Quota" }
-        #expect(sessionWindow != nil)
-        #expect(sessionWindow?.usedPercent == 42.5)
-        #expect(sessionWindow?.remainingPercent == 57.5)
-    }
-
-    @Test func anthropicTokenBreakdownExtractsAllTypes() {
-        let jsonString = """
-        {
-            "id": "msg_01",
-            "type": "message",
-            "role": "assistant",
-            "usage": {
-                "input_tokens": 1200,
-                "output_tokens": 350,
-                "cache_read_input_tokens": 500,
-                "cache_creation_input_tokens": 100
-            }
-        }
-        """
-        let data = Data(jsonString.utf8)
-        let breakdown = AIUsageService.parseAnthropicMessageTokens(data)
-        #expect(breakdown != nil)
-        #expect(breakdown?.promptTokens == 1200)
-        #expect(breakdown?.completionTokens == 350)
-        #expect(breakdown?.cacheReadTokens == 500)
-        #expect(breakdown?.cacheWriteTokens == 100)
-        #expect(breakdown?.totalTokens == 1550)
-    }
-
-    @Test func openAIUsageResponseExtractsDailyTokensAndCost() {
-        let jsonString = """
-        {
-            "data": [
-                {
-                    "n_context_tokens_total": 45000,
-                    "n_generated_tokens_total": 5000,
-                    "cost": 0.42
-                }
-            ]
-        }
-        """
-        let data = Data(jsonString.utf8)
-        let (tokens, cost) = AIUsageService.parseOpenAIUsageResponse(data)
-        #expect(tokens != nil)
-        #expect(tokens?.promptTokens == 45000)
-        #expect(tokens?.completionTokens == 5000)
-        #expect(tokens?.totalTokens == 50000)
-        #expect(cost == "$0.42")
-    }
-
-    @Test func openAIRateLimitHeadersParsing() {
-        let headers: [AnyHashable: Any] = [
-            "x-ratelimit-limit-requests": "500",
-            "x-ratelimit-remaining-requests": "450",
-            "x-ratelimit-reset-requests": "12s",
-            "x-ratelimit-limit-tokens": "100000",
-            "x-ratelimit-remaining-tokens": "20000",
-            "x-ratelimit-reset-tokens": "6m"
-        ]
-        let windows = AIUsageService.parseOpenAIRateLimitHeaders(headers)
-        #expect(windows.count == 2)
-        let reqWindow = windows.first { $0.name == "Requests Limit" }
-        #expect(reqWindow?.usedCount == 50)
-        #expect(reqWindow?.remainingPercent == 90.0)
-
-        let tokWindow = windows.first { $0.name == "Tokens Limit" }
-        #expect(tokWindow?.usedCount == 80000)
-        #expect(tokWindow?.remainingPercent == 20.0)
-    }
-
     @Test func missingDataDoesNotInventValues() {
-        let emptyHeaders: [AnyHashable: Any] = [:]
-        let windows = AIUsageService.parseAnthropicRateLimitHeaders(emptyHeaders)
-        #expect(windows.isEmpty, "No windows are invented from empty headers")
-
-        let invalidJson = Data("{}".utf8)
-        let tokens = AIUsageService.parseAnthropicMessageTokens(invalidJson)
-        #expect(tokens == nil, "No tokens are invented from missing usage JSON")
-
         let window = AIUsageWindow(
             name: "Unknown Quota",
             usedPercent: nil,
@@ -179,14 +60,14 @@ struct AIUsageResetTimeTests {
 }
 
 @MainActor
-@Suite("AI Agent Usage - Service Lifecycle & Network States")
+@Suite("AI Agent Usage - Service Lifecycle")
 struct AIUsageServiceTests {
     @Test func automaticRefreshChecksImmediatelyAndStartsOnlyOnce() async throws {
         let defaults = makeDefaults()
         defaults.set(false, forKey: "aiUsage.claudeEnabled")
         defaults.set(false, forKey: "aiUsage.codexEnabled")
         defaults.set(false, forKey: "aiUsage.antigravityEnabled")
-        let service = AIUsageService(networking: MockNetworking(), defaults: defaults)
+        let service = AIUsageService(defaults: defaults)
         defer { service.stopAutomaticRefreshes() }
         service.startAutomaticRefreshes()
         #expect(service.lastRefreshAttempt != nil)
@@ -203,82 +84,16 @@ struct AIUsageServiceTests {
 
     private func makeDefaults() -> UserDefaults {
         let defaults = UserDefaults(suiteName: "AIUsageTests-\(UUID().uuidString)")!
-        // Never inherit this Mac's live connections in network unit tests.
-        defaults.set(false, forKey: "aiUsage.codexUseLocalCLI")
-        defaults.set(false, forKey: "aiUsageClaudeUseLocalCLI")
-        defaults.set(false, forKey: "aiUsage.antigravityUseLocal")
-        defaults.set("", forKey: "aiUsageCodexApiKey")
-        defaults.set("", forKey: "aiUsageClaudeApiKey")
-        defaults.set("", forKey: "aiUsageAntigravityApiKey")
+        // Never read this Mac's real assistants in unit tests.
+        defaults.set(false, forKey: "aiUsage.claudeEnabled")
+        defaults.set(false, forKey: "aiUsage.codexEnabled")
+        defaults.set(false, forKey: "aiUsage.antigravityEnabled")
         return defaults
-    }
-
-    @Test func unconfiguredStateWhenApiKeyMissing() async {
-        let defaults = makeDefaults()
-        let mock = MockNetworking()
-        let service = AIUsageService(networking: mock, defaults: defaults)
-
-        let claude = await service.fetchClaudeCodeUsage()
-        if case .unconfigured = claude.status {
-            #expect(Bool(true))
-        } else {
-            Issue.record("Expected unconfigured status for Claude Code without API key")
-        }
-
-        let codex = await service.fetchCodexUsage()
-        if case .unconfigured = codex.status {
-            #expect(Bool(true))
-        } else {
-            Issue.record("Expected unconfigured status for Codex without API key")
-        }
-
-        let antigravity = await service.fetchAntigravityUsage()
-        if case .unconfigured = antigravity.status {
-            #expect(Bool(true))
-        } else {
-            Issue.record("Expected unconfigured status for Antigravity without API key or local session")
-        }
-    }
-
-    @Test func signedOutStateOn401() async {
-        let defaults = makeDefaults()
-        defaults.set("sk-ant-invalid", forKey: "aiUsageClaudeApiKey")
-        let mock = MockNetworking()
-        mock.handler = { req in
-            let resp = HTTPURLResponse(url: req.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
-            return (Data("{\"error\":{\"message\":\"invalid api key\"}}".utf8), resp)
-        }
-        let service = AIUsageService(networking: mock, defaults: defaults)
-        let usage = await service.fetchClaudeCodeUsage()
-
-        if case .signedOut = usage.status {
-            #expect(Bool(true))
-        } else {
-            Issue.record("Expected signedOut state for HTTP 401")
-        }
-    }
-
-    @Test func offlineStateOnNetworkFailure() async {
-        let defaults = makeDefaults()
-        defaults.set("sk-ant-valid", forKey: "aiUsageClaudeApiKey")
-        let mock = MockNetworking()
-        mock.handler = { _ in
-            throw URLError(.cannotConnectToHost)
-        }
-        let service = AIUsageService(networking: mock, defaults: defaults)
-        let usage = await service.fetchClaudeCodeUsage()
-
-        if case .offline = usage.status {
-            #expect(Bool(true))
-        } else {
-            Issue.record("Expected offline state when network throws")
-        }
     }
 
     @Test func manualRefreshCooldownThrottlesRapidRequests() async {
         let defaults = makeDefaults()
-        let mock = MockNetworking()
-        let service = AIUsageService(networking: mock, defaults: defaults)
+        let service = AIUsageService(defaults: defaults)
 
         service.refreshAll(userInitiated: true)
         let firstAttempt = service.lastRefreshAttempt
@@ -300,7 +115,7 @@ struct AIUsageServiceTests {
 
         let state: [AIProvider: AIProviderUsage] = [.claudeCode: u1, .codex: u2]
         defaults.set(try? JSONEncoder().encode(state), forKey: "aiUsageCachedState")
-        let restored = AIUsageService(networking: MockNetworking(), defaults: defaults)
+        let restored = AIUsageService(defaults: defaults)
 
         #expect(restored.hasData)
         #expect(restored.minimumRemainingPercent == 15.0)
@@ -352,5 +167,22 @@ struct AIUsageVisibilityTests {
         #expect(usage > normal)
         #expect(usage == IslandMetrics.Nook.aiUsageBody + IslandMetrics.Nook.bodyTopInset)
         #expect(engine.windowSize.height >= usage)
+    }
+}
+
+@MainActor
+@Suite("AI usage privacy")
+struct AIUsagePrivacyTests {
+    @Test func offUntilTurnedOnAndOldKeysAreErased() {
+        let defaults = UserDefaults(suiteName: "AIUsagePrivacy-\(UUID().uuidString)")!
+        defaults.set("sk-test", forKey: "aiUsageClaudeApiKey")
+        defaults.set("sk-test", forKey: "aiUsageCodexApiKey")
+        defaults.set("org-test", forKey: "aiUsageCodexOrgId")
+        defaults.set("test", forKey: "aiUsageAntigravityApiKey")
+        let settings = SettingsStore(defaults: defaults)
+        #expect(!settings.aiUsageEnabled)
+        for key in ["aiUsageClaudeApiKey", "aiUsageCodexApiKey", "aiUsageCodexOrgId", "aiUsageAntigravityApiKey"] {
+            #expect(defaults.object(forKey: key) == nil)
+        }
     }
 }

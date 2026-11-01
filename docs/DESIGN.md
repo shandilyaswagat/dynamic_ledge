@@ -53,6 +53,12 @@ top edge of the screen.
 * Click it to open Home. With Hover chosen in Settings, it opens Home after another hover delay.
 * Moving away slides it back up into the edge.
 
+**Pill** (Settings › Appearance › Displays Without a Notch) swaps that notch for a floating pill,
+like the Dynamic Island: no shoulders, 6 pt below the top edge, a 120 pt middle kept clear for
+compact content, fully round ends while compact and 32 pt corners when open. At rest it's a
+smaller, invisible pill in the same spot, so it grows out of it. Content moves down with it.
+MacBook notches are never affected.
+
 ## The nook: Home, Tray and Mirror
 
 Clicking the notch opens a fixed-size "nook", the same size for all three tabs so switching never

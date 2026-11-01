@@ -354,14 +354,6 @@ public struct AIUsagePanelBody: View {
                 .foregroundStyle(NotchColor.secondaryText)
                 .multilineTextAlignment(.center)
             if !model.aiUsage.isRefreshing {
-                if model.settings.aiUsageCodexEnabled && !model.settings.aiUsageCodexUseLocalCLI {
-                    Button("Connect signed-in Codex") {
-                        model.settings.aiUsageCodexUseLocalCLI = true
-                        model.aiUsage.refreshAll(userInitiated: false)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
                 ForEach(AIProvider.allCases.filter { model.settings.selectedAIProviders.contains($0) }, id: \.self) { provider in
                     if let usage = model.aiUsage.usages[provider], !usage.status.isSuccess {
                         Text("\(provider.displayName): \(usage.status.statusDescription)")

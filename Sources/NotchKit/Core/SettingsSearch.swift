@@ -29,6 +29,7 @@ enum SettingsSearch {
         .init(title: "Keyboard shortcuts", path: "General", page: .general, keywords: "hotkeys keyboard"),
         .init(title: "Appearance", path: "Appearance", page: .appearance, keywords: "theme look black glass"),
         .init(title: "Home layout", path: "Appearance", page: .appearance, keywords: "standard elongated wide size"),
+        .init(title: "Displays Without a Notch", path: "Appearance", page: .appearance, keywords: "pill island dynamic external monitor notch"),
         .init(title: "Home & Widgets", path: "Home & Widgets", page: .home, keywords: "home features"),
         .init(title: "File Tray", path: "Home & Widgets", page: .home, keywords: "files drop drag"),
         .init(title: "Clipboard", path: "Home & Widgets", page: .home, keywords: "copy paste history"),

@@ -36,7 +36,7 @@ private struct IconToggle: View {
     }
 }
 
-/// An outlined icon tile for General's navigation rows.
+/// The icon tile for General's navigation rows.
 private struct GeneralRowIcon: View {
     let symbol: String
     let color: Color
@@ -62,7 +62,7 @@ struct GeneralSettingsView: View {
         Form {
             Section {
                 VStack(spacing: 8) {
-                    SettingsCategoryIcon(symbol: "gear", tileColor: .gray, size: 52)
+                    SettingsCategoryIcon(symbol: "gearshape.fill", tileColor: .gray, size: 52)
                     Text("General")
                         .font(.system(size: 22, weight: .bold))
                     Text("Manage your setup and preferences for Dynamic Ledge, including startup, software updates, media, and coding assistants.")
@@ -76,30 +76,33 @@ struct GeneralSettingsView: View {
                 .padding(.horizontal, 12)
             }
             Section {
-                if updater.availableRelease != nil {
-                    Button(action: openSoftwareUpdate) {
-                        HStack(spacing: 10) {
-                            GeneralRowIcon(symbol: "gear", color: .secondary)
-                            Text("Software Update")
-                            Spacer()
+                Button(action: openAbout) {
+                    HStack(spacing: 10) {
+                        Image(nsImage: NSApplication.shared.applicationIconImage)
+                            .resizable()
+                            .frame(width: 22, height: 22)
+                            .accessibilityHidden(true)
+                        Text("About")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Button(action: openSoftwareUpdate) {
+                    HStack(spacing: 10) {
+                        GeneralRowIcon(symbol: "arrow.down.circle.fill", color: .blue)
+                        Text("Software Update")
+                        Spacer()
+                        if updater.availableRelease != nil {
                             Text("1")
                                 .font(.caption2.bold())
                                 .foregroundStyle(.white)
                                 .frame(width: 18, height: 18)
                                 .background(.red, in: Circle())
                                 .accessibilityLabel(Text("One update available"))
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.tertiary)
                         }
-                        .contentShape(Rectangle())
-                    }.buttonStyle(.plain)
-                }
-                Button(action: openAbout) {
-                    HStack(spacing: 10) {
-                        GeneralRowIcon(symbol: "laptopcomputer", color: .secondary)
-                        Text("About")
-                        Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.tertiary)
@@ -362,7 +365,7 @@ struct AppearanceSettingsView: View {
                     Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
                 }
             } header: {
-                Text("Appearance")
+                Text("Theme")
             } footer: {
                 Text(settings.appearance.theme == .glass
                     ? "Frosted glass that blurs what’s behind it, with softer, springier motion. The part around the camera stays black. More tint is easier to read over bright windows."
@@ -382,6 +385,23 @@ struct AppearanceSettingsView: View {
                 Text("Home Layout")
             } footer: {
                 Text("Standard keeps Home compact. Elongated stretches Home, Tray and Clipboard across the screen. Choose which features appear in Home & Widgets.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                HStack(spacing: 24) {
+                    externalCard(title: "Notch", style: .notch, isSelected: settings.appearance.externalStyle == .notch)
+                    externalCard(title: "Pill", style: .pill, isSelected: settings.appearance.externalStyle == .pill)
+                }
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+            } header: {
+                Text("Displays Without a Notch")
+            } footer: {
+                Text(settings.appearance.externalStyle == .pill
+                    ? "External displays, and Macs without a notch, show a floating pill just below the top edge, like the Dynamic Island. A MacBook's own notch always stays a notch."
+                    : "External displays, and Macs without a notch, get a notch of their own at the top centre, the size of a MacBook's.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -418,108 +438,46 @@ struct AppearanceSettingsView: View {
     }
 
     private func themeCard(title: LocalizedStringKey, theme: NotchTheme, isSelected: Bool) -> some View {
-        Button {
+        AppearanceChoice(title: title, isSelected: isSelected) {
             settings.appearance.theme = theme
             Haptics.perform(enabled: settings.hapticsEnabled)
-        } label: {
-            VStack(spacing: 8) {
-                ZStack(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(LinearGradient(
-                            colors: theme == .black
-                                ? [Color(white: 0.18), Color(white: 0.08)]
-                                : [Color(red: 0.22, green: 0.38, blue: 0.60), Color(red: 0.48, green: 0.25, blue: 0.48)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 140, height: 86)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
-                        )
-                        .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : .clear, radius: 4)
-
-                    if theme == .black {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(.black)
-                            .frame(width: 58, height: 16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
-                            )
-                    } else {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 58, height: 16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.1)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
-                            )
-                    }
-                }
-
-                HStack(spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundStyle(isSelected ? .primary : .secondary)
+        } preview: {
+            MiniScreen {
+                MiniNotch(width: 92, height: 40, theme: theme, tint: settings.appearance.glassTint) {
+                    MiniNowPlaying()
                 }
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
     }
 
     private func layoutCard(title: LocalizedStringKey, elongated: Bool, isSelected: Bool) -> some View {
-        Button {
+        AppearanceChoice(title: title, isSelected: isSelected) {
             settings.appearance.nookLayout = elongated ? .elongated : .standard
             Haptics.perform(enabled: settings.hapticsEnabled)
-        } label: {
-            VStack(spacing: 8) {
-                ZStack(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
-                        .frame(width: 140, height: 86)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
-                        )
-                        .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : .clear, radius: 4)
-
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(Color.primary.opacity(0.85))
-                        .frame(width: elongated ? 116 : 64, height: 26)
-                        .overlay(alignment: .bottom) {
-                            HStack(spacing: 3) {
-                                ForEach(0..<(elongated ? 3 : 2), id: \.self) { _ in
-                                    RoundedRectangle(cornerRadius: 2).fill(.background.opacity(0.7))
-                                        .frame(width: elongated ? 28 : 22, height: 10)
-                                }
-                            }
-                            .padding(.bottom, 3)
-                        }
-                }
-
-                HStack(spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundStyle(isSelected ? .primary : .secondary)
+        } preview: {
+            MiniScreen {
+                MiniNotch(width: elongated ? 124 : 80, height: elongated ? 30 : 44, theme: settings.appearance.theme, tint: settings.appearance.glassTint) {
+                    MiniWidgets(count: elongated ? 4 : 2, columns: elongated ? 4 : 2)
                 }
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+    }
+
+    private func externalCard(title: LocalizedStringKey, style: ExternalDisplayStyle, isSelected: Bool) -> some View {
+        AppearanceChoice(title: title, isSelected: isSelected) {
+            settings.appearance.externalStyle = style
+            Haptics.perform(enabled: settings.hapticsEnabled)
+        } preview: {
+            MiniScreen {
+                if style == .pill {
+                    MiniPill(theme: settings.appearance.theme, tint: settings.appearance.glassTint)
+                } else {
+                    MiniNotch(width: 64, height: 13, theme: settings.appearance.theme, tint: settings.appearance.glassTint, compact: true) {
+                        MiniCompactActivity()
+                    }
+                }
+            }
+        }
     }
 
     /// Continuous slider (a stepped one draws a tick per step) that stores rounded values.
@@ -551,7 +509,7 @@ struct NowPlayingSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Now Playing") {
+            Section {
                 IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app, or just the ones you pick", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
                 if settings.nowPlayingEnabled {
                     IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when available. The song name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
@@ -642,7 +600,7 @@ private struct CodingAssistantSection: View {
                 }
             }
         } header: {
-            Text("Coding Assistants")
+            Text("Approvals")
         } footer: {
             Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. Switching one on adds a hook to that assistant’s settings file; switching it off removes it. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
         }
@@ -694,113 +652,56 @@ private struct AIUsageSettingsSection: View {
         Section {
             IconToggle(
                 title: "AI Agent Usage",
-                detail: "Track quotas, rate limits, and token usage for Claude Code, OpenAI Codex, and Antigravity",
+                detail: "How much of each coding assistant's limits you've used, and when they reset",
                 symbol: "sparkles",
-                color: .orange,
+                color: .purple,
                 isOn: $settings.aiUsageEnabled
             )
         } header: {
             Text("AI Agent Usage")
         } footer: {
-            if settings.aiUsageEnabled {
-                Text("If you enter an API key, it is stored in this Mac’s preferences and sent directly to that provider. The signed-in Codex CLI and Antigravity manage their credentials locally.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text("Off until you turn it on. Everything is read on this Mac and nothing is sent anywhere. No API keys are needed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
 
         if settings.aiUsageEnabled {
             Section {
-                Toggle("Claude Code", isOn: $settings.aiUsageClaudeEnabled)
-                    .onChange(of: settings.aiUsageClaudeEnabled) { _, enabled in
-                        if enabled { aiUsage.refreshAll(userInitiated: false) }
-                    }
-                Toggle("OpenAI Codex", isOn: $settings.aiUsageCodexEnabled)
-                    .onChange(of: settings.aiUsageCodexEnabled) { _, enabled in
-                        if enabled { aiUsage.refreshAll(userInitiated: false) }
-                    }
-                Toggle("Antigravity", isOn: $settings.aiUsageAntigravityEnabled)
-                    .onChange(of: settings.aiUsageAntigravityEnabled) { _, enabled in
-                        if enabled { aiUsage.refreshAll(userInitiated: false) }
-                    }
+                provider(.claudeCode, isOn: $settings.aiUsageClaudeEnabled)
+                provider(.codex, isOn: $settings.aiUsageCodexEnabled)
+                provider(.antigravity, isOn: $settings.aiUsageAntigravityEnabled)
             } header: {
-                Text("Choose providers")
+                Text("Assistants")
             } footer: {
-                Text("Only selected providers with a connection appear in the notch. Configure each provider below.")
-            }
-
-            if settings.aiUsageClaudeEnabled {
-            Section {
-                    SecureField("Anthropic API Key", text: $settings.aiUsageClaudeApiKey)
-                    Toggle("Read Local Claude Code CLI (~/.claude.json)", isOn: $settings.aiUsageClaudeUseLocalCLI)
-                    if let usage = aiUsage.usages[.claudeCode] {
-                        LabeledContent("Status", value: usage.status.statusDescription)
-                    }
-            } header: {
-                Text("Claude Code")
-            } footer: {
-                Text("Anthropic API rate limits are separate from Claude subscription usage. The local configuration may not contain subscription limits.")
+                Text("Every 5 minutes, Dynamic Ledge checks the assistants you tick. Only the ones it can reach appear in the notch.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            }
 
-            if settings.aiUsageCodexEnabled {
             Section {
-                    Toggle("Use signed-in Codex CLI for subscription limits", isOn: $settings.aiUsageCodexUseLocalCLI)
-                        .onChange(of: settings.aiUsageCodexUseLocalCLI) { _, enabled in
-                            if enabled { aiUsage.refreshAll(userInitiated: false) }
-                        }
-                    if !settings.aiUsageCodexUseLocalCLI {
-                    SecureField("OpenAI API Key", text: $settings.aiUsageCodexApiKey)
-                    TextField("Organization ID (Optional)", text: $settings.aiUsageCodexOrgId)
-                    }
-                    if let usage = aiUsage.usages[.codex] {
-                        LabeledContent("Status", value: usage.status.statusDescription)
-                    }
-            } header: {
-                Text("OpenAI Codex")
-            } footer: {
-                Text("The Codex CLI option uses your existing signed-in account to read subscription limits. API keys show separate OpenAI Platform usage and do not represent your Codex subscription.")
+                Toggle("Show in Home", isOn: $settings.aiUsageShowHomeWidget)
+                Button("Refresh Now") { aiUsage.refreshAll(userInitiated: true) }
+                    .disabled(aiUsage.isRefreshing)
+            }
+        }
+    }
+
+    private func provider(_ provider: AIProvider, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(provider.displayName)
+                Text(provider.integrationNotice)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-            }
-
-            if settings.aiUsageAntigravityEnabled {
-            Section {
-                    Toggle("Read Local Antigravity Session (~/.gemini)", isOn: $settings.aiUsageAntigravityUseLocal)
-                        .onChange(of: settings.aiUsageAntigravityUseLocal) { _, enabled in
-                            if enabled { aiUsage.refreshAll(userInitiated: false) }
-                        }
-                    if !settings.aiUsageAntigravityUseLocal {
-                        SecureField("Gemini API Key (Optional)", text: $settings.aiUsageAntigravityApiKey)
-                    }
-                    if let usage = aiUsage.usages[.antigravity] {
-                        LabeledContent("Status", value: usage.status.statusDescription)
-                        if let account = usage.accountName {
-                            LabeledContent("Account", value: account)
-                        }
-                        if let plan = usage.plan {
-                            LabeledContent("Plan", value: plan)
-                        }
-                    }
-            } header: {
-                Text("Antigravity")
-            } footer: {
-                Text("Antigravity reads active session status, signed-in account details, and conversation token consumption directly from this Mac.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            }
-
-            Section("Options") {
-                Toggle("Show AI Quotas in Home & widgets", isOn: $settings.aiUsageShowHomeWidget)
-                Button("Refresh Usage Now") {
-                    aiUsage.refreshAll(userInitiated: true)
+                if let usage = aiUsage.usages[provider] {
+                    Text(usage.status.statusDescription)
+                        .font(.caption)
+                        .foregroundStyle(usage.status.isSuccess ? .green : .secondary)
                 }
-                .disabled(aiUsage.isRefreshing)
             }
+        }
+        .onChange(of: isOn.wrappedValue) { _, enabled in
+            if enabled { aiUsage.refreshAll(userInitiated: false) }
         }
     }
 }
@@ -1047,73 +948,71 @@ struct ShortcutsSettingsView: View {
 // MARK: About
 
 struct AboutSettingsView: View {
-    private static let license = URL(string: "https://github.com/shandilyaswagat/dynamic_ledge/blob/main/LICENSE")!
+    private static let repository = URL(string: "https://github.com/shandilyaswagat/dynamic_ledge")!
     private static let website = URL(string: "https://talvioh.vercel.app")!
     private var info: [String: Any] { Bundle.main.infoDictionary ?? [:] }
 
     var body: some View {
         Form {
             Section {
-                HStack(spacing: 16) {
+                VStack(spacing: 6) {
                     Image(nsImage: NSApplication.shared.applicationIconImage)
                         .resizable()
-                        .frame(width: 52, height: 52)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Dynamic Ledge")
-                            .font(.title3.bold())
-                        let short = info["CFBundleShortVersionString"] as? String ?? "1.4.2"
-                        Text("Version \(short)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            Section {
-                let short = info["CFBundleShortVersionString"] as? String ?? "1.4.2"
-                LabeledContent("Version", value: short)
-                    .textSelection(.enabled)
-                LabeledContent("Requires", value: "macOS \(info["LSMinimumSystemVersion"] as? String ?? "14.0") or later")
-                LabeledContent("Architecture", value: "Apple Silicon & Intel (Universal)")
-            }
-
-            Section {
-                VStack(spacing: 8) {
-                    Button("System Report…") {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/System Information.app"))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-
-                    VStack(spacing: 4) {
-                        HStack(spacing: 6) {
-                            Link("Software License Agreement", destination: Self.license)
-                                .underline()
-                            Text("-")
-                            Link("Regulatory Certification", destination: Self.website)
-                                .underline()
-                        }
-                        HStack(spacing: 6) {
-                            Link("Talvioh", destination: Self.website)
-                                .underline()
-                            Text("-")
-                            Link("License Agreement", destination: Self.license)
-                                .underline()
-                        }
-                        Text("™ and © 2026 Talvioh. All Rights Reserved.")
-                            .padding(.top, 2)
-                    }
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                        .frame(width: 72, height: 72)
+                    Text("Dynamic Ledge")
+                        .font(.system(size: 22, weight: .bold))
+                    Text("Live activities for your Mac’s notch.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .listRowBackground(Color.clear)
+                .padding(.vertical, 12)
+            }
+
+            Section {
+                LabeledContent("Version", value: version)
+                    .textSelection(.enabled)
+                LabeledContent("Requires", value: "macOS \(info["LSMinimumSystemVersion"] as? String ?? "14.0") or later")
+                LabeledContent("Made for", value: "Apple silicon and Intel Macs")
+            }
+
+            Section {
+                link("Website", detail: "talvioh.vercel.app", destination: Self.website)
+                link("Source Code", detail: "GitHub", destination: Self.repository)
+                link("Report a Problem", detail: "GitHub Issues", destination: Self.repository.appending(path: "issues"))
+                link("License", detail: "GNU GPL 3.0", destination: Self.repository.appending(path: "blob/main/LICENSE"))
+            } footer: {
+                Text(info["NSHumanReadableCopyright"] as? String ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// "1.4.2 (79)", like About This Mac.
+    private var version: String {
+        let short = info["CFBundleShortVersionString"] as? String ?? "–"
+        guard let build = info["CFBundleVersion"] as? String, build != short else { return short }
+        return "\(short) (\(build))"
+    }
+
+    private func link(_ title: LocalizedStringKey, detail: String, destination: URL) -> some View {
+        Link(destination: destination) {
+            HStack {
+                Text(title).foregroundStyle(.primary)
+                Spacer()
+                Text(detail).foregroundStyle(.secondary)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1235,6 +1134,182 @@ struct DisplayOption: Identifiable {
     static var connected: [DisplayOption] {
         NSScreen.screens.compactMap { screen in
             IslandWindowController.uuid(screen).map { DisplayOption(uuid: $0, name: screen.localizedName) }
+        }
+    }
+}
+
+// MARK: Appearance previews
+
+/// A preview card with a radio-style label, as in System Settings' Appearance.
+private struct AppearanceChoice<Preview: View>: View {
+    let title: LocalizedStringKey
+    let isSelected: Bool
+    let action: () -> Void
+    @ViewBuilder let preview: () -> Preview
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                preview()
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
+                    )
+                HStack(spacing: 6) {
+                    Circle()
+                        .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
+                        .frame(width: 14, height: 14)
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A small desktop: wallpaper and a menu bar, with whatever the notch shows at the top centre.
+private struct MiniScreen<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    static var wallpaper: some View {
+        LinearGradient(
+            colors: [Color(red: 0.16, green: 0.42, blue: 0.78), Color(red: 0.55, green: 0.32, blue: 0.70), Color(red: 0.95, green: 0.55, blue: 0.45)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            Self.wallpaper
+            Rectangle().fill(.white.opacity(0.18)).frame(height: 7)
+            content()
+        }
+        .frame(width: 150, height: 92)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+/// The notch as the app draws it: fused to the top edge, with concave shoulders and a rounded
+/// bottom, in black or in smoked glass.
+private struct MiniNotch<Content: View>: View {
+    let width: CGFloat
+    let height: CGFloat
+    let theme: NotchTheme
+    let tint: Double
+    var compact = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        let flare: CGFloat = compact ? 3 : 4
+        let shape = IslandShape(topRadius: 0, bottomRadius: compact ? 5 : 10, flare: flare)
+        ZStack(alignment: .top) {
+            if theme == .glass && !compact {
+                MiniGlass(shape: shape, tint: tint, camera: 7 / height)
+            } else {
+                shape.fill(.black)
+            }
+            content()
+                .padding(.top, compact ? 0 : 9)
+                .padding(.horizontal, flare + (compact ? 4 : 7))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: compact ? .center : .top)
+        }
+        .frame(width: width + 2 * flare, height: height)
+    }
+}
+
+/// The floating pill: round ends, a little below the top edge.
+private struct MiniPill: View {
+    let theme: NotchTheme
+    let tint: Double
+
+    var body: some View {
+        Capsule()
+            .fill(.black)
+            .frame(width: 62, height: 15)
+            .overlay { MiniCompactActivity().padding(.horizontal, 7) }
+            .padding(.top, 3)
+    }
+}
+
+/// The Glass theme in miniature: black at the camera and through the body, easing into frosted,
+/// tinted glass along the bottom, with a light lip, like `GlassSurface`.
+private struct MiniGlass<S: Shape>: View {
+    let shape: S
+    let tint: Double
+    /// Share of the height covered by the camera band.
+    let camera: Double
+
+    var body: some View {
+        let bottom = 0.08 + 0.5 * tint
+        ZStack {
+            MiniScreen<EmptyView>.wallpaper.blur(radius: 6)
+            Color.white.opacity(0.10)
+            LinearGradient(stops: [
+                .init(color: .black, location: 0),
+                .init(color: .black, location: camera),
+                .init(color: .black.opacity(0.93), location: 0.6),
+                .init(color: .black.opacity(bottom), location: 1),
+            ], startPoint: .top, endPoint: .bottom)
+            LinearGradient(stops: [
+                .init(color: .white.opacity(0), location: 0.8),
+                .init(color: .white.opacity(0.18), location: 1),
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        .clipShape(shape)
+        .overlay(shape.stroke(LinearGradient(colors: [.clear, .white.opacity(0.35)], startPoint: .top, endPoint: .bottom), lineWidth: 0.6))
+    }
+}
+
+/// Artwork, title and a progress bar, like the music view.
+private struct MiniNowPlaying: View {
+    var body: some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(LinearGradient(colors: [.orange, .pink], startPoint: .top, endPoint: .bottom))
+                .frame(width: 16, height: 16)
+            VStack(alignment: .leading, spacing: 3) {
+                Capsule().fill(.white.opacity(0.9)).frame(width: 34, height: 3)
+                Capsule().fill(.white.opacity(0.45)).frame(width: 24, height: 3)
+                Capsule().fill(.white.opacity(0.3)).frame(height: 2)
+            }
+        }
+    }
+}
+
+/// Widget tiles, as in Home.
+private struct MiniWidgets: View {
+    let count: Int
+    let columns: Int
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: columns), spacing: 4) {
+            ForEach(0..<count, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(.white.opacity(0.22))
+                    .frame(height: 14)
+            }
+        }
+    }
+}
+
+/// A compact live activity: artwork on the left, a level on the right.
+private struct MiniCompactActivity: View {
+    var body: some View {
+        HStack {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(LinearGradient(colors: [.orange, .pink], startPoint: .top, endPoint: .bottom))
+                .frame(width: 8, height: 8)
+            Spacer(minLength: 0)
+            HStack(spacing: 1.5) {
+                ForEach([4.0, 7, 5, 8], id: \.self) { height in
+                    Capsule().fill(Color.green).frame(width: 1.5, height: height)
+                }
+            }
         }
     }
 }

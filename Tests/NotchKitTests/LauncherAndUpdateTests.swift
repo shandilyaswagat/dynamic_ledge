@@ -90,7 +90,10 @@ struct LauncherModelTests {
 
     @Test func tilesFollowSettings() {
         let model = makeModel()
-        #expect(model.launcherItems.count == LauncherItem.allCases.count, "Stats is always there, as a switch")
+        #expect(model.launcherItems.count == LauncherItem.allCases.count - 1, "Stats is always there, as a switch")
+        #expect(!model.launcherItems.contains(.aiUsage), "AI Agent Usage stays hidden until it's turned on")
+        model.settings.aiUsageEnabled = true
+        #expect(model.launcherItems.contains(.aiUsage))
         model.settings.clipboardEnabled = false
         model.settings.mirrorEnabled = false
         #expect(!model.launcherItems.contains(.clipboard))

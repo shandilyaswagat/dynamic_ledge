@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Reads the local Google Antigravity session and token metrics from `~/.gemini`, without transmitting credentials.
 public enum AntigravityUsageReader {
@@ -72,96 +73,84 @@ public enum AntigravityUsageReader {
         var isFirst = true
 
         for dir in sortedDirs.prefix(15) {
-            // Try both compact and full transcript files.
             let logsDir = dir
                 .appendingPathComponent(".system_generated")
                 .appendingPathComponent("logs")
             let transcriptURL = logsDir.appendingPathComponent("transcript.jsonl")
-            let fullTranscriptURL = logsDir.appendingPathComponent("transcript_full.jsonl")
-
-            guard FileManager.default.fileExists(atPath: transcriptURL.path),
-                  let attributes = try? FileManager.default.attributesOfItem(atPath: transcriptURL.path),
-                  let modDate = attributes[.modificationDate] as? Date,
-                  let data = try? Data(contentsOf: transcriptURL),
-                  let content = String(data: data, encoding: .utf8) else {
-                continue
-            }
+            guard let (stats, modDate) = scan(transcriptURL) else { continue }
 
             info.hasTranscripts = true
-            let isTodayConv = modDate >= today
-            var dirInput = 0
-            var dirOutput = 0
-            var dirCache = 0
-
-            content.enumerateLines { line, _ in
-                guard !line.isEmpty,
-                      let lineData = line.data(using: .utf8),
-                      let step = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
-                    return
-                }
-
-                // 1. Check top-level model fields (present in some transcript versions).
-                for key in ["model", "model_id", "modelId", "model_name"] {
-                    if let model = step[key] as? String, !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        info.observedModels.insert(model)
-                    }
-                }
-
-                // 2. Extract model from USER_SETTINGS_CHANGE blocks in content.
-                //    These appear as: "The user changed setting `Model Selection` from X to Y (Thinking)."
-                if let stepContent = step["content"] as? String {
-                    Self.extractModelsFromContent(stepContent, into: &info.observedModels)
-                }
-
-                // 3. Accumulate token counts.
-                let inp = step["input_tokens"] as? Int ?? 0
-                let out = step["output_tokens"] as? Int ?? 0
-                let cache = step["cache_read_tokens"] as? Int ?? 0
-
-                dirInput += inp
-                dirOutput += out
-                dirCache += cache
-            }
-
-            // If the compact transcript had truncated content fields and we found no models yet,
-            // try the full transcript for model info only (it's larger, so we scan selectively).
-            if info.observedModels.isEmpty,
-               FileManager.default.fileExists(atPath: fullTranscriptURL.path),
-               let fullData = try? Data(contentsOf: fullTranscriptURL),
-               let fullContent = String(data: fullData, encoding: .utf8) {
-                fullContent.enumerateLines { line, stop in
-                    guard !line.isEmpty,
-                          let lineData = line.data(using: .utf8),
-                          let step = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
-                        return
-                    }
-                    for key in ["model", "model_id", "modelId", "model_name"] {
-                        if let model = step[key] as? String, !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            info.observedModels.insert(model)
-                        }
-                    }
-                    if let stepContent = step["content"] as? String {
-                        Self.extractModelsFromContent(stepContent, into: &info.observedModels)
-                    }
-                }
+            info.observedModels.formUnion(stats.models)
+            // The compact transcript can cut content short; the full one is larger, so it's only
+            // read while no model has been found.
+            if info.observedModels.isEmpty, let (full, _) = scan(logsDir.appendingPathComponent("transcript_full.jsonl")) {
+                info.observedModels.formUnion(full.models)
             }
 
             if isFirst {
-                info.latestSessionInput = dirInput
-                info.latestSessionOutput = dirOutput
-                info.latestSessionCache = dirCache
+                info.latestSessionInput = stats.input
+                info.latestSessionOutput = stats.output
+                info.latestSessionCache = stats.cache
                 isFirst = false
             }
-
-            if isTodayConv {
-                info.todayInput += dirInput
-                info.todayOutput += dirOutput
-                info.todayCache += dirCache
+            if modDate >= today {
+                info.todayInput += stats.input
+                info.todayOutput += stats.output
+                info.todayCache += stats.cache
             }
         }
 
         return info
     }
+
+    /// What one transcript file holds.
+    private struct FileStats: Sendable {
+        var models: Set<String> = []
+        var input = 0
+        var output = 0
+        var cache = 0
+    }
+
+    /// Transcripts already read, by path, with the date and size they had. A file is only read
+    /// again once it changes, so a refresh usually reads nothing.
+    private static let cache = OSAllocatedUnfairLock(initialState: [String: (date: Date, size: Int, stats: FileStats)]())
+
+    private static func scan(_ url: URL) -> (FileStats, Date)? {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let date = attributes[.modificationDate] as? Date else { return nil }
+        let size = (attributes[.size] as? Int) ?? 0
+        if let hit = cache.withLock({ $0[url.path] }), hit.date == date, hit.size == size {
+            return (hit.stats, date)
+        }
+        guard let data = try? Data(contentsOf: url), let content = String(data: data, encoding: .utf8) else { return nil }
+        var stats = FileStats()
+        content.enumerateLines { line, _ in
+            guard !line.isEmpty,
+                  let step = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] else { return }
+            for key in ["model", "model_id", "modelId", "model_name"] {
+                if let model = step[key] as? String, !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    stats.models.insert(model)
+                }
+            }
+            if let stepContent = step["content"] as? String {
+                extractModelsFromContent(stepContent, into: &stats.models)
+            }
+            stats.input += step["input_tokens"] as? Int ?? 0
+            stats.output += step["output_tokens"] as? Int ?? 0
+            stats.cache += step["cache_read_tokens"] as? Int ?? 0
+        }
+        let result = stats
+        cache.withLock { $0[url.path] = (date, size, result) }
+        return (result, date)
+    }
+
+    private static let settingsChangePatterns: [NSRegularExpression] = [
+        // "from X to ModelName." or "from X to ModelName (variant)."
+        try? NSRegularExpression(pattern: #"Model Selection[^.]*?\bto\s+(.+?)(?:\.\s|$)"#, options: [.dotMatchesLineSeparators]),
+        // "<USER_SETTINGS_CHANGE>...to ModelName..."
+        try? NSRegularExpression(pattern: #"changed setting.*?Model.*?\bto\s+(.+?)(?:\.\s|\n|$)"#, options: [.dotMatchesLineSeparators]),
+    ].compactMap { $0 }
+    private static let geminiPattern = try? NSRegularExpression(pattern: #"\b(gemini-[\w.\-]+)"#)
 
     /// Extracts Gemini / Antigravity model names from transcript content text.
     ///
@@ -173,13 +162,7 @@ public enum AntigravityUsageReader {
         // Match: "from X to Y" where Y is the current model selection.
         if content.contains("Model Selection") || content.contains("model_selection") {
             // Extract the "to" model name: "from ... to ModelName" or "from None to ModelName (Thinking)."
-            let patterns = [
-                // "from X to ModelName." or "from X to ModelName (variant)."
-                try? NSRegularExpression(pattern: #"Model Selection[^.]*?\bto\s+(.+?)(?:\.\s|$)"#, options: [.dotMatchesLineSeparators]),
-                // "<USER_SETTINGS_CHANGE>...to ModelName..."
-                try? NSRegularExpression(pattern: #"changed setting.*?Model.*?\bto\s+(.+?)(?:\.\s|\n|$)"#, options: [.dotMatchesLineSeparators]),
-            ]
-            for regex in patterns.compactMap({ $0 }) {
+            for regex in settingsChangePatterns {
                 let range = NSRange(content.startIndex..., in: content)
                 if let match = regex.firstMatch(in: content, range: range),
                    let modelRange = Range(match.range(at: 1), in: content) {
@@ -195,7 +178,6 @@ public enum AntigravityUsageReader {
 
         // Pattern 2: Gemini model identifiers in content (e.g. "gemini-2.0-flash", "gemini-1.5-pro").
         if content.contains("gemini") {
-            let geminiPattern = try? NSRegularExpression(pattern: #"\b(gemini-[\w.\-]+)"#)
             let range = NSRange(content.startIndex..., in: content)
             geminiPattern?.enumerateMatches(in: content, range: range) { match, _, _ in
                 if let match, let modelRange = Range(match.range(at: 1), in: content) {
@@ -208,39 +190,19 @@ public enum AntigravityUsageReader {
     private static func readSync(transcriptInfo: TranscriptInfo? = nil) -> AIProviderUsage {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let geminiDir = home.appendingPathComponent(".gemini")
-        let tokenFile = geminiDir.appendingPathComponent("jetski-standalone-oauth-token")
         let antigravityDir = geminiDir.appendingPathComponent("antigravity")
-
-        var accountEmail: String?
-        var authMethod: String = "Consumer"
-        var isSignedIn = false
-
-        // 1. Read OAuth token metadata if present
-        if FileManager.default.fileExists(atPath: tokenFile.path),
-           let data = try? Data(contentsOf: tokenFile),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            accountEmail = json["id_token_email"] as? String
-            if let method = json["auth_method"] as? String, !method.isEmpty {
-                authMethod = method.capitalized
-            }
-            if accountEmail != nil || json["token"] != nil {
-                isSignedIn = true
-            }
-        }
-
-        // 2. Check if Antigravity application or directory exists
+        // Antigravity's sign-in file holds credentials, so it is never opened.
         let appInstalled = FileManager.default.fileExists(atPath: "/Applications/Antigravity.app")
             || FileManager.default.fileExists(atPath: antigravityDir.path)
 
-        guard appInstalled || isSignedIn else {
+        guard appInstalled else {
             return AIProviderUsage(
                 provider: .antigravity,
-                status: .unconfigured("Antigravity is not installed or signed in on this Mac."),
+                status: .unconfigured("Antigravity isn't installed on this Mac."),
                 attribution: "Google Antigravity"
             )
         }
 
-        // 3. Use pre-scanned transcript info or scan now
         let info = transcriptInfo ?? scanTranscripts()
 
         let sessionTotal = info.latestSessionInput + info.latestSessionOutput
@@ -258,13 +220,11 @@ public enum AntigravityUsageReader {
         // Never infer them from token counts or assume all models share a pool.
         let windows: [AIUsageWindow] = []
 
-        let planName = "Google Antigravity (\(authMethod))"
-
         return AIProviderUsage(
             provider: .antigravity,
             status: .active,
-            accountName: accountEmail,
-            plan: planName,
+            accountName: info.accountEmail,
+            plan: "Google Antigravity",
             model: info.modelName,
             windows: windows,
             tokens: tokens,

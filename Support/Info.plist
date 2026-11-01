@@ -45,7 +45,7 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Dynamic Ledge reads the saved document or web address of the window you drop into Tray.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Swagat Shandilya and contributors. Free software under the GNU GPL, version 3 or later.</string>
+	<string>© 2026 Swagat Shandilya and Pritam Biswas. Free software under the GNU GPL, version 3 or later.</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
 </dict>

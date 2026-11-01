@@ -65,6 +65,7 @@ public final class SettingsStore {
             defaults.set(value.height, forKey: Key.height)
             defaults.set(value.theme.rawValue, forKey: Key.theme)
             defaults.set(value.glassTint, forKey: Key.glassTint)
+            defaults.set(value.externalStyle.rawValue, forKey: Key.externalStyle)
         }
     }
 
@@ -134,7 +135,7 @@ public final class SettingsStore {
     /// Send one anonymous signal a day, so the developer can count how many Macs use the app. Not
     /// shown in Settings (it carries no personal data); `defaults write` can turn it off.
     public var sharesUsage: Bool { didSet { defaults.set(sharesUsage, forKey: Key.sharesUsage) } }
-    /// Track subscription, rate limit and token usage for AI agents (Claude Code, Codex).
+    /// Show coding assistants' usage limits, read from their files on this Mac. Off until turned on.
     public var aiUsageEnabled: Bool { didSet { defaults.set(aiUsageEnabled, forKey: Key.aiUsageEnabled) } }
     public var aiUsageShowHomeWidget: Bool { didSet { defaults.set(aiUsageShowHomeWidget, forKey: Key.aiUsageShowHomeWidget) } }
     public var aiUsageClaudeEnabled: Bool { didSet { defaults.set(aiUsageClaudeEnabled, forKey: Key.aiUsageClaudeEnabled) } }
@@ -147,14 +148,6 @@ public final class SettingsStore {
         if aiUsageAntigravityEnabled { selected.insert(.antigravity) }
         return selected
     }
-    public var aiUsageClaudeApiKey: String { didSet { defaults.set(aiUsageClaudeApiKey, forKey: Key.aiUsageClaudeApiKey) } }
-    public var aiUsageClaudeUseLocalCLI: Bool { didSet { defaults.set(aiUsageClaudeUseLocalCLI, forKey: Key.aiUsageClaudeUseLocalCLI) } }
-    public var aiUsageCodexUseLocalCLI: Bool { didSet { defaults.set(aiUsageCodexUseLocalCLI, forKey: Key.aiUsageCodexUseLocalCLI) } }
-    public var aiUsageCodexApiKey: String { didSet { defaults.set(aiUsageCodexApiKey, forKey: Key.aiUsageCodexApiKey) } }
-    public var aiUsageCodexOrgId: String { didSet { defaults.set(aiUsageCodexOrgId, forKey: Key.aiUsageCodexOrgId) } }
-    public var aiUsageAntigravityUseLocal: Bool { didSet { defaults.set(aiUsageAntigravityUseLocal, forKey: Key.aiUsageAntigravityUseLocal) } }
-    public var aiUsageAntigravityApiKey: String { didSet { defaults.set(aiUsageAntigravityApiKey, forKey: Key.aiUsageAntigravityApiKey) } }
-    public var aiUsagePrivacyAcknowledged: Bool { didSet { defaults.set(aiUsagePrivacyAcknowledged, forKey: Key.aiUsagePrivacyAcknowledged) } }
     /// Focus session length and the break after it, in minutes.
     public var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: Key.focusMinutes) } }
     public var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: Key.breakMinutes) } }
@@ -206,7 +199,7 @@ public final class SettingsStore {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let standard = NotchAppearance.standard
-        // The floating pill style and its position settings are gone; forget what they saved.
+        // The old floating style and its position settings (before 1.3.3); forget what they saved.
         for key in Key.retired { defaults.removeObject(forKey: key) }
         appearance = NotchAppearance(
             width: defaults.object(forKey: Key.width) as? Double ?? standard.width,
@@ -215,7 +208,8 @@ public final class SettingsStore {
             size: defaults.string(forKey: Key.size).flatMap(NotchSize.init(rawValue:)) ?? standard.size,
             nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout,
             theme: defaults.string(forKey: Key.theme).flatMap(NotchTheme.init(rawValue:)) ?? standard.theme,
-            glassTint: defaults.object(forKey: Key.glassTint) as? Double ?? standard.glassTint
+            glassTint: defaults.object(forKey: Key.glassTint) as? Double ?? standard.glassTint,
+            externalStyle: defaults.string(forKey: Key.externalStyle).flatMap(ExternalDisplayStyle.init(rawValue:)) ?? standard.externalStyle
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
@@ -264,19 +258,15 @@ public final class SettingsStore {
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         installsUpdatesAutomatically = defaults.object(forKey: Key.installsUpdatesAutomatically) as? Bool ?? false
         sharesUsage = defaults.object(forKey: Key.sharesUsage) as? Bool ?? true
-        aiUsageEnabled = defaults.object(forKey: Key.aiUsageEnabled) as? Bool ?? true
+        aiUsageEnabled = defaults.object(forKey: Key.aiUsageEnabled) as? Bool ?? false
+        // Early test builds stored API keys here in plain text; they are no longer used.
+        for key in ["aiUsageClaudeApiKey", "aiUsageCodexApiKey", "aiUsageCodexOrgId", "aiUsageAntigravityApiKey"] {
+            defaults.removeObject(forKey: key)
+        }
         aiUsageShowHomeWidget = defaults.object(forKey: Key.aiUsageShowHomeWidget) as? Bool ?? true
         aiUsageClaudeEnabled = defaults.object(forKey: Key.aiUsageClaudeEnabled) as? Bool ?? true
-        aiUsageClaudeApiKey = defaults.string(forKey: Key.aiUsageClaudeApiKey) ?? ""
-        aiUsageClaudeUseLocalCLI = defaults.object(forKey: Key.aiUsageClaudeUseLocalCLI) as? Bool ?? true
         aiUsageCodexEnabled = defaults.object(forKey: Key.aiUsageCodexEnabled) as? Bool ?? true
-        aiUsageCodexUseLocalCLI = defaults.object(forKey: Key.aiUsageCodexUseLocalCLI) as? Bool ?? true
-        aiUsageCodexApiKey = defaults.string(forKey: Key.aiUsageCodexApiKey) ?? ""
-        aiUsageCodexOrgId = defaults.string(forKey: Key.aiUsageCodexOrgId) ?? ""
         aiUsageAntigravityEnabled = defaults.object(forKey: Key.aiUsageAntigravityEnabled) as? Bool ?? true
-        aiUsageAntigravityUseLocal = defaults.object(forKey: Key.aiUsageAntigravityUseLocal) as? Bool ?? true
-        aiUsageAntigravityApiKey = defaults.string(forKey: Key.aiUsageAntigravityApiKey) ?? ""
-        aiUsagePrivacyAcknowledged = defaults.object(forKey: Key.aiUsagePrivacyAcknowledged) as? Bool ?? false
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
         focusMinutes = Self.focusChoices.contains(focus) ? focus : 25
         let rest = defaults.object(forKey: Key.breakMinutes) as? Int ?? 5
@@ -359,6 +349,7 @@ public final class SettingsStore {
         static let nookLayout = "shape.nookLayout"
         static let theme = "shape.theme"
         static let glassTint = "shape.glassTint"
+        static let externalStyle = "shape.externalStyle"
         static let width = "shape.width"
         static let height = "shape.height"
         static let showWhenIdle = "behavior.showWhenIdle"
@@ -403,16 +394,8 @@ public final class SettingsStore {
         static let aiUsageEnabled = "aiUsage.enabled"
         static let aiUsageShowHomeWidget = "aiUsage.showHomeWidget"
         static let aiUsageClaudeEnabled = "aiUsage.claudeEnabled"
-        static let aiUsageClaudeApiKey = "aiUsageClaudeApiKey"
-        static let aiUsageClaudeUseLocalCLI = "aiUsageClaudeUseLocalCLI"
         static let aiUsageCodexEnabled = "aiUsage.codexEnabled"
-        static let aiUsageCodexUseLocalCLI = "aiUsage.codexUseLocalCLI"
-        static let aiUsageCodexApiKey = "aiUsageCodexApiKey"
-        static let aiUsageCodexOrgId = "aiUsageCodexOrgId"
         static let aiUsageAntigravityEnabled = "aiUsage.antigravityEnabled"
-        static let aiUsageAntigravityUseLocal = "aiUsage.antigravityUseLocal"
-        static let aiUsageAntigravityApiKey = "aiUsageAntigravityApiKey"
-        static let aiUsagePrivacyAcknowledged = "aiUsage.privacyAcknowledged"
         static let focusMinutes = "timer.focusMinutes"
         static let breakMinutes = "timer.breakMinutes"
         static let calendar = "home.calendar"

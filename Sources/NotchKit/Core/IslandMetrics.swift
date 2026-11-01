@@ -97,6 +97,13 @@ public enum IslandMetrics {
     public static let virtualNotchWidth: CGFloat = 180
     /// Never shorter than this, so the tabs and content beside it fit as they do on a MacBook.
     public static let virtualNotchMinHeight: CGFloat = 32
+    /// Pill style: how far the pill floats below the top edge of the screen.
+    public static let pillTop: CGFloat = 6
+    /// Pill style: the middle of the pill that compact content keeps clear, like the Dynamic
+    /// Island's camera. Narrower than a notch, so the resting pill is small.
+    public static let pillCoreWidth: CGFloat = 120
+    /// Pill style: corner radius of the open pill (compact forms are fully round).
+    public static let pillExpandedRadius: CGFloat = 32
 }
 
 /// Which widgets the Home tab shows.

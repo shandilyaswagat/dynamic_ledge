@@ -280,6 +280,8 @@ private struct DayStrip: View {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: today)
         let days = CalendarRules.browsableDays(at: today)
+        // Worked out once, not once per day in the strip.
+        let busyDays = Set(events.map { calendar.startOfDay(for: $0.start) })
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 0) {
@@ -287,7 +289,7 @@ private struct DayStrip: View {
                         let isToday = calendar.isDate(day, inSameDayAs: today)
                         let isSelected = calendar.isDate(day, inSameDayAs: selected)
                         let isWeekend = calendar.isDateInWeekend(day)
-                        let hasEvents = events.contains { calendar.isDate($0.start, inSameDayAs: day) }
+                        let hasEvents = busyDays.contains(day)
                         Button { pick(day) } label: {
                             VStack(spacing: 1 * s) {
                                 Text(day.formatted(.dateTime.weekday(isSelected ? .abbreviated : .narrow)).uppercased())
@@ -323,7 +325,6 @@ private struct DayStrip: View {
         .frame(height: 48 * s)
     }
 }
-
 
 private struct DayEvents: View {
     let events: [CalendarEvent]

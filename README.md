@@ -93,7 +93,8 @@ notch tells you.
 Got a second screen? It stays on your MacBook by default. In Settings you can pick another screen,
 have it follow your pointer, or show it on all your screens at once. Screens without a notch get
 a notch too: it stays out of sight until something's going on, and you can bring it out by resting
-your pointer at the top centre of the screen for a moment.
+your pointer at the top centre of the screen for a moment. Prefer the Dynamic Island look there?
+Pick **Pill** in Settings › Appearance and those screens show a floating pill instead.
 
 You can make it small, medium or large, whatever looks right on your screen. Prefer something
 lighter than black? Pick the **Glass** theme in Settings › Appearance.
@@ -253,7 +254,7 @@ Everything that changed in each version is in the [changelog](CHANGELOG.md).
 
 ## License
 
-Dynamic Ledge is free software, © 2026 Swagat Shandilya and contributors. You can use it, share it
+Dynamic Ledge is free software, © 2026 Swagat Shandilya and Pritam Biswas. You can use it, share it
 and change it under the [GNU General Public License, version 3](LICENSE) or (at your choice) any
 later version. If you share a changed version, it has to stay free under the same license, with
 its source code available.

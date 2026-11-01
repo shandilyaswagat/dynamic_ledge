@@ -39,6 +39,15 @@ public enum NotchTheme: String, CaseIterable, Sendable, Codable, Identifiable {
     public var id: String { rawValue }
 }
 
+/// What displays without a notch show: a notch of their own, or a floating pill like the Dynamic
+/// Island. MacBooks with a notch always use the real one.
+public enum ExternalDisplayStyle: String, CaseIterable, Sendable, Codable, Identifiable {
+    case notch
+    case pill
+
+    public var id: String { rawValue }
+}
+
 /// The user's size choices.
 public struct NotchAppearance: Equatable, Sendable, Codable {
     /// How far the shape reaches either side of the camera.
@@ -53,6 +62,7 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
     public var theme: NotchTheme
     /// Glass only: 0 is clear, 1 fully tinted (darkest, easiest to read over busy windows).
     public var glassTint: Double
+    public var externalStyle: ExternalDisplayStyle
 
     public init(
         width: Double,
@@ -61,7 +71,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
         size: NotchSize = .large,
         nookLayout: NookLayout = .standard,
         theme: NotchTheme = .black,
-        glassTint: Double = NotchAppearance.defaultGlassTint
+        glassTint: Double = NotchAppearance.defaultGlassTint,
+        externalStyle: ExternalDisplayStyle = .notch
     ) {
         self.width = width
         self.height = height
@@ -70,6 +81,7 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
         self.nookLayout = nookLayout
         self.theme = theme
         self.glassTint = glassTint
+        self.externalStyle = externalStyle
     }
 
     public static let standard = NotchAppearance(
@@ -93,7 +105,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
             size: size,
             nookLayout: nookLayout,
             theme: theme,
-            glassTint: Self.clamp(glassTint, to: Self.glassTintRange, fallback: Self.defaultGlassTint)
+            glassTint: Self.clamp(glassTint, to: Self.glassTintRange, fallback: Self.defaultGlassTint),
+            externalStyle: externalStyle
         )
     }
 

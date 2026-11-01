@@ -56,11 +56,11 @@ public enum AIProvider: String, CaseIterable, Sendable, Codable, Identifiable {
     public var integrationNotice: String {
         switch self {
         case .claudeCode:
-            "Queries Anthropic's rate limit headers and API usage endpoints directly from this Mac, with optional local Claude Code CLI session integration. Never shares credentials."
+            "Reads Claude Code's settings file (~/.claude.json) on this Mac."
         case .codex:
-            "With your permission, reads subscription limits through the signed-in Codex CLI. API keys show separate OpenAI Platform usage."
+            "Asks the signed-in Codex app on this Mac for its plan limits."
         case .antigravity:
-            "Reads active session status, account details, and conversation token consumption from local Antigravity environment and configuration."
+            "Asks the running Antigravity app on this Mac for its limits, and reads its session logs in ~/.gemini."
         }
     }
 }
@@ -265,7 +265,7 @@ public struct AIProviderUsage: Sendable, Codable, Equatable, Identifiable {
     }
 
     /// A placeholder unconfigured state.
-    public static func unconfigured(for provider: AIProvider, message: String = "Set up API key or local session in Settings") -> AIProviderUsage {
+    public static func unconfigured(for provider: AIProvider, message: String = "Not connected yet.") -> AIProviderUsage {
         AIProviderUsage(
             provider: provider,
             status: .unconfigured(message),

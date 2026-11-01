@@ -78,8 +78,8 @@ public final class IslandModel {
     @ObservationIgnored public var onOpenSettings: (() -> Void)?
     /// Asks the app to open a specific Settings tab.
     @ObservationIgnored public var onOpenSettingsTab: ((SettingsWindowController.Tab) -> Void)?
-    /// Asks the app to open Settings at About, where updates are installed.
-    @ObservationIgnored public var onOpenAbout: (() -> Void)?
+    /// Asks the app to open Settings at Software Update, where updates are installed.
+    @ObservationIgnored public var onOpenSoftwareUpdate: (() -> Void)?
 
     public func openSettings(_ tab: SettingsWindowController.Tab? = nil) {
         if let tab {
@@ -575,7 +575,7 @@ public final class IslandModel {
             break
         case .alert(.updateAvailable):
             dismissAlert()
-            onOpenAbout?()
+            onOpenSoftwareUpdate?()
         case .alert(let alert) where alert != .timerFinished:
             dismissAlert()
         default:

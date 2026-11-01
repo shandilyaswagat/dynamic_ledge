@@ -158,7 +158,7 @@ public struct LayoutEngine: Equatable, Sendable {
     /// top centre. Everything grows out of it the same way on every display.
     public var notch: CGRect {
         if let notch = screen.notch { return notch }
-        let width = IslandMetrics.virtualNotchWidth
+        let width = isPill ? IslandMetrics.pillCoreWidth : IslandMetrics.virtualNotchWidth
         let height = max(screen.menuBarHeight, IslandMetrics.virtualNotchMinHeight)
         return CGRect(x: ((screen.size.width - width) / 2).rounded(), y: 0, width: width, height: height)
     }
@@ -166,6 +166,13 @@ public struct LayoutEngine: Equatable, Sendable {
     /// True on displays without a notch. Nothing is drawn there until there's something to show
     /// or the pointer rests on the notch's spot.
     public var isVirtualNotch: Bool { screen.notch == nil }
+
+    /// True when a display without a notch shows a floating pill, like the Dynamic Island,
+    /// instead of a notch of its own.
+    public var isPill: Bool { isVirtualNotch && appearance.externalStyle == .pill }
+
+    /// How far everything sits below the top edge: the pill floats, the notch doesn't.
+    private var topOffset: CGFloat { isPill ? IslandMetrics.pillTop : 0 }
 
     /// Thickness of the compact shape.
     public var compactHeight: CGFloat {
@@ -261,7 +268,7 @@ public struct LayoutEngine: Equatable, Sendable {
     /// presentations ever move the window under content that is animating.
     public var windowSize: CGSize {
         // At Large, the biggest size; smaller sizes fit inside it.
-        let tallestShape = notch.height + IslandMetrics.notchContentGap + IslandMetrics.ContentHeight.maximum + IslandMetrics.notchBottomPadding
+        let tallestShape = topOffset + notch.height + IslandMetrics.notchContentGap + IslandMetrics.ContentHeight.maximum + IslandMetrics.notchBottomPadding
         return CGSize(
             width: screen.size.width,
             height: min(screen.size.height, (tallestShape + IslandMetrics.windowMargin).rounded(.up))
@@ -350,6 +357,8 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.shadow = 0
             layout.stroke = 0
         }
+
+        if isPill { layout = floating(layout, for: presentation) }
 
         if layout.bubble == .zero {
             // Tucked into the right end of the shape, so it oozes out from there when it appears.
@@ -450,6 +459,31 @@ public struct LayoutEngine: Equatable, Sendable {
         return layout
     }
 
+    /// Turns a notch layout into the floating pill: no shoulders, round ends, a little below the
+    /// top edge. Everything inside moves down with it.
+    private func floating(_ notchLayout: IslandLayout, for presentation: IslandPresentation) -> IslandLayout {
+        var layout = notchLayout
+        let top = IslandMetrics.pillTop
+        layout.pill = layout.pill.insetBy(dx: layout.flare, dy: 0).offsetBy(dx: 0, dy: top)
+        layout.flare = 0
+        layout.content = layout.content.offsetBy(dx: 0, dy: top)
+        if layout.bubble != .zero { layout.bubble = layout.bubble.offsetBy(dx: 0, dy: top) }
+        let isOpen = layout.pill.height > alertBodySize.height + 1
+        let radius = isOpen ? (IslandMetrics.pillExpandedRadius * scale).rounded() : layout.pill.height / 2
+        layout.topRadius = radius
+        layout.bottomRadius = radius
+        if case .hidden(let peek) = presentation, !peek {
+            // At rest it's a smaller, invisible pill in its spot, so it grows out of it.
+            let width = (notch.width * 0.7).rounded()
+            let height = (compactHeight * 0.7).rounded()
+            layout.pill = CGRect(x: anchorX - width / 2, y: top + (compactHeight - height) / 2, width: width, height: height)
+            layout.topRadius = height / 2
+            layout.bottomRadius = height / 2
+            layout.pillOpacity = 0
+        }
+        return layout
+    }
+
     // MARK: Hit testing
 
     /// Where the pointer counts as resting on the hidden notch: the whole peek it swells into,
@@ -457,7 +491,7 @@ public struct LayoutEngine: Equatable, Sendable {
     public var notchHoverRect: CGRect {
         let slop = IslandMetrics.hitSlop
         let notch = notchInWindow
-        return CGRect(x: notch.minX - 10 - slop, y: 0, width: notch.width + 20 + 2 * slop, height: notch.maxY + 3 + slop)
+        return CGRect(x: notch.minX - 10 - slop, y: 0, width: notch.width + 20 + 2 * slop, height: topOffset + notch.maxY + 3 + slop)
     }
 
     /// Areas that should receive the mouse, in window coordinates.
@@ -484,7 +518,7 @@ public struct LayoutEngine: Equatable, Sendable {
             x: anchorX - width / 2,
             y: 0,
             width: width,
-            height: expandedHeight(content: IslandMetrics.ContentHeight.drop) + 24
+            height: topOffset + expandedHeight(content: IslandMetrics.ContentHeight.drop) + 24
         )
     }
 }

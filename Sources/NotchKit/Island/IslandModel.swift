@@ -232,6 +232,7 @@ public final class IslandModel {
         microphone.stop()
         reminders.stop()
         stats.stop()
+        aiUsage.stopAutomaticRefreshes()
         hotKeys.unregister()
         updater.stopAutomaticChecks()
         usage.stop()

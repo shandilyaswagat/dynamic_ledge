@@ -529,11 +529,11 @@ struct TrayBody: View {
                     TrayActionButton(symbol: "doc.zipper", label: "Zip everything into one file") {
                         model.tray.zip(model.tray.files)
                     }
-                    .disabled(model.tray.files.isEmpty)
+                    .disabled(model.tray.files.isEmpty || model.tray.isWorking)
                     TrayActionButton(symbol: "doc.on.doc.fill", label: "Merge the PDFs and images into one PDF") {
                         model.tray.mergePDFs()
                     }
-                    .disabled(!model.tray.canMergePDF)
+                    .disabled(!model.tray.canMergePDF || model.tray.isWorking)
                     TrayActionButton(symbol: "xmark.bin.fill", label: model.tray.pinnedCount > 0 ? "Clear the tray (pinned items stay)" : "Clear the tray") {
                         withAnimation(.snappy(duration: 0.25)) { model.tray.removeAll() }
                     }

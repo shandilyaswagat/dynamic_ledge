@@ -30,6 +30,10 @@ last one.
 
 ### Fixed
 - Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.
+- Zip, Merge PDF and Convert to work for files in places that can't be written, like a mounted disk image: the result goes to Downloads.
+- Clicking Zip or Merge PDF twice no longer makes two copies.
+- Converted images are named like Finder copies ("Photo 2.jpg").
+- AI Agent Usage stops checking when Dynamic Ledge stops its services.
 
 ### Changed
 - AI Agent Usage covers Codex and Antigravity. Claude Code keeps its limits only on Anthropic's

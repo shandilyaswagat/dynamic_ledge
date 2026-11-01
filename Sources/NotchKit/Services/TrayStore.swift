@@ -28,6 +28,8 @@ public final class TrayStore {
     /// Quick Look thumbnails, filled in lazily.
     public private(set) var thumbnails: [UUID: NSImage] = [:]
     public private(set) var statusMessage: String?
+    /// True while a .zip, PDF or converted copy is being made, so it isn't started twice.
+    public private(set) var isWorking = false
 
     public static let capacity = 30
 
@@ -96,8 +98,11 @@ public final class TrayStore {
 
     /// Makes a file off the main thread, then adds it, or says what went wrong.
     private func run(_ failure: String, _ make: @escaping @Sendable () throws -> URL) {
+        guard !isWorking else { return }
+        isWorking = true
         Task {
             let result = await Task.detached(priority: .userInitiated) { Result { try make() } }.value
+            isWorking = false
             switch result {
             case .success(let url): add([url])
             case .failure: statusMessage = failure
@@ -105,12 +110,12 @@ public final class TrayStore {
         }
     }
 
-    /// Saves a copy of an image in another format beside the original, and adds the copy to the
-    /// tray. The original is never changed. Large images convert off the main thread.
+    /// Saves a copy of an image in another format beside the original (or in Downloads), and adds
+    /// the copy to the tray. The original is never changed. Large images convert off the main thread.
     public func convert(_ item: Item, to format: FileExportFormat) {
         let source = item.url
-        run("Couldn't save the \(format.displayName) copy next to the original.") {
-            try FileConverter.convertImage(at: source, to: format, destinationFolder: source.deletingLastPathComponent())
+        run("Couldn't save the \(format.displayName) copy.") {
+            try FileConverter.convertImage(at: source, to: format, destinationFolder: TrayActions.outputFolder(for: source))
         }
     }
 

@@ -2,7 +2,8 @@ import AppKit
 import PDFKit
 
 /// What the Tray can make from its files: one .zip of them, or one PDF of its PDFs and images.
-/// Results are saved next to the first file; originals are never changed.
+/// Results are saved next to the first file (or in Downloads when that folder can't be written,
+/// like a mounted disk image); originals are never changed.
 public enum TrayActions {
     public enum Failure: Error, Equatable {
         case nothingToUse
@@ -19,7 +20,7 @@ public enum TrayActions {
     public static func zip(_ urls: [URL], fileManager: FileManager = .default) throws -> URL {
         let files = urls.filter { $0.isFileURL && fileManager.fileExists(atPath: $0.path) }
         guard let first = files.first else { throw Failure.nothingToUse }
-        let folder = first.deletingLastPathComponent()
+        let folder = outputFolder(for: first, fileManager: fileManager)
         if files.count == 1 {
             let target = unique(in: folder, name: first.deletingPathExtension().lastPathComponent, extension: "zip", fileManager: fileManager)
             try ditto([first.path, target.path])
@@ -59,9 +60,16 @@ public enum TrayActions {
             }
         }
         guard merged.pageCount > 0 else { throw Failure.nothingToUse }
-        let target = unique(in: first.deletingLastPathComponent(), name: "Merged", extension: "pdf", fileManager: fileManager)
+        let target = unique(in: outputFolder(for: first, fileManager: fileManager), name: "Merged", extension: "pdf", fileManager: fileManager)
         guard merged.write(to: target) else { throw Failure.failed }
         return target
+    }
+
+    /// The file's own folder, or Downloads when that can't be written.
+    public static func outputFolder(for file: URL, fileManager: FileManager = .default) -> URL {
+        let folder = file.deletingLastPathComponent()
+        if fileManager.isWritableFile(atPath: folder.path) { return folder }
+        return fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? fileManager.temporaryDirectory
     }
 
     /// `name.ext`, or `name 2.ext` and so on if that's taken, as Finder names copies.

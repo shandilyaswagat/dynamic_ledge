@@ -57,4 +57,31 @@ struct TrayActionsTests {
         #expect(PDFDocument(url: merged)?.pageCount == 3)
         #expect(throws: TrayActions.Failure.nothingToUse) { try TrayActions.mergePDF([dir.appendingPathComponent("notes.txt")]) }
     }
+
+    @Test func savesToDownloadsWhenTheFoldersReadOnly() throws {
+        let dir = try folder()
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        let file = dir.appendingPathComponent("a.txt")
+        try Data("a".utf8).write(to: file)
+        #expect(TrayActions.outputFolder(for: file).standardizedFileURL.path == dir.standardizedFileURL.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        #expect(TrayActions.outputFolder(for: file) == downloads)
+    }
+
+    @Test func convertedCopiesAreNamedLikeFinderCopies() throws {
+        let dir = try folder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let photo = dir.appendingPathComponent("photo.png")
+        try image(at: photo)
+        let first = try FileConverter.convertImage(at: photo, to: .jpeg, destinationFolder: dir)
+        let second = try FileConverter.convertImage(at: photo, to: .jpeg, destinationFolder: dir)
+        #expect(first.lastPathComponent == "photo.jpg")
+        #expect(second.lastPathComponent == "photo 2.jpg")
+        let same = try FileConverter.convertImage(at: photo, to: .png, destinationFolder: dir)
+        #expect(same.lastPathComponent == "photo 2.png", "the original is never written over")
+    }
 }

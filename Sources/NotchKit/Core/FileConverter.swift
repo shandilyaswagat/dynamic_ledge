@@ -103,18 +103,13 @@ public enum FileConverter {
 
         try fileManager.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
 
-        let baseName = sourceURL.deletingPathExtension().lastPathComponent
-        var targetURL = destinationFolder.appendingPathComponent("\(baseName).\(format.fileExtension)")
-        var counter = 1
-        while fileManager.fileExists(atPath: targetURL.path) {
-            targetURL = destinationFolder.appendingPathComponent("\(baseName)-\(counter).\(format.fileExtension)")
-            counter += 1
-        }
-
-        // Never write to the source URL path
-        if targetURL.path == sourceURL.path {
-            targetURL = destinationFolder.appendingPathComponent("\(baseName)-converted.\(format.fileExtension)")
-        }
+        // Named as Finder names copies ("Photo 2.png"), so the original is never written over.
+        let targetURL = TrayActions.unique(
+            in: destinationFolder,
+            name: sourceURL.deletingPathExtension().lastPathComponent,
+            extension: format.fileExtension,
+            fileManager: fileManager
+        )
 
         guard let destination = CGImageDestinationCreateWithURL(targetURL as CFURL, format.utType.identifier as CFString, 1, nil) else {
             throw FileConversionError.failedToCreateDestination

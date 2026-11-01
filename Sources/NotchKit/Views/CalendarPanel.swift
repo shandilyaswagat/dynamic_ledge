@@ -37,20 +37,24 @@ struct CalendarPanelBody: View {
                             selected = isCurrent || cal.isDate(day, inSameDayAs: context.date) ? nil : day
                         }
                     }
-                    .frame(width: 168 * s, alignment: .leading)
+                    .frame(width: 210 * s, alignment: .leading)
                     Rectangle()
                         .fill(Color.white.opacity(0.1))
                         .frame(width: 1)
                         .padding(.horizontal, 16 * s)
                         .padding(.vertical, 2 * s)
-                    Group {
-                        if let selected {
-                            DayList(model: model, day: selected, now: context.date)
-                        } else {
-                            UpNext(model: model, now: context.date)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        Group {
+                            if let selected {
+                                DayList(model: model, day: selected, now: context.date)
+                            } else {
+                                UpNext(model: model, now: context.date)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .scrollIndicators(.hidden)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
             .padding(.top, 2 * s)
@@ -75,10 +79,10 @@ private struct DayList: View {
 
     var body: some View {
         let events = CalendarRules.events(on: day, in: model.calendar.events, at: now)
-        let shown = events.prefix(3)
+        let shown = events
         VStack(alignment: .leading, spacing: 6 * s) {
             Text(day.formatted(.dateTime.weekday(.wide).day().month(.abbreviated)).uppercased())
-                .font(.system(size: 9.5 * s, weight: .semibold))
+                .font(.system(size: 11 * s, weight: .semibold))
                 .kerning(0.4 * s)
                 .foregroundStyle(NotchColor.secondaryText)
             if events.isEmpty {
@@ -115,10 +119,10 @@ private struct UpNext: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        let upcoming = CalendarRules.upcoming(in: model.calendar.events, at: now, limit: 3)
+        let upcoming = CalendarRules.upcoming(in: model.calendar.events, at: now, limit: 20)
         VStack(alignment: .leading, spacing: 6 * s) {
             Text(upcoming.first.map { CalendarRules.dayLabel(for: $0, at: now) }?.uppercased() ?? String(localized: "UP NEXT"))
-                .font(.system(size: 9.5 * s, weight: .semibold))
+                .font(.system(size: 11 * s, weight: .semibold))
                 .kerning(0.4 * s)
                 .foregroundStyle(NotchColor.secondaryText)
             if upcoming.isEmpty {
@@ -137,7 +141,7 @@ private struct UpNext: View {
                     // A new day starts a new little heading.
                     if index > 0, CalendarRules.dayLabel(for: event, at: now) != CalendarRules.dayLabel(for: upcoming[index - 1], at: now) {
                         Text(CalendarRules.dayLabel(for: event, at: now).uppercased())
-                            .font(.system(size: 9.5 * s, weight: .semibold))
+                            .font(.system(size: 11 * s, weight: .semibold))
                             .kerning(0.4 * s)
                             .foregroundStyle(NotchColor.secondaryText)
                             .padding(.top, 1 * s)
@@ -202,19 +206,19 @@ private struct MonthGrid: View {
 
     var body: some View {
         let month = MonthLayout(containing: today)
-        let columns = Array(repeating: GridItem(.fixed(22 * s), spacing: 1 * s), count: 7)
+        let columns = Array(repeating: GridItem(.fixed(28 * s), spacing: 1 * s), count: 7)
         VStack(alignment: .leading, spacing: 4 * s) {
             Text(today.formatted(.dateTime.month(.wide)).uppercased())
-                .font(.system(size: 10 * s, weight: .bold))
+                .font(.system(size: 13 * s, weight: .bold))
                 .kerning(0.5 * s)
                 .foregroundStyle(NotchColor.red)
             LazyVGrid(columns: columns, spacing: 0) {
                 // Weekday headers and day cells need distinct ids inside one grid.
                 ForEach(Array(month.weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                     Text(symbol)
-                        .font(.system(size: 8 * s, weight: .semibold))
+                        .font(.system(size: 10 * s, weight: .semibold))
                         .foregroundStyle(NotchColor.secondaryText)
-                        .frame(height: 12 * s)
+                        .frame(height: 18 * s)
                 }
                 ForEach(month.cells.indices.map { $0 + 100 }, id: \.self) { index in
                     let day = month.cells[index - 100]
@@ -264,24 +268,24 @@ private struct DayCell: View {
     private var face: some View {
         ZStack {
             if isToday {
-                Circle().fill(NotchColor.red).frame(width: 15 * s, height: 15 * s)
+                Circle().fill(NotchColor.red).frame(width: 22 * s, height: 22 * s)
             } else if isSelected {
-                Circle().fill(Color.white.opacity(0.22)).frame(width: 15 * s, height: 15 * s)
+                Circle().fill(Color.white.opacity(0.22)).frame(width: 22 * s, height: 22 * s)
             } else if isHovering {
-                Circle().fill(Color.white.opacity(0.1)).frame(width: 15 * s, height: 15 * s)
+                Circle().fill(Color.white.opacity(0.1)).frame(width: 22 * s, height: 22 * s)
             }
             Text(day.map(String.init) ?? "")
-                .font(.system(size: 9 * s, weight: isToday || isSelected ? .bold : .medium))
+                .font(.system(size: 12 * s, weight: isToday || isSelected ? .bold : .medium))
                 .monospacedDigit()
                 .foregroundStyle(.white.opacity(isToday || isSelected ? 1 : 0.85))
             if isBusy, !isToday, !isSelected {
                 Circle()
                     .fill(Color.white.opacity(0.45))
                     .frame(width: 2.5 * s, height: 2.5 * s)
-                    .offset(y: 7 * s)
+                    .offset(y: 9 * s)
             }
         }
-        .frame(width: 22 * s, height: 14.5 * s)
+        .frame(width: 28 * s, height: 23 * s)
         .contentShape(Rectangle())
     }
 }

@@ -72,6 +72,7 @@ struct NookContainer<Content: View>: View {
         case .notes: "Scratchpad"
         case .mirror: "Camera Mirror"
         case .stats: "Stats"
+        case .aiUsage: "AI Agent Usage"
         default: "Timer"
         }
     }
@@ -277,6 +278,7 @@ private struct FeatureShortcutBar: View {
         case .mirror: selectedTab == .mirror
         case .keepAwake: model.keepAwake.isOn
         case .stats: selectedTab == .stats
+        case .aiUsage: selectedTab == .aiUsage
         }
     }
 }

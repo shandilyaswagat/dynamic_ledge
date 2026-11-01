@@ -52,7 +52,7 @@ public enum NotchOpenMode: String, CaseIterable, Sendable, Identifiable {
 @MainActor
 @Observable
 public final class SettingsStore {
-    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored public let defaults: UserDefaults
 
     public var appearance: NotchAppearance {
         didSet {
@@ -129,9 +129,32 @@ public final class SettingsStore {
     public var keyboardShortcutsEnabled: Bool { didSet { defaults.set(keyboardShortcutsEnabled, forKey: Key.keyboardShortcuts) } }
     /// Look for a new version on GitHub once a day.
     public var checksForUpdates: Bool { didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) } }
+    /// Automatically install verified updates found during background checks.
+    public var installsUpdatesAutomatically: Bool { didSet { defaults.set(installsUpdatesAutomatically, forKey: Key.installsUpdatesAutomatically) } }
     /// Send one anonymous signal a day, so the developer can count how many Macs use the app. Not
     /// shown in Settings (it carries no personal data); `defaults write` can turn it off.
     public var sharesUsage: Bool { didSet { defaults.set(sharesUsage, forKey: Key.sharesUsage) } }
+    /// Track subscription, rate limit and token usage for AI agents (Claude Code, Codex).
+    public var aiUsageEnabled: Bool { didSet { defaults.set(aiUsageEnabled, forKey: Key.aiUsageEnabled) } }
+    public var aiUsageShowHomeWidget: Bool { didSet { defaults.set(aiUsageShowHomeWidget, forKey: Key.aiUsageShowHomeWidget) } }
+    public var aiUsageClaudeEnabled: Bool { didSet { defaults.set(aiUsageClaudeEnabled, forKey: Key.aiUsageClaudeEnabled) } }
+    public var aiUsageCodexEnabled: Bool { didSet { defaults.set(aiUsageCodexEnabled, forKey: Key.aiUsageCodexEnabled) } }
+    public var aiUsageAntigravityEnabled: Bool { didSet { defaults.set(aiUsageAntigravityEnabled, forKey: Key.aiUsageAntigravityEnabled) } }
+    var selectedAIProviders: Set<AIProvider> {
+        var selected: Set<AIProvider> = []
+        if aiUsageClaudeEnabled { selected.insert(.claudeCode) }
+        if aiUsageCodexEnabled { selected.insert(.codex) }
+        if aiUsageAntigravityEnabled { selected.insert(.antigravity) }
+        return selected
+    }
+    public var aiUsageClaudeApiKey: String { didSet { defaults.set(aiUsageClaudeApiKey, forKey: Key.aiUsageClaudeApiKey) } }
+    public var aiUsageClaudeUseLocalCLI: Bool { didSet { defaults.set(aiUsageClaudeUseLocalCLI, forKey: Key.aiUsageClaudeUseLocalCLI) } }
+    public var aiUsageCodexUseLocalCLI: Bool { didSet { defaults.set(aiUsageCodexUseLocalCLI, forKey: Key.aiUsageCodexUseLocalCLI) } }
+    public var aiUsageCodexApiKey: String { didSet { defaults.set(aiUsageCodexApiKey, forKey: Key.aiUsageCodexApiKey) } }
+    public var aiUsageCodexOrgId: String { didSet { defaults.set(aiUsageCodexOrgId, forKey: Key.aiUsageCodexOrgId) } }
+    public var aiUsageAntigravityUseLocal: Bool { didSet { defaults.set(aiUsageAntigravityUseLocal, forKey: Key.aiUsageAntigravityUseLocal) } }
+    public var aiUsageAntigravityApiKey: String { didSet { defaults.set(aiUsageAntigravityApiKey, forKey: Key.aiUsageAntigravityApiKey) } }
+    public var aiUsagePrivacyAcknowledged: Bool { didSet { defaults.set(aiUsagePrivacyAcknowledged, forKey: Key.aiUsagePrivacyAcknowledged) } }
     /// Focus session length and the break after it, in minutes.
     public var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: Key.focusMinutes) } }
     public var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: Key.breakMinutes) } }
@@ -239,7 +262,21 @@ public final class SettingsStore {
         lockScreenEnabled = defaults.object(forKey: Key.lockScreen) as? Bool ?? false
         keyboardShortcutsEnabled = defaults.object(forKey: Key.keyboardShortcuts) as? Bool ?? true
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
+        installsUpdatesAutomatically = defaults.object(forKey: Key.installsUpdatesAutomatically) as? Bool ?? false
         sharesUsage = defaults.object(forKey: Key.sharesUsage) as? Bool ?? true
+        aiUsageEnabled = defaults.object(forKey: Key.aiUsageEnabled) as? Bool ?? true
+        aiUsageShowHomeWidget = defaults.object(forKey: Key.aiUsageShowHomeWidget) as? Bool ?? true
+        aiUsageClaudeEnabled = defaults.object(forKey: Key.aiUsageClaudeEnabled) as? Bool ?? true
+        aiUsageClaudeApiKey = defaults.string(forKey: Key.aiUsageClaudeApiKey) ?? ""
+        aiUsageClaudeUseLocalCLI = defaults.object(forKey: Key.aiUsageClaudeUseLocalCLI) as? Bool ?? true
+        aiUsageCodexEnabled = defaults.object(forKey: Key.aiUsageCodexEnabled) as? Bool ?? true
+        aiUsageCodexUseLocalCLI = defaults.object(forKey: Key.aiUsageCodexUseLocalCLI) as? Bool ?? true
+        aiUsageCodexApiKey = defaults.string(forKey: Key.aiUsageCodexApiKey) ?? ""
+        aiUsageCodexOrgId = defaults.string(forKey: Key.aiUsageCodexOrgId) ?? ""
+        aiUsageAntigravityEnabled = defaults.object(forKey: Key.aiUsageAntigravityEnabled) as? Bool ?? true
+        aiUsageAntigravityUseLocal = defaults.object(forKey: Key.aiUsageAntigravityUseLocal) as? Bool ?? true
+        aiUsageAntigravityApiKey = defaults.string(forKey: Key.aiUsageAntigravityApiKey) ?? ""
+        aiUsagePrivacyAcknowledged = defaults.object(forKey: Key.aiUsagePrivacyAcknowledged) as? Bool ?? false
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
         focusMinutes = Self.focusChoices.contains(focus) ? focus : 25
         let rest = defaults.object(forKey: Key.breakMinutes) as? Int ?? 5
@@ -361,7 +398,21 @@ public final class SettingsStore {
         static let lockScreen = "general.lockScreen"
         static let keyboardShortcuts = "general.keyboardShortcuts"
         static let checksForUpdates = "general.checksForUpdates"
+        static let installsUpdatesAutomatically = "general.installsUpdatesAutomatically"
         static let sharesUsage = "general.sharesUsage"
+        static let aiUsageEnabled = "aiUsage.enabled"
+        static let aiUsageShowHomeWidget = "aiUsage.showHomeWidget"
+        static let aiUsageClaudeEnabled = "aiUsage.claudeEnabled"
+        static let aiUsageClaudeApiKey = "aiUsageClaudeApiKey"
+        static let aiUsageClaudeUseLocalCLI = "aiUsageClaudeUseLocalCLI"
+        static let aiUsageCodexEnabled = "aiUsage.codexEnabled"
+        static let aiUsageCodexUseLocalCLI = "aiUsage.codexUseLocalCLI"
+        static let aiUsageCodexApiKey = "aiUsageCodexApiKey"
+        static let aiUsageCodexOrgId = "aiUsageCodexOrgId"
+        static let aiUsageAntigravityEnabled = "aiUsage.antigravityEnabled"
+        static let aiUsageAntigravityUseLocal = "aiUsage.antigravityUseLocal"
+        static let aiUsageAntigravityApiKey = "aiUsageAntigravityApiKey"
+        static let aiUsagePrivacyAcknowledged = "aiUsage.privacyAcknowledged"
         static let focusMinutes = "timer.focusMinutes"
         static let breakMinutes = "timer.breakMinutes"
         static let calendar = "home.calendar"

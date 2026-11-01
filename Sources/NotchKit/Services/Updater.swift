@@ -21,6 +21,8 @@ public final class Updater {
     }
 
     public private(set) var state: State = .idle
+    /// Opt-in: only background checks may start a verified installation.
+    public var installsAutomatically = false
     /// Called once per new version found by an automatic check.
     @ObservationIgnored public var onAvailable: ((ReleaseInfo) -> Void)?
 
@@ -108,13 +110,17 @@ public final class Updater {
                     throw UpdateError.unreadable
                 }
                 self.defaults.set(Date(), forKey: Key.lastCheck)
-                if let current = self.currentVersion, release.version > current {
+                guard let current = self.currentVersion else { throw UpdateError.unreadable }
+                if release.version > current {
                     self.state = .available(release)
                     self.noteFound(release)
                     let announced = self.defaults.string(forKey: Key.announced)
                     if !userInitiated, announced != release.version.description {
                         self.defaults.set(release.version.description, forKey: Key.announced)
                         self.onAvailable?(release)
+                    }
+                    if Self.shouldInstallAutomatically(enabled: self.installsAutomatically, userInitiated: userInitiated, canInstall: self.canInstallInPlace(release)) {
+                        self.install(release)
                     }
                 } else {
                     self.state = .upToDate
@@ -124,6 +130,10 @@ public final class Updater {
                 self.state = userInitiated ? .failed(String(localized: "Couldn't reach GitHub. Try again later.")) : .idle
             }
         }
+    }
+
+    nonisolated static func shouldInstallAutomatically(enabled: Bool, userInitiated: Bool, canInstall: Bool) -> Bool {
+        enabled && !userInitiated && canInstall
     }
 
     /// Downloads, verifies and installs the release, then relaunches. Opens the release page

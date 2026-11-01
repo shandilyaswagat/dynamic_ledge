@@ -29,6 +29,7 @@ public final class IslandModel {
     public let reminders = RemindersService()
     public let stats = StatsService()
     public let todos: TodoStore
+    public let aiUsage: AIUsageService
     /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
     /// layout). The notch stays open while you type, even if the pointer wanders off.
     public var isTypingInNook = false
@@ -75,8 +76,18 @@ public final class IslandModel {
 
     /// Asks the app to open the settings window.
     @ObservationIgnored public var onOpenSettings: (() -> Void)?
+    /// Asks the app to open a specific Settings tab.
+    @ObservationIgnored public var onOpenSettingsTab: ((SettingsWindowController.Tab) -> Void)?
     /// Asks the app to open Settings at About, where updates are installed.
     @ObservationIgnored public var onOpenAbout: (() -> Void)?
+
+    public func openSettings(_ tab: SettingsWindowController.Tab? = nil) {
+        if let tab {
+            onOpenSettingsTab?(tab)
+        } else {
+            onOpenSettings?()
+        }
+    }
 
     @ObservationIgnored private let alarm = AlarmSound()
     @ObservationIgnored private var alertTask: Task<Void, Never>?
@@ -104,7 +115,8 @@ public final class IslandModel {
         notes: NotesStore = NotesStore(),
         stopwatch: StopwatchService = StopwatchService(),
         downloads: DownloadsWatcher = DownloadsWatcher(),
-        todos: TodoStore = TodoStore()
+        todos: TodoStore = TodoStore(),
+        aiUsage: AIUsageService? = nil
     ) {
         self.settings = settings
         self.nowPlaying = nowPlaying
@@ -121,6 +133,7 @@ public final class IslandModel {
         self.stopwatch = stopwatch
         self.downloads = downloads
         self.todos = todos
+        self.aiUsage = aiUsage ?? AIUsageService(defaults: settings.defaults)
         focusPanelMinutes = settings.focusMinutes
 
         calendar.onReminder = { [weak self] event in
@@ -165,6 +178,7 @@ public final class IslandModel {
         calendar.start()
         levels.start()
         if settings.clipboardEnabled { clipboard.start() }
+        if settings.aiUsageEnabled { aiUsage.startAutomaticRefreshes() }
         if settings.downloadsEnabled {
             downloads.start()
             downloadProgress.start()
@@ -184,6 +198,7 @@ public final class IslandModel {
         if settings.remindersEnabled { reminders.start() }
         syncStatsSampling()
         if settings.keyboardShortcutsEnabled { hotKeys.register() }
+        updater.installsAutomatically = settings.checksForUpdates && settings.installsUpdatesAutomatically
         if settings.checksForUpdates { updater.startAutomaticChecks() }
         if settings.sharesUsage { usage.start(isNewInstall: !settings.hasShownWelcome) }
         if !settings.hasShownWelcome {
@@ -385,6 +400,7 @@ public final class IslandModel {
             case .scratchpad: settings.notesEnabled
             case .mirror: settings.mirrorEnabled
             case .keepAwake, .stats: true
+            case .aiUsage: settings.aiUsageEnabled
             }
         }
     }
@@ -397,6 +413,7 @@ public final class IslandModel {
         case .stopwatch: stopwatch.isActive
         case .keepAwake: keepAwake.isOn
         case .stats: settings.statsEnabled
+        case .aiUsage: !aiUsage.visibleUsages(selected: settings.selectedAIProviders).isEmpty
         default: false
         }
     }
@@ -434,6 +451,11 @@ public final class IslandModel {
             settings.statsEnabled.toggle()
             syncStatsSampling()
             Haptics.perform(enabled: settings.hapticsEnabled)
+        case .aiUsage:
+            showTab(.aiUsage)
+            if aiUsage.visibleUsages(selected: settings.selectedAIProviders).isEmpty && !settings.selectedAIProviders.isEmpty {
+                aiUsage.refreshAll(userInitiated: false)
+            }
         }
     }
 
@@ -1001,7 +1023,9 @@ public final class IslandModel {
             _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
             _ = settings.checksForUpdates
+            _ = settings.installsUpdatesAutomatically
             _ = settings.sharesUsage
+            _ = settings.aiUsageEnabled
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -1019,6 +1043,7 @@ public final class IslandModel {
                 self.syncStatsSampling()
                 if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
+                self.updater.installsAutomatically = self.settings.checksForUpdates && self.settings.installsUpdatesAutomatically
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
                 if self.settings.sharesUsage { self.usage.start(isNewInstall: false) } else { self.usage.stop() }
                 self.agents.enabledKinds = self.settings.agentApprovals
@@ -1034,6 +1059,12 @@ public final class IslandModel {
                     self.clipboard.start()
                 } else {
                     self.clipboard.stop()
+                }
+                if self.settings.aiUsageEnabled {
+                    self.aiUsage.startAutomaticRefreshes()
+                } else {
+                    self.aiUsage.stopAutomaticRefreshes()
+                    if case .nook(.aiUsage) = self.expandTarget { self.collapse() }
                 }
                 self.observeSettings()
             }

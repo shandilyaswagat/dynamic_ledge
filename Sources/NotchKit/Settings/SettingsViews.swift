@@ -8,11 +8,7 @@ private struct SettingsIcon: View {
     let color: Color
 
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 20, height: 20)
-            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(color.gradient))
+        SettingsCategoryIcon(symbol: symbol, tileColor: color, size: 20)
     }
 }
 
@@ -40,16 +36,99 @@ private struct IconToggle: View {
     }
 }
 
+/// An outlined icon tile for General's navigation rows.
+private struct GeneralRowIcon: View {
+    let symbol: String
+    let color: Color
+    var body: some View {
+        SettingsCategoryIcon(symbol: symbol, tileColor: color, size: 20)
+    }
+}
+
 // MARK: General
 
 struct GeneralSettingsView: View {
     @Bindable var settings: SettingsStore
+    let updater: Updater
+    let openAbout: () -> Void
+    let openSoftwareUpdate: () -> Void
+    let openNowPlaying: () -> Void
+    let openCodingAssistants: () -> Void
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var needsApproval = SMAppService.mainApp.status == .requiresApproval
     @State private var launchError: String?
 
     var body: some View {
         Form {
+            Section {
+                VStack(spacing: 8) {
+                    SettingsCategoryIcon(symbol: "gear", tileColor: .gray, size: 52)
+                    Text("General")
+                        .font(.system(size: 22, weight: .bold))
+                    Text("Manage your setup and preferences for Dynamic Ledge, including startup, software updates, media, and coding assistants.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 420)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 12)
+            }
+            Section {
+                if updater.availableRelease != nil {
+                    Button(action: openSoftwareUpdate) {
+                        HStack(spacing: 10) {
+                            GeneralRowIcon(symbol: "gear", color: .secondary)
+                            Text("Software Update")
+                            Spacer()
+                            Text("1")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.white)
+                                .frame(width: 18, height: 18)
+                                .background(.red, in: Circle())
+                                .accessibilityLabel(Text("One update available"))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
+                Button(action: openAbout) {
+                    HStack(spacing: 10) {
+                        GeneralRowIcon(symbol: "laptopcomputer", color: .secondary)
+                        Text("About")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Button(action: openNowPlaying) {
+                    HStack(spacing: 10) {
+                        GeneralRowIcon(symbol: "music.note", color: .pink)
+                        Text("Now Playing")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Button(action: openCodingAssistants) {
+                    HStack(spacing: 10) {
+                        GeneralRowIcon(symbol: "terminal.fill", color: .orange)
+                        Text("Coding Assistants")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+            }
             Section {
                 Toggle("Open at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
@@ -99,13 +178,14 @@ struct GeneralSettingsView: View {
                 }
             }
 
-            Section("Behavior") {
-                Toggle("Show when idle", isOn: $settings.showWhenIdle)
-                Picker("Open notch with", selection: $settings.notchOpenMode) {
-                    Text("Click").tag(NotchOpenMode.click)
-                    Text("Hover").tag(NotchOpenMode.hover)
+            Section {
+                HStack(spacing: 16) {
+                    openModeCard(mode: .click, title: "Click", isSelected: settings.notchOpenMode == .click)
+                    openModeCard(mode: .hover, title: "Hover", isSelected: settings.notchOpenMode == .hover)
                 }
-                .pickerStyle(.segmented)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+
                 if settings.notchOpenMode == .hover {
                     Picker("Hover delay", selection: $settings.hoverDelay) {
                         ForEach(SettingsStore.hoverDelayChoices, id: \.self) { delay in
@@ -113,36 +193,113 @@ struct GeneralSettingsView: View {
                         }
                     }
                 }
+            } header: {
+                Text("Open Notch With")
+            } footer: {
                 Text(settings.notchOpenMode == .click
                     ? "Click the notch to open it."
                     : "Hold the pointer over the notch briefly to open it. Clicking still opens it immediately.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Toggle("Collapse when the pointer leaves", isOn: $settings.collapseOnPointerExit)
-                Toggle("Liquid animations", isOn: $settings.liquidAnimations)
-                Toggle("Haptic feedback", isOn: $settings.hapticsEnabled)
-                Toggle("Keyboard shortcuts (⌃⌥ + a letter)", isOn: $settings.keyboardShortcutsEnabled)
             }
 
-            Section {
-                Toggle("Play a sound when a timer ends", isOn: $settings.timerSound)
-                Picker("Focus session", selection: $settings.focusMinutes) {
-                    ForEach(SettingsStore.focusChoices, id: \.self) { Text("\($0) minutes").tag($0) }
-                }
-                Picker("Break", selection: $settings.breakMinutes) {
-                    ForEach(SettingsStore.breakChoices, id: \.self) { Text("\($0) minutes").tag($0) }
-                }
-            } header: {
-                Text("Timer")
-            } footer: {
-                Text("Focus in Home starts a session. When it ends, the notch offers a break, then the next session.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Section("Behavior") {
+                Toggle("Show when idle", isOn: $settings.showWhenIdle)
+                Toggle("Collapse when the pointer leaves", isOn: $settings.collapseOnPointerExit)
+                Toggle("Haptic feedback", isOn: $settings.hapticsEnabled)
+                Toggle("Keyboard shortcuts (⌃⌥ + a letter)", isOn: $settings.keyboardShortcutsEnabled)
             }
         }
         .formStyle(.grouped)
         // The switch can also change in System Settings; pick that up whenever the tab shows.
         .onAppear { syncLaunchAtLogin() }
+    }
+
+    private func openModeCard(mode: NotchOpenMode, title: LocalizedStringKey, isSelected: Bool) -> some View {
+        Button {
+            settings.notchOpenMode = mode
+            Haptics.perform(enabled: settings.hapticsEnabled)
+        } label: {
+            VStack(spacing: 8) {
+                ZStack(alignment: .top) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
+                        .frame(width: 140, height: 86)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
+                        )
+                        .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : .clear, radius: 4)
+
+                    // Notch representation
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.primary.opacity(0.85))
+                        .frame(width: mode == .click ? 64 : 80, height: mode == .click ? 20 : 26)
+
+                    // Interaction diagram
+                    if mode == .click {
+                        VStack(spacing: 0) {
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.5)
+                                    .frame(width: 22, height: 22)
+                                Image(systemName: "cursorarrow.click.2")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(Color.accentColor)
+                                    .offset(x: 4, y: 4)
+                            }
+                            .offset(y: -14)
+                        }
+                    } else {
+                        VStack(spacing: 0) {
+                            Spacer()
+                            ZStack {
+                                HStack(spacing: 3) {
+                                    ForEach(0..<3, id: \.self) { _ in
+                                        Circle()
+                                            .fill(Color.accentColor.opacity(0.5))
+                                            .frame(width: 3, height: 3)
+                                    }
+                                }
+                                .offset(y: -14)
+
+                                Image(systemName: "cursorarrow.motionlines")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(Color.accentColor)
+                                    .offset(x: 2, y: 2)
+                            }
+                            .offset(y: -14)
+                        }
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
+                            .frame(width: 14, height: 14)
+                    }
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+
+    private func settingsLink(_ title: LocalizedStringKey, symbol: String, color: Color = .gray) -> some View {
+        HStack(spacing: 10) {
+            SettingsIcon(symbol: symbol, color: color)
+            Text(title)
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
     }
 
     private func syncLaunchAtLogin() {
@@ -184,25 +341,16 @@ struct AppearanceSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Home layout", selection: $settings.appearance.nookLayout) {
-                    Text("Standard").tag(NookLayout.standard)
-                    Text("Elongated").tag(NookLayout.elongated)
+                HStack(spacing: 24) {
+                    themeCard(title: "Black", theme: .black, isSelected: settings.appearance.theme == .black)
+                    themeCard(title: "Glass", theme: .glass, isSelected: settings.appearance.theme == .glass)
                 }
-                .pickerStyle(.segmented)
-            } footer: {
-                Text("Elongated stretches Home, Tray and Clipboard across the top of the screen, with your widgets in one long row you can scroll sideways.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
 
-            Section {
-                Picker("Theme", selection: $settings.appearance.theme) {
-                    Text("Black").tag(NotchTheme.black)
-                    Text("Glass").tag(NotchTheme.glass)
-                }
-                .pickerStyle(.segmented)
+                Toggle("Liquid animations", isOn: $settings.liquidAnimations)
                 if settings.appearance.theme == .glass {
-                    LabeledContent("Glass") {
+                    LabeledContent("Glass Tint") {
                         HStack(spacing: 8) {
                             Text("Clear").font(.caption).foregroundStyle(.secondary)
                             Slider(value: $settings.appearance.glassTint, in: NotchAppearance.glassTintRange)
@@ -214,11 +362,26 @@ struct AppearanceSettingsView: View {
                     Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
                 }
             } header: {
-                Text("Look")
+                Text("Appearance")
             } footer: {
                 Text(settings.appearance.theme == .glass
                     ? "Frosted glass that blurs what’s behind it, with softer, springier motion. The part around the camera stays black. More tint is easier to read over bright windows."
                     : "The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                HStack(spacing: 24) {
+                    layoutCard(title: "Standard", elongated: false, isSelected: settings.appearance.nookLayout == .standard)
+                    layoutCard(title: "Elongated", elongated: true, isSelected: settings.appearance.nookLayout == .elongated)
+                }
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+            } header: {
+                Text("Home Layout")
+            } footer: {
+                Text("Standard keeps Home compact. Elongated stretches Home, Tray and Clipboard across the screen. Choose which features appear in Home & Widgets.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -254,6 +417,111 @@ struct AppearanceSettingsView: View {
         .formStyle(.grouped)
     }
 
+    private func themeCard(title: LocalizedStringKey, theme: NotchTheme, isSelected: Bool) -> some View {
+        Button {
+            settings.appearance.theme = theme
+            Haptics.perform(enabled: settings.hapticsEnabled)
+        } label: {
+            VStack(spacing: 8) {
+                ZStack(alignment: .top) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(LinearGradient(
+                            colors: theme == .black
+                                ? [Color(white: 0.18), Color(white: 0.08)]
+                                : [Color(red: 0.22, green: 0.38, blue: 0.60), Color(red: 0.48, green: 0.25, blue: 0.48)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 140, height: 86)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
+                        )
+                        .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : .clear, radius: 4)
+
+                    if theme == .black {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(.black)
+                            .frame(width: 58, height: 16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
+                            )
+                    } else {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 58, height: 16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    .strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.1)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+                            )
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
+                            .frame(width: 14, height: 14)
+                    }
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func layoutCard(title: LocalizedStringKey, elongated: Bool, isSelected: Bool) -> some View {
+        Button {
+            settings.appearance.nookLayout = elongated ? .elongated : .standard
+            Haptics.perform(enabled: settings.hapticsEnabled)
+        } label: {
+            VStack(spacing: 8) {
+                ZStack(alignment: .top) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
+                        .frame(width: 140, height: 86)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
+                        )
+                        .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : .clear, radius: 4)
+
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.primary.opacity(0.85))
+                        .frame(width: elongated ? 116 : 64, height: 26)
+                        .overlay(alignment: .bottom) {
+                            HStack(spacing: 3) {
+                                ForEach(0..<(elongated ? 3 : 2), id: \.self) { _ in
+                                    RoundedRectangle(cornerRadius: 2).fill(.background.opacity(0.7))
+                                        .frame(width: elongated ? 28 : 22, height: 10)
+                                }
+                            }
+                            .padding(.bottom, 3)
+                        }
+                }
+
+                HStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
+                            .frame(width: 14, height: 14)
+                    }
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     /// Continuous slider (a stepped one draws a tick per step) that stores rounded values.
     private func slider(_ title: LocalizedStringKey, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
         let rounded = Binding(
@@ -277,43 +545,28 @@ struct AppearanceSettingsView: View {
 
 // MARK: Activities
 
-struct ActivitiesSettingsView: View {
+struct NowPlayingSettingsView: View {
     @Bindable var settings: SettingsStore
     let nowPlaying: NowPlayingService
 
     var body: some View {
         Form {
-            Section("Live Activities") {
+            Section("Now Playing") {
                 IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app, or just the ones you pick", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
                 if settings.nowPlayingEnabled {
-                    IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when it has them. The song’s name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
+                    IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when available. The song name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
                 }
                 if !nowPlaying.isAvailable {
-                    Text("Now Playing isn’t available on this Mac.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("Now Playing isn’t available on this Mac.").font(.caption).foregroundStyle(.secondary)
                 }
-                IconToggle(title: "Timer", detail: "Start one from the notch or the menu bar", symbol: "timer", color: .orange, isOn: $settings.timerEnabled)
-                IconToggle(title: "Calls & Microphone", detail: "FaceTime, Zoom, Meet and any app using the mic", symbol: "phone.fill", color: .green, isOn: $settings.callsEnabled)
-                IconToggle(title: "AirDrop", detail: "Drag files to the notch to send them", symbol: "dot.radiowaves.up.forward", color: .blue, isOn: $settings.airDropEnabled)
             }
-
             if settings.nowPlayingEnabled {
                 NowPlayingAppsSection(settings: settings)
-            }
-
-            CodingAssistantSection(settings: settings)
-
-            Section("Alerts") {
-                IconToggle(title: "Charging", detail: nil, symbol: "bolt.fill", color: .green, isOn: $settings.chargingAlertsEnabled)
-                IconToggle(title: "Low Battery", detail: "At 20% and 10%", symbol: "battery.25percent", color: .red, isOn: $settings.lowBatteryAlertsEnabled)
-                IconToggle(title: "Volume & Brightness", detail: "Shows the level in the notch when you change it", symbol: "speaker.wave.2.fill", color: .indigo, isOn: $settings.levelsEnabled)
-            }
-
-            Section {
-                Picker("Keep paused media for", selection: $settings.pausedMediaLinger) {
-                    ForEach(SettingsStore.lingerChoices, id: \.self) { seconds in
-                        Text(Self.label(for: seconds)).tag(seconds)
+                Section {
+                    Picker("Keep paused media for", selection: $settings.pausedMediaLinger) {
+                        ForEach(SettingsStore.lingerChoices, id: \.self) { seconds in
+                            Text(Self.label(for: seconds)).tag(seconds)
+                        }
                     }
                 }
             }
@@ -323,6 +576,53 @@ struct ActivitiesSettingsView: View {
 
     private static func label(for seconds: TimeInterval) -> String {
         seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
+    }
+}
+
+struct CodingAssistantSettingsView: View {
+    @Bindable var settings: SettingsStore
+    let aiUsage: AIUsageService
+
+    var body: some View {
+        Form {
+            CodingAssistantSection(settings: settings)
+            AIUsageSettingsSection(settings: settings, aiUsage: aiUsage)
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct ActivitiesSettingsView: View {
+    @Bindable var settings: SettingsStore
+    var body: some View {
+        Form {
+            Section("Live Activities") {
+                IconToggle(title: "Timer", detail: "Start one from the notch or the menu bar", symbol: "timer", color: .orange, isOn: $settings.timerEnabled)
+                IconToggle(title: "Calls & Microphone", detail: "FaceTime, Zoom, Meet and any app using the mic", symbol: "phone.fill", color: .green, isOn: $settings.callsEnabled)
+                IconToggle(title: "AirDrop", detail: "Drag files to the notch to send them", symbol: "dot.radiowaves.up.forward", color: .blue, isOn: $settings.airDropEnabled)
+            }
+            Section {
+                Toggle("Play a sound when a timer ends", isOn: $settings.timerSound)
+                Picker("Focus session", selection: $settings.focusMinutes) {
+                    ForEach(SettingsStore.focusChoices, id: \.self) { Text("\($0) minutes").tag($0) }
+                }
+                Picker("Break", selection: $settings.breakMinutes) {
+                    ForEach(SettingsStore.breakChoices, id: \.self) { Text("\($0) minutes").tag($0) }
+                }
+            } header: {
+                Text("Timer")
+            } footer: {
+                Text("Focus in Home starts a session. When it ends, the notch offers a break, then the next session.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Alerts") {
+                IconToggle(title: "Charging", detail: nil, symbol: "bolt.fill", color: .green, isOn: $settings.chargingAlertsEnabled)
+                IconToggle(title: "Low Battery", detail: "At 20% and 10%", symbol: "battery.25percent", color: .red, isOn: $settings.lowBatteryAlertsEnabled)
+                IconToggle(title: "Volume & Brightness", detail: "Shows the level in the notch when you change it", symbol: "speaker.wave.2.fill", color: .indigo, isOn: $settings.levelsEnabled)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
@@ -381,6 +681,125 @@ private struct CodingAssistantSection: View {
                 problem = (kind, "Couldn’t read \(file), so it was left as it is. Check that it’s valid JSON.")
             } catch {
                 problem = (kind, "Couldn’t save \(file).")
+            }
+        }
+    }
+}
+
+private struct AIUsageSettingsSection: View {
+    @Bindable var settings: SettingsStore
+    let aiUsage: AIUsageService
+
+    var body: some View {
+        Section {
+            IconToggle(
+                title: "AI Agent Usage",
+                detail: "Track quotas, rate limits, and token usage for Claude Code, OpenAI Codex, and Antigravity",
+                symbol: "sparkles",
+                color: .orange,
+                isOn: $settings.aiUsageEnabled
+            )
+        } header: {
+            Text("AI Agent Usage")
+        } footer: {
+            if settings.aiUsageEnabled {
+                Text("If you enter an API key, it is stored in this Mac’s preferences and sent directly to that provider. The signed-in Codex CLI and Antigravity manage their credentials locally.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        if settings.aiUsageEnabled {
+            Section {
+                Toggle("Claude Code", isOn: $settings.aiUsageClaudeEnabled)
+                    .onChange(of: settings.aiUsageClaudeEnabled) { _, enabled in
+                        if enabled { aiUsage.refreshAll(userInitiated: false) }
+                    }
+                Toggle("OpenAI Codex", isOn: $settings.aiUsageCodexEnabled)
+                    .onChange(of: settings.aiUsageCodexEnabled) { _, enabled in
+                        if enabled { aiUsage.refreshAll(userInitiated: false) }
+                    }
+                Toggle("Antigravity", isOn: $settings.aiUsageAntigravityEnabled)
+                    .onChange(of: settings.aiUsageAntigravityEnabled) { _, enabled in
+                        if enabled { aiUsage.refreshAll(userInitiated: false) }
+                    }
+            } header: {
+                Text("Choose providers")
+            } footer: {
+                Text("Only selected providers with a connection appear in the notch. Configure each provider below.")
+            }
+
+            if settings.aiUsageClaudeEnabled {
+            Section {
+                    SecureField("Anthropic API Key", text: $settings.aiUsageClaudeApiKey)
+                    Toggle("Read Local Claude Code CLI (~/.claude.json)", isOn: $settings.aiUsageClaudeUseLocalCLI)
+                    if let usage = aiUsage.usages[.claudeCode] {
+                        LabeledContent("Status", value: usage.status.statusDescription)
+                    }
+            } header: {
+                Text("Claude Code")
+            } footer: {
+                Text("Anthropic API rate limits are separate from Claude subscription usage. The local configuration may not contain subscription limits.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            }
+
+            if settings.aiUsageCodexEnabled {
+            Section {
+                    Toggle("Use signed-in Codex CLI for subscription limits", isOn: $settings.aiUsageCodexUseLocalCLI)
+                        .onChange(of: settings.aiUsageCodexUseLocalCLI) { _, enabled in
+                            if enabled { aiUsage.refreshAll(userInitiated: false) }
+                        }
+                    if !settings.aiUsageCodexUseLocalCLI {
+                    SecureField("OpenAI API Key", text: $settings.aiUsageCodexApiKey)
+                    TextField("Organization ID (Optional)", text: $settings.aiUsageCodexOrgId)
+                    }
+                    if let usage = aiUsage.usages[.codex] {
+                        LabeledContent("Status", value: usage.status.statusDescription)
+                    }
+            } header: {
+                Text("OpenAI Codex")
+            } footer: {
+                Text("The Codex CLI option uses your existing signed-in account to read subscription limits. API keys show separate OpenAI Platform usage and do not represent your Codex subscription.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            }
+
+            if settings.aiUsageAntigravityEnabled {
+            Section {
+                    Toggle("Read Local Antigravity Session (~/.gemini)", isOn: $settings.aiUsageAntigravityUseLocal)
+                        .onChange(of: settings.aiUsageAntigravityUseLocal) { _, enabled in
+                            if enabled { aiUsage.refreshAll(userInitiated: false) }
+                        }
+                    if !settings.aiUsageAntigravityUseLocal {
+                        SecureField("Gemini API Key (Optional)", text: $settings.aiUsageAntigravityApiKey)
+                    }
+                    if let usage = aiUsage.usages[.antigravity] {
+                        LabeledContent("Status", value: usage.status.statusDescription)
+                        if let account = usage.accountName {
+                            LabeledContent("Account", value: account)
+                        }
+                        if let plan = usage.plan {
+                            LabeledContent("Plan", value: plan)
+                        }
+                    }
+            } header: {
+                Text("Antigravity")
+            } footer: {
+                Text("Antigravity reads active session status, signed-in account details, and conversation token consumption directly from this Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            }
+
+            Section("Options") {
+                Toggle("Show AI Quotas in Home & widgets", isOn: $settings.aiUsageShowHomeWidget)
+                Button("Refresh Usage Now") {
+                    aiUsage.refreshAll(userInitiated: true)
+                }
+                .disabled(aiUsage.isRefreshing)
             }
         }
     }
@@ -583,92 +1002,226 @@ struct HomeSettingsView: View {
     }
 }
 
+struct ShortcutsSettingsView: View {
+    @Bindable var settings: SettingsStore
+    let shortcuts: ShortcutsService
+    var body: some View {
+        Form {
+            Section {
+                IconToggle(title: "Shortcuts", detail: "Run your favourite shortcuts from Home", symbol: "bolt.fill", color: .blue, isOn: $settings.shortcutsEnabled)
+                if settings.shortcutsEnabled {
+                    if !shortcuts.isSupported {
+                        Text("The Shortcuts app isn't available on this Mac.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if shortcuts.isLoading && shortcuts.available.isEmpty {
+                        ProgressView().controlSize(.small)
+                    } else if shortcuts.available.isEmpty {
+                        Text("You don't have any shortcuts yet. Make some in the Shortcuts app.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(shortcuts.available, id: \.self) { name in
+                            let isFavorite = settings.favoriteShortcuts.contains(name)
+                            Toggle(name, isOn: Binding(
+                                get: { isFavorite },
+                                set: { _ in settings.toggleFavorite(name) }
+                            ))
+                            .disabled(!isFavorite && settings.favoriteShortcuts.count >= SettingsStore.maximumFavoriteShortcuts)
+                        }
+                    }
+                }
+            } header: {
+                Text("Shortcuts")
+            } footer: {
+                Text("Pick up to \(SettingsStore.maximumFavoriteShortcuts) to show in Home.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { shortcuts.reload() }
+    }
+}
+
 // MARK: About
 
 struct AboutSettingsView: View {
-    @Bindable var settings: SettingsStore
-    let updater: Updater
-
-    private var version: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = info?["CFBundleVersion"] as? String ?? "1"
-        return "Version \(short) (\(build))"
-    }
+    private static let license = URL(string: "https://github.com/shandilyaswagat/dynamic_ledge/blob/main/LICENSE")!
+    private static let website = URL(string: "https://talvioh.vercel.app")!
+    private var info: [String: Any] { Bundle.main.infoDictionary ?? [:] }
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 96, height: 96)
-            Text("Dynamic Ledge")
-                .font(.system(size: 22, weight: .semibold))
-            Text(version)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-            Text("Live activities for your Mac’s notch.")
-                .font(.callout)
-                .padding(.top, 4)
-            UpdatesBox(settings: settings, updater: updater)
-                .padding(.top, 10)
-            if let copyright = Bundle.main.infoDictionary?["NSHumanReadableCopyright"] as? String {
-                Text(copyright)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 8)
+        Form {
+            Section {
+                HStack(spacing: 16) {
+                    Image(nsImage: NSApplication.shared.applicationIconImage)
+                        .resizable()
+                        .frame(width: 52, height: 52)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Dynamic Ledge")
+                            .font(.title3.bold())
+                        let short = info["CFBundleShortVersionString"] as? String ?? "1.4.2"
+                        Text("Version \(short)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.vertical, 4)
             }
-            HStack(spacing: 14) {
-                Link("Source Code", destination: Self.repository)
-                Link("License", destination: Self.repository.appending(path: "blob/main/LICENSE"))
+            Section {
+                let short = info["CFBundleShortVersionString"] as? String ?? "1.4.2"
+                LabeledContent("Version", value: short)
+                    .textSelection(.enabled)
+                LabeledContent("Requires", value: "macOS \(info["LSMinimumSystemVersion"] as? String ?? "14.0") or later")
+                LabeledContent("Architecture", value: "Apple Silicon & Intel (Universal)")
             }
-            .font(.caption)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
 
-    private static let repository = URL(string: "https://github.com/shandilyaswagat/dynamic_ledge")!
+            Section {
+                VStack(spacing: 8) {
+                    Button("System Report…") {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/System Information.app"))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+
+                    VStack(spacing: 4) {
+                        HStack(spacing: 6) {
+                            Link("Software License Agreement", destination: Self.license)
+                                .underline()
+                            Text("-")
+                            Link("Regulatory Certification", destination: Self.website)
+                                .underline()
+                        }
+                        HStack(spacing: 6) {
+                            Link("Talvioh", destination: Self.website)
+                                .underline()
+                            Text("-")
+                            Link("License Agreement", destination: Self.license)
+                                .underline()
+                        }
+                        Text("™ and © 2026 Talvioh. All Rights Reserved.")
+                            .padding(.top, 2)
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .formStyle(.grouped)
+    }
 }
 
-/// Updates: the automatic check, a button to check now, and Install when there's something new.
-private struct UpdatesBox: View {
+/// Update state and controls follow the layout in macOS System Settings.
+struct SoftwareUpdateSettingsView: View {
     @Bindable var settings: SettingsStore
     let updater: Updater
 
     var body: some View {
-        VStack(spacing: 8) {
-            Toggle("Check for updates automatically", isOn: $settings.checksForUpdates)
-            HStack(spacing: 10) {
-                switch updater.state {
-                case .available(let release):
-                    Text("Version \(release.version.description) is available.")
-                    Button(updater.canInstallInPlace(release) ? "Install and Relaunch" : "Download") { updater.install(release) }
-                        .buttonStyle(.borderedProminent)
-                case .installing:
-                    ProgressView().controlSize(.small)
-                    Text("Installing…")
-                case .checking:
-                    ProgressView().controlSize(.small)
-                    Text("Checking…")
-                case .upToDate:
-                    Text("You're up to date.").foregroundStyle(.secondary)
-                    Button("Check Now") { updater.check() }
-                case .failed(let message):
-                    Text(message).foregroundStyle(.secondary)
-                    Button("Try Again") { updater.check() }
-                case .idle:
-                    Button("Check for Updates") { updater.check() }
+        Form {
+            Section {
+                HStack(alignment: .center, spacing: 14) {
+                    Image(nsImage: NSApplication.shared.applicationIconImage)
+                        .resizable()
+                        .frame(width: 44, height: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dynamic Ledge")
+                            .font(.headline)
+                        if let current = updater.currentVersion {
+                            Text("Version \(current.description)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    updateStatusTrailing
+                }
+                .padding(.vertical, 4)
+
+                if case .available(let release) = updater.state {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Divider()
+                            .padding(.vertical, 4)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Dynamic Ledge \(release.version.description)")
+                                    .font(.headline)
+                                Text("1 update available")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(updater.canInstallInPlace(release) ? "Update Now" : "Download") {
+                                updater.install(release)
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
                 }
             }
-            .font(.callout)
-            Text("Checking asks GitHub for the latest version.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+
+            Section {
+                Toggle("Check for updates automatically", isOn: $settings.checksForUpdates)
+                Toggle("Install updates automatically", isOn: $settings.installsUpdatesAutomatically)
+                    .disabled(!settings.checksForUpdates)
+            } header: {
+                Text("Automatic Updates")
+            } footer: {
+                Text("Checks for updates automatically in the background. When enabled, verified updates install and Dynamic Ledge relaunches.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .frame(maxWidth: 380)
+        .formStyle(.grouped)
+        .onAppear {
+            if case .idle = updater.state { updater.check() }
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusTrailing: some View {
+        switch updater.state {
+        case .checking:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Checking for updates…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        case .upToDate:
+            HStack(spacing: 12) {
+                Text("Up to date")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button("Check for Updates") { updater.check() }
+                    .controlSize(.small)
+            }
+        case .available:
+            EmptyView()
+        case .installing:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Installing…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Button("Try Again") { updater.check() }
+                    .controlSize(.small)
+            }
+        case .idle:
+            Button("Check for Updates") { updater.check() }
+                .controlSize(.small)
+        }
     }
 }
 

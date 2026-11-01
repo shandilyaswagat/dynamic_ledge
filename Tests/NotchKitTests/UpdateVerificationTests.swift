@@ -99,3 +99,13 @@ struct UpdateKeyTests {
         #expect(!Updater.canInstallInPlace(release, app: app, key: key), "an unsigned release can only download")
     }
 }
+
+@Suite("Automatic update decisions")
+struct AutomaticUpdateDecisionTests {
+    @Test func installsOnlyVerifiedBackgroundUpdatesWhenEnabled() {
+        #expect(Updater.shouldInstallAutomatically(enabled: true, userInitiated: false, canInstall: true))
+        #expect(!Updater.shouldInstallAutomatically(enabled: false, userInitiated: false, canInstall: true))
+        #expect(!Updater.shouldInstallAutomatically(enabled: true, userInitiated: true, canInstall: true))
+        #expect(!Updater.shouldInstallAutomatically(enabled: true, userInitiated: false, canInstall: false))
+    }
+}

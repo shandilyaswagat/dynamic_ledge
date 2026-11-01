@@ -39,7 +39,7 @@ public enum IslandMetrics {
         /// The line of lyrics in the music view, for songs that have timed lyrics.
         public static let lyrics: CGFloat = 30
         /// Tallest expanded content; sizes the window.
-        public static let maximum: CGFloat = max(agentRequest(lines: agentRequestLines), max(nowPlaying + lyrics + mediaSwitcher, Nook.launcherBody + Nook.bodyTopInset))
+        public static let maximum: CGFloat = max(agentRequest(lines: agentRequestLines), max(nowPlaying + lyrics + mediaSwitcher, max(Nook.launcherBody + Nook.bodyTopInset, Nook.aiUsageBody + Nook.bodyTopInset)))
     }
 
     /// The Home, Tray and Mirror tabs share one fixed-size "nook", like the paid notch apps:
@@ -56,6 +56,9 @@ public enum IslandMetrics {
         public static let mediaCardWidth: CGFloat = 210
         /// The grid of features gets more height than the other views, so its tiles can breathe.
         public static let launcherBody: CGFloat = 170
+        /// Space for the AI usage header and scrollable provider details.
+        public static let aiUsageBody: CGFloat = 220
+        public static let calendarBody: CGFloat = 180
         /// Clipboard's search bar, added below the clips while it's open.
         public static let searchBar: CGFloat = 40
         public static let launcherTile: CGFloat = 76
@@ -63,6 +66,7 @@ public enum IslandMetrics {
         /// Elongated layout: Home, Tray, Clipboard and the grid stretch across the top of the
         /// screen, this wide at most, and never closer than `elongatedEdge` to either side.
         public static let elongatedMaxWidth: CGFloat = 1240
+        public static let elongatedScreenFraction: CGFloat = 0.8
         public static let elongatedEdge: CGFloat = 40
     }
 

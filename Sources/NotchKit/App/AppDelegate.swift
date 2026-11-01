@@ -9,6 +9,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusController: StatusItemController?
     private var settingsController: SettingsWindowController?
     private var lockScreen: LockScreenController?
+    private var openSettingsObserver: NSObjectProtocol?
     #if DEBUG
     private var debugHooks: DebugHooks?
     #endif
@@ -35,6 +36,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = IslandModel(settings: settings)
         let settingsController = SettingsWindowController(model: model)
         model.onOpenSettings = { [weak settingsController] in settingsController?.show() }
+        model.onOpenSettingsTab = { [weak settingsController] tab in settingsController?.show(tab) }
         model.onOpenAbout = { [weak settingsController] in settingsController?.show(.about) }
 
         self.settings = settings
@@ -43,6 +45,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         islandWindows = IslandWindowManager(model: model)
         if LockScreenController.isAvailable { lockScreen = LockScreenController(model: model) }
         statusController = StatusItemController(model: model) { [weak settingsController] in settingsController?.show() }
+        openSettingsObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("DynamicNotch.openSettings"),
+            object: nil,
+            queue: .main
+        ) { [weak settingsController] notif in
+            let tab = (notif.object as? String).flatMap(Int.init).flatMap(SettingsWindowController.Tab.init(rawValue:))
+            MainActor.assumeIsolated {
+                settingsController?.show(tab)
+            }
+        }
         let isFirstLaunch = !settings.hasShownWelcome
         model.startServices()
         // The first launch (from Finder or a fresh DMG) shows Home for a moment, so the app

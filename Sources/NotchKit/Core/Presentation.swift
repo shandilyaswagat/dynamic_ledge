@@ -133,6 +133,8 @@ public enum HomeTab: String, CaseIterable, Sendable, Codable, Hashable {
     case reminders
     /// Memory, CPU, disk and network.
     case stats
+    /// AI agent subscription and rate limit usage tracking.
+    case aiUsage
     /// The grid of everything the notch can do. Its Edit button picks the shortcuts beside Home.
     case launcher
 
@@ -160,6 +162,7 @@ public enum ExpandTarget: Equatable, Sendable {
     public static let clipboard = ExpandTarget.nook(.clipboard)
     public static let notes = ExpandTarget.nook(.notes)
     public static let mirror = ExpandTarget.nook(.mirror)
+    public static let aiUsage = ExpandTarget.nook(.aiUsage)
 }
 
 /// Everything the pill can look like at a given moment.
@@ -180,6 +183,7 @@ public enum IslandPresentation: Equatable, Sendable {
     public static let clipboard = IslandPresentation.nook(.clipboard)
     public static let notes = IslandPresentation.nook(.notes)
     public static let mirror = IslandPresentation.nook(.mirror)
+    public static let aiUsage = IslandPresentation.nook(.aiUsage)
 
     public var isExpandedFamily: Bool {
         switch self {

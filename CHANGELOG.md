@@ -7,6 +7,18 @@ last one.
 
 ## [Unreleased]
 
+### Changed
+- Settings navigation moves back and forward through the pages you visited, with clearer grouped panels.
+- AI Agent Usage gives its details more room and shows only the connected providers you select in Settings.
+- With your permission, AI Agent Usage can show your signed-in Codex subscription limits and reset times.
+- Settings search now shows matching pages and a message when nothing matches.
+- General settings now shows icons for its main sections, and About has clearer version and project links.
+- General settings now has a clearer introduction to the app’s preferences.
+- Settings now has a searchable sidebar and clearer category headers.
+- Choose whether verified updates install automatically after a background check. Dynamic Ledge relaunches to finish installing.
+- Find About in General and Software Update in the settings sidebar, with a badge when an update is available.
+- Settings now groups music, coding assistants, Home features and Shortcuts into their own categories, so each feature is easier to find.
+
 ## [1.4.2] - 2026-10-31
 
 ### Added
@@ -35,6 +47,7 @@ last one.
   sent.
 
 ### Changed
+- Settings now has a sidebar, making it easier to find each category.
 - **Signed with Dynamic Ledge's own certificate.** macOS now keeps Accessibility, Camera, Calendar
   and other permissions when the app updates. Because of the switch, this one update may ask you
   to allow them once more.
@@ -48,6 +61,20 @@ last one.
   the screen, so the notch was repeating it.
 
 ### Fixed
+
+- Antigravity usage now reads the running app’s actual Gemini and Claude/GPT quota pools, including remaining percentages and reset times. Codex limits are labeled as shared plan usage.
+
+- AI usage now shows reported model names and clearly labels missing model information. Antigravity no longer displays assumed token limits as actual quotas.
+
+- Settings icons and navigation now more closely match the appearance of macOS System Settings.
+
+- Settings now uses toolbar navigation, consistent outlined icons, clearer Appearance contrast, and a General header that scrolls with its settings.
+
+- Calendar has larger, clearer dates and a scrollable event list. In elongated Home, swipe the date strip to browse the month without leaving your widgets.
+
+- Elongated mode now adapts to your display’s available space and scaling, keeping controls readable and extra widgets accessible by scrolling.
+
+- AI Agent Usage now checks connections at launch and explains missing connections in the panel. Connect your signed-in Codex directly without hunting through Settings.
 - The notch no longer freezes while macOS asks for access to your Downloads folder.
 - Turning on an assistant keeps its settings file as a link when it is one (for example into a
   dotfiles folder), and keeps the file's permissions.

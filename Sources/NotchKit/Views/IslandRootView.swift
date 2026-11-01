@@ -197,6 +197,7 @@ struct NotchContent: View {
                 case .calendar: CalendarPanelBody(model: model)
                 case .reminders: RemindersPanelBody(model: model)
                 case .stats: StatsPanelBody(model: model)
+                case .aiUsage: AIUsagePanelBody(model: model)
                 case .launcher: LauncherBody(model: model)
                 }
             }

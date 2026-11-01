@@ -25,6 +25,26 @@ struct StopwatchTests {
 
 @Suite("Calendar panel")
 struct CalendarPanelTests {
+    @Test func scrollingDatesStayWithinLoadedRangeAcrossMonthAndDST() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let date = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1))!
+        let days = CalendarRules.browsableDays(at: date, calendar: calendar)
+        let range = CalendarRules.loadRange(at: date, calendar: calendar)
+        #expect(days.count >= 30)
+        #expect(days.first == range.start)
+        #expect(days.contains(date))
+        #expect(days.allSatisfy { $0 >= range.start && $0 < range.end })
+        #expect(Set(days).count == days.count)
+        #expect(calendar.date(byAdding: .day, value: 1, to: days.last!) == range.end)
+    }
+
+    @Test func calendarHasRoomForSixWeeks() {
+        let layout = LayoutEngine(screen: .sample, appearance: .standard)
+        let height = layout.expandedContentHeight(for: .nook(.calendar), home: HomeContent())!
+        #expect(height >= 180)
+    }
+
     @Test func monthStartsOnTheRightWeekday() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!

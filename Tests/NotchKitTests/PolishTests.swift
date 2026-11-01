@@ -269,6 +269,39 @@ struct ElongatedLayoutTests {
         }
     }
 
+    @Test func adaptsToLogicalDisplayWidthWithoutShrinkingControls() {
+        var previous: CGFloat = 0
+        for width: CGFloat in [1024, 1280, 1440, 1512, 1728, 2560] {
+            let screen = ScreenMetrics(size: CGSize(width: width, height: 982), notch: nil, menuBarHeight: 25)
+            let layout = engine(.elongated, screen: screen).layout(for: .home, home: HomeContent(), hovering: false)
+            #expect(layout.pill.width >= previous)
+            #expect(layout.pill.minX >= IslandMetrics.Nook.elongatedEdge)
+            #expect(layout.pill.maxX <= width - IslandMetrics.Nook.elongatedEdge)
+            #expect(layout.contentScale == 1)
+            previous = layout.pill.width
+        }
+        let smaller = ScreenMetrics(size: CGSize(width: 1440, height: 900), notch: nil, menuBarHeight: 25)
+        #expect(engine(.elongated, screen: smaller).elongatedWidth < engine(.elongated).elongatedWidth)
+    }
+
+    @Test func displayWidthIsIndependentOfControlSize() {
+        let width = engine(.elongated).elongatedWidth
+        for size in NotchSize.allCases {
+            var appearance = NotchAppearance.standard
+            appearance.nookLayout = .elongated
+            appearance.size = size
+            let layout = LayoutEngine(screen: .sample, appearance: appearance)
+            #expect(layout.elongatedWidth == width)
+        }
+    }
+
+    @Test func narrowDisplayOverridesTheStandardMinimum() {
+        let screen = ScreenMetrics(size: CGSize(width: 600, height: 800), notch: nil, menuBarHeight: 25)
+        let layout = engine(.elongated, screen: screen).layout(for: .home, home: HomeContent(), hovering: false)
+        #expect(layout.pill.minX >= IslandMetrics.Nook.elongatedEdge)
+        #expect(layout.pill.maxX <= screen.size.width - IslandMetrics.Nook.elongatedEdge)
+    }
+
     @Test func fitsAnExternalScreenToo() {
         let external = ScreenMetrics(size: CGSize(width: 2560, height: 1440), notch: nil, menuBarHeight: 25)
         let elongated = engine(.elongated, screen: external)
@@ -376,7 +409,7 @@ struct GridPageTests {
         let pages = LauncherBody.pages(LauncherItem.allCases)
         #expect(LauncherBody.columns == 5)
         #expect(pages.count == 2)
-        #expect(pages[0].count == 10 && pages[1] == [.stats])
+        #expect(pages[0].count == 10 && pages[1] == [.stats, .aiUsage])
         #expect(LauncherBody.pages(Array(LauncherItem.allCases.prefix(4))).count == 1)
         #expect(LauncherBody.pages([]).count == 1, "an empty grid still has its page")
     }

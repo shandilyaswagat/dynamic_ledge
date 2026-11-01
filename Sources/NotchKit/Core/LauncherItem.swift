@@ -13,6 +13,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
     case mirror
     case keepAwake
     case stats
+    case aiUsage
 
     public var id: String { rawValue }
 
@@ -30,6 +31,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .mirror: "Camera Mirror"
         case .keepAwake: "Keep Awake"
         case .stats: "Stats"
+        case .aiUsage: "AI Agent Usage"
         }
     }
 
@@ -47,6 +49,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .mirror: "web.camera"
         case .keepAwake: "cup.and.saucer"
         case .stats: "gauge.with.dots.needle.33percent"
+        case .aiUsage: "sparkles"
         }
     }
 
@@ -65,6 +68,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .mirror: "W"
         case .keepAwake: "Z"
         case .stats: "P"
+        case .aiUsage: "U"
         }
     }
 

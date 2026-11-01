@@ -213,17 +213,18 @@ public struct LayoutEngine: Equatable, Sendable {
         max((IslandMetrics.Nook.width * scale).rounded(), compactBodyWidth + 40)
     }
 
-    /// Width of Home, Tray, Clipboard and the grid in the elongated layout: as wide as the
-    /// screen allows, up to a limit, so the widgets sit in one long row.
     /// How many characters of an approval request fit on a line: 12 pt monospaced text in the
     /// usual expanded width, less the panel's and the text box's padding.
     var agentCharactersPerLine: Int {
         max(20, Int((expandedWidth / scale - 64) / 7.3))
     }
 
+    /// Responds to logical display space, independently of the user's text and control size.
+    /// The available width wins over the usual minimum on narrow or heavily scaled displays.
     public var elongatedWidth: CGFloat {
-        let room = screen.size.width - 2 * (IslandMetrics.Nook.elongatedEdge + IslandMetrics.expandedFlare)
-        return max(nookWidth, min(room, (IslandMetrics.Nook.elongatedMaxWidth * scale).rounded()))
+        let room = max(0, screen.size.width - 2 * (IslandMetrics.Nook.elongatedEdge + IslandMetrics.expandedFlare))
+        let preferred = (screen.size.width * IslandMetrics.Nook.elongatedScreenFraction).rounded()
+        return min(room, max(nookWidth, min(preferred, IslandMetrics.Nook.elongatedMaxWidth)))
     }
 
     /// True when this view uses the long, short elongated panel: Home, Tray and Clipboard. The
@@ -309,6 +310,8 @@ public struct LayoutEngine: Equatable, Sendable {
         case .expanded(.call): IslandMetrics.ContentHeight.call
         case .expanded(.download): IslandMetrics.ContentHeight.download
         case .nook(.launcher): IslandMetrics.Nook.launcherBody + IslandMetrics.Nook.bodyTopInset
+        case .nook(.aiUsage): IslandMetrics.Nook.aiUsageBody + IslandMetrics.Nook.bodyTopInset
+        case .nook(.calendar): IslandMetrics.Nook.calendarBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.clipboard):
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset

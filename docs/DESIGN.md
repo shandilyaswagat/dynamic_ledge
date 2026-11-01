@@ -77,10 +77,13 @@ Medium and Small scale all of it.
 ## Elongated layout (1.4.0)
 
 Chosen in Settings › Appearance. Home, Tray and Clipboard stretch across the top of
-the screen: as wide as the screen allows, up to 1240 pt, never closer than 40 pt to an edge, and
+the screen: 80% of the current display’s logical width, up to 1240 pt, never closer than 40 pt to an edge, and
 as short as the standard nook (body 120). The grid and the panels opened from it (Timer,
 Calendar, Reminders, Notes, Mirror, Stats) keep their standard size, so the shape narrows as
-they open.
+they open. Display scaling and monitor changes recalculate the width automatically. The panel width
+is independent of the Small / Medium / Large control size; widgets retain readable sizes and
+scroll horizontally when they do not all fit. On narrow screens, available space takes priority
+over the standard nook minimum.
 
 | Element | Large |
 |---|---|
@@ -208,3 +211,16 @@ The entire request is selectable and vertically scrollable, with no line limit o
 Allow, Deny and Ask in the assistant remain visible below it. Each new request resets scrolling.
 File edits and other tools show complete arguments. Invisible controls and direction changes
 are shown as Unicode escapes so they cannot hide command text.
+
+## AI Agent Usage
+
+The AI Agent Usage panel has 220 pt for its refresh controls and scrollable provider cards,
+plus the standard 10 pt top inset. Only selected providers with a connection appear. When none
+are connected, the panel explains how to configure them in Settings.
+
+## Calendar readability
+
+The month panel has a 180 pt body, a 210 pt-wide month grid with 12 pt date labels
+and 23 pt rows, and a separately scrolling event list. In elongated Home, the date strip
+scrolls horizontally through the loaded month and adjacent days, with 10 pt weekday labels
+and 14 pt dates (18 pt for the selection). Event lists scroll vertically.

@@ -72,7 +72,8 @@ grid and hold any feature, then click features to add them or click a ticked one
 Click **Done** when you're happy.
 
 Like things wide? Pick **Elongated** in Settings › Appearance and Home stretches across the top
-of your screen, with everything in one long row you can scroll sideways: music you can scrub, a
+of your screen, automatically fitting the display and its scaling while keeping controls readable.
+Everything stays in one long row you can scroll sideways: music you can scrub, a
 camera mirror, your week with one-click **Join** for Meet, Zoom, Teams and Webex calls, notes you
 can format, a wheel timer and a to-do list.
 

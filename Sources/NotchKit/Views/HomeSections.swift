@@ -15,6 +15,7 @@ enum HomeSection: Hashable, Identifiable {
     case shortcuts
     /// No room for both on their own, so they share the last section.
     case timerAndShortcuts
+    case aiUsage
 
     enum LiveItem: Hashable {
         case call, music, timer, stopwatch
@@ -38,6 +39,7 @@ enum HomeSection: Hashable, Identifiable {
         case .calendar: "calendar"
         case .timer, .timerAndShortcuts: "timer"
         case .shortcuts: "shortcuts"
+        case .aiUsage: "aiUsage"
         }
     }
 
@@ -60,6 +62,9 @@ enum HomeSection: Hashable, Identifiable {
         } else {
             if timer { sections.append(.timer(running: clocks)) }
             if shortcuts { sections.append(.shortcuts) }
+        }
+        if model.settings.aiUsageEnabled, model.settings.aiUsageShowHomeWidget, !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty, sections.count < maximum {
+            sections.append(.aiUsage)
         }
         return Array(sections.prefix(maximum))
     }
@@ -135,6 +140,9 @@ struct StandardHomeBody: View {
                 ShortcutsSection(model: model, compact: true)
             }
             .sectionFrame()
+        case .aiUsage:
+            AIUsageHomeWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
+                .sectionFrame()
         }
     }
 }

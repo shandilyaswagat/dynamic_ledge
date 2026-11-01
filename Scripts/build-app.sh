@@ -77,9 +77,11 @@ fi
 echo "› Signing with: $SIGN_IDENTITY"
 # Finder/File Provider may add bundle metadata in synced project folders. These attributes
 # invalidate code signing; remove only those attributes from our generated bundle.
-xattr -dr com.apple.FinderInfo "$APP" 2>/dev/null || true
-xattr -dr com.apple.ResourceFork "$APP" 2>/dev/null || true
-SIGN_FLAGS=(--force --options runtime)
+xattr -c "$APP" 2>/dev/null || true
+xattr -cr "$APP" 2>/dev/null || true
+xattr -d com.apple.FinderInfo "$APP" 2>/dev/null || true
+xattr -r -d com.apple.FinderInfo "$APP" 2>/dev/null || true
+SIGN_FLAGS=(--force --options runtime --strip-disallowed-xattrs)
 # Apple's timestamp only matters for Developer ID (notarization needs it).
 if [[ "$SIGN_IDENTITY" == "Developer ID"* ]]; then
     SIGN_FLAGS+=(--timestamp)
@@ -88,6 +90,10 @@ else
 fi
 # Inside out: the helper library first, then the app.
 codesign "${SIGN_FLAGS[@]}" --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/libNotchMediaBridge.dylib"
+xattr -d com.apple.FinderInfo "$APP" 2>/dev/null || true
+xattr -r -d com.apple.FinderInfo "$APP" 2>/dev/null || true
+xattr -c "$APP" 2>/dev/null || true
+xattr -cr "$APP" 2>/dev/null || true
 codesign "${SIGN_FLAGS[@]}" --entitlements "$ROOT/Support/DynamicNotch.entitlements" --sign "$SIGN_IDENTITY" "$APP"
 codesign --verify --deep --strict "$APP"
 

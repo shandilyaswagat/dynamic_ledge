@@ -281,6 +281,19 @@ extension CalendarRules {
         return (min(monthStart, weekStart), max(monthEnd, weekEnd))
     }
 
+    /// Every date with loaded events, so scrolling never implies an unloaded day is empty.
+    public static func browsableDays(at date: Date, calendar: Calendar = .current) -> [Date] {
+        let range = loadRange(at: date, calendar: calendar)
+        var days: [Date] = []
+        var day = range.start
+        while day < range.end {
+            days.append(day)
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day), next > day else { break }
+            day = next
+        }
+        return days
+    }
+
     /// The events on one day, all-day ones first. On today, the ones already over are left out.
     public static func events(on day: Date, in events: [CalendarEvent], at date: Date, calendar: Calendar = .current) -> [CalendarEvent] {
         let start = calendar.startOfDay(for: day)

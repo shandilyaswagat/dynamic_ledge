@@ -30,6 +30,7 @@ struct ElongatedHomeBody: View {
                 }
             }
         }
+        .scrollIndicators(.hidden)
         .padding(.bottom, 2 * s)
         .overlay {
             if widgets.isEmpty {
@@ -41,7 +42,7 @@ struct ElongatedHomeBody: View {
     }
 
     enum Widget: Hashable {
-        case music, mirror, calendar, notes, timer, todos, stats
+        case music, mirror, calendar, notes, timer, todos, stats, aiUsage
 
         /// Width before Small / Medium / Large scaling.
         var width: CGFloat {
@@ -53,6 +54,7 @@ struct ElongatedHomeBody: View {
             case .timer: 250
             case .todos: 230
             case .stats: 210
+            case .aiUsage: 220
             }
         }
     }
@@ -67,6 +69,7 @@ struct ElongatedHomeBody: View {
         if model.settings.timerEnabled { widgets.append(.timer) }
         widgets.append(.todos)
         if model.settings.statsEnabled { widgets.append(.stats) }
+        if model.settings.aiUsageEnabled && model.settings.aiUsageShowHomeWidget && !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty { widgets.append(.aiUsage) }
         return widgets
     }
 
@@ -80,6 +83,7 @@ struct ElongatedHomeBody: View {
         case .timer: TimerWidget(model: model)
         case .todos: TodosWidget(model: model)
         case .stats: StatsWidget(model: model)
+        case .aiUsage: AIUsageElongatedWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
         }
     }
 }
@@ -275,41 +279,51 @@ private struct DayStrip: View {
     var body: some View {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: today)
-        let days = (-2...4).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
-        HStack(spacing: 0) {
-            ForEach(days, id: \.self) { day in
-                let isToday = calendar.isDate(day, inSameDayAs: today)
-                let isSelected = calendar.isDate(day, inSameDayAs: selected)
-                let isWeekend = calendar.isDateInWeekend(day)
-                let hasEvents = events.contains { calendar.isDate($0.start, inSameDayAs: day) }
-                Button { pick(day) } label: {
-                    VStack(spacing: 1 * s) {
-                        Text(day.formatted(.dateTime.weekday(isSelected ? .abbreviated : .narrow)).uppercased())
-                            .font(.system(size: 7.5 * s, weight: .bold))
-                            .foregroundStyle(isSelected ? NotchColor.blue : NotchColor.secondaryText)
-                        Text(day.formatted(.dateTime.day(.twoDigits)))
-                            .font(.system(size: (isSelected ? 18 : 12) * s, weight: isSelected ? .bold : .medium))
-                            .monospacedDigit()
-                            .foregroundStyle(isSelected ? NotchColor.blue : (isWeekend ? NotchColor.red.opacity(0.75) : .white.opacity(day < start ? 0.4 : 0.85)))
-                        Circle()
-                            .fill(hasEvents && !isSelected ? Color.white.opacity(0.45) : .clear)
-                            .frame(width: 3 * s, height: 3 * s)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .overlay(alignment: .bottom) {
-                        if isToday && !isSelected {
-                            Capsule().fill(NotchColor.blue).frame(width: 10 * s, height: 2 * s)
+        let days = CalendarRules.browsableDays(at: today)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(days, id: \.self) { day in
+                        let isToday = calendar.isDate(day, inSameDayAs: today)
+                        let isSelected = calendar.isDate(day, inSameDayAs: selected)
+                        let isWeekend = calendar.isDateInWeekend(day)
+                        let hasEvents = events.contains { calendar.isDate($0.start, inSameDayAs: day) }
+                        Button { pick(day) } label: {
+                            VStack(spacing: 1 * s) {
+                                Text(day.formatted(.dateTime.weekday(isSelected ? .abbreviated : .narrow)).uppercased())
+                                    .font(.system(size: 10 * s, weight: .bold))
+                                    .foregroundStyle(isSelected ? NotchColor.blue : NotchColor.secondaryText)
+                                Text(day.formatted(.dateTime.day(.twoDigits)))
+                                    .font(.system(size: (isSelected ? 18 : 14) * s, weight: isSelected ? .bold : .medium))
+                                    .monospacedDigit()
+                                    .foregroundStyle(isSelected ? NotchColor.blue : (isWeekend ? NotchColor.red.opacity(0.75) : .white.opacity(day < start ? 0.4 : 0.85)))
+                                Circle()
+                                    .fill(hasEvents && !isSelected ? Color.white.opacity(0.45) : .clear)
+                                    .frame(width: 3 * s, height: 3 * s)
+                            }
+                            .frame(width: 30 * s)
+                            .contentShape(Rectangle())
+                            .overlay(alignment: .bottom) {
+                                if isToday && !isSelected {
+                                    Capsule().fill(NotchColor.blue).frame(width: 10 * s, height: 2 * s)
+                                }
+                            }
                         }
+                        .buttonStyle(PressableButtonStyle())
+                        .id(day)
+                        .accessibilityLabel(Text(day.formatted(date: .complete, time: .omitted)))
                     }
                 }
-                .buttonStyle(PressableButtonStyle())
-                .accessibilityLabel(Text(day.formatted(date: .complete, time: .omitted)))
+            }
+            .scrollIndicators(.hidden)
+            .onAppear {
+                proxy.scrollTo(calendar.date(byAdding: .day, value: -2, to: start) ?? start, anchor: .leading)
             }
         }
-        .frame(height: 40 * s)
+        .frame(height: 48 * s)
     }
 }
+
 
 private struct DayEvents: View {
     let events: [CalendarEvent]
@@ -322,7 +336,7 @@ private struct DayEvents: View {
             HStack(spacing: 6 * s) {
                 Image(systemName: "calendar.badge.checkmark")
                     .font(.system(size: 11 * s))
-                Text("Nothing for today")
+                Text("No events for this day")
                     .font(.system(size: 11 * s, weight: .medium))
             }
             .foregroundStyle(NotchColor.secondaryText)
@@ -360,6 +374,7 @@ private struct DayEvents: View {
                     }
                 }
             }
+            .scrollIndicators(.hidden)
         }
     }
 }
@@ -505,6 +520,7 @@ private struct Wheel: View {
             }
             .scrollTargetLayout()
         }
+        .scrollIndicators(.hidden)
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $position, anchor: .center)
         .contentMargins(.vertical, row, for: .scrollContent)
@@ -576,6 +592,7 @@ private struct TodosWidget: View {
                     }
                 }
             }
+            .scrollIndicators(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, 4 * s)

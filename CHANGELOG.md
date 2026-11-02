@@ -7,6 +7,12 @@ last one.
 
 ## [Unreleased]
 
+### Fixed
+- Dragging a file from the Tray into Finder keeps its name, and dropping it into apps like
+  WhatsApp or Mail works.
+- Right-click a Tray item and choose **Copy** to paste the file into another app, as with Finder's
+  Copy.
+
 ## [1.4.2] - 2026-10-31
 
 ### Added

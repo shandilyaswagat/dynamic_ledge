@@ -25,6 +25,28 @@ struct TrayTests {
         #expect(tray.items.map(\.name) == ["b.txt", "a.txt"])
     }
 
+    @Test func dragsAndCopiesHandOverTheFileItself() throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let pdf = folder.appendingPathComponent("Invoice March.pdf")
+        try Data("%PDF".utf8).write(to: pdf)
+        let tray = TrayStore(folder: folder, defaults: nil)
+        tray.add([pdf, URL(string: "https://example.com/page")!])
+        let file = try #require(tray.items.first { $0.sourceURL?.isFileURL == true })
+        let link = try #require(tray.items.first { $0.sourceURL?.isFileURL == false })
+
+        // Finder keeps the name only when it gets the file's location, not its contents.
+        let provider = TrayStore.dragProvider(for: TrayStore.sharedURL(for: file))
+        #expect(provider.registeredTypeIdentifiers.contains("public.file-url"))
+        #expect(TrayStore.sharedURL(for: link).absoluteString == "https://example.com/page")
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("NotchTests-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        tray.copy(file, to: pasteboard)
+        let copied = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        #expect(copied?.map(\.lastPathComponent) == ["Invoice March.pdf"])
+    }
+
     @Test func startsEmptyInANewSession() throws {
         let folder = try tempFolder()
         defer { try? FileManager.default.removeItem(at: folder) }

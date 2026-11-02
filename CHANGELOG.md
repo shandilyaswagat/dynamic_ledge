@@ -29,6 +29,10 @@ last one.
   new version when the daily check finds one, then relaunches. Off by default.
 
 ### Fixed
+- Dragging a file from the Tray into Finder keeps its name, and dropping it into apps like
+  WhatsApp or Mail works.
+- Right-click a Tray item and choose **Copy** to paste the file into another app, as with Finder's
+  Copy.
 - Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.
 - Zip, Merge PDF and Convert to work for files in places that can't be written, like a mounted disk image: the result goes to Downloads.
 - Clicking Zip or Merge PDF twice no longer makes two copies.

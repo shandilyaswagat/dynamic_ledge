@@ -93,7 +93,7 @@ struct AlertView: View {
                         .truncationMode(.middle)
                 }
                 // Drag the file straight out of the notch.
-                .onDrag { NSItemProvider(contentsOf: url) ?? NSItemProvider() }
+                .onDrag { TrayStore.dragProvider(for: url) }
             } trailing: {
                 Text("Downloaded")
                     .foregroundStyle(NotchColor.blue)

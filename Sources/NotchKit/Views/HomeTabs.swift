@@ -640,11 +640,12 @@ struct TrayItemView: View {
         .onTapGesture(count: 2) { model.tray.open(item) }
         .onDrag {
             model.isDraggingFromTray = true
-            return NSItemProvider(contentsOf: item.url) ?? NSItemProvider()
+            return TrayStore.dragProvider(for: TrayStore.sharedURL(for: item))
         }
         .contextMenu {
             Button("Open") { model.tray.open(item) }
             Button("Show in Finder") { model.tray.revealInFinder(item) }
+            Button("Copy") { model.tray.copy(item) }
             Button("Send with AirDrop") { model.airDrop([item.url]) }
             Button(item.isPinned ? "Unpin" : "Pin") { model.tray.togglePin(item.id) }
             if item.sourceURL?.isFileURL != false {

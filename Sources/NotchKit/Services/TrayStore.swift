@@ -264,6 +264,25 @@ public final class TrayStore {
         NSWorkspace.shared.activateFileViewerSelecting([item.url])
     }
 
+    /// What a drag or Copy hands over: the file itself, so Finder keeps its name and apps like
+    /// Mail or WhatsApp receive the file. A web link hands over its address.
+    public static func sharedURL(for item: Item) -> URL {
+        if let source = item.sourceURL, !source.isFileURL { return source }
+        return item.url
+    }
+
+    /// A drag of the file's location rather than a copy of its contents, which Finder saved
+    /// under a made-up name.
+    public static func dragProvider(for url: URL) -> NSItemProvider {
+        NSItemProvider(object: url as NSURL)
+    }
+
+    /// Puts the item on the clipboard, as Finder's Copy does, ready to paste into another app.
+    public func copy(_ item: Item, to pasteboard: NSPasteboard = .general) {
+        pasteboard.clearContents()
+        pasteboard.writeObjects([Self.sharedURL(for: item) as NSURL])
+    }
+
     public func icon(for item: Item) -> NSImage {
         thumbnails[item.id] ?? NSWorkspace.shared.icon(forFile: item.url.path)
     }

@@ -51,6 +51,10 @@ last one.
 - The elongated calendar and timer move like Apple's pickers: the day or number in the middle is
   largest and brightest, and the ones either side shrink and fade smoothly as you scroll. Scroll
   the days to choose one, or click a day to glide it to the middle.
+- The installer disk is named after its version ("Dynamic Ledge 1.5.0 Installer"), so it isn't
+  mistaken for the app in Finder's sidebar and two open disks don't end up with the same name.
+- A shorter README, with step-by-step install, update and uninstall guides and a clear privacy
+  and permissions section.
 
 ## [1.4.3] - 2026-11-02
 

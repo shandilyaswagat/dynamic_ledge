@@ -228,6 +228,11 @@ Applications folder, and keeps all your settings. Homebrew moves you to the new 
 
 ## What's new
 
+**1.4.3**:
+
+- Files dragged from the **Tray** into Finder keep their names, and drop into WhatsApp, Mail and other apps
+- Right-click a Tray file and choose **Copy** to paste it anywhere
+
 **1.4.2**:
 
 - A **Glass** theme: smoked glass that fades into frosted glass, picked in Settings › Appearance

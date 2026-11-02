@@ -29,10 +29,6 @@ last one.
   new version when the daily check finds one, then relaunches. Off by default.
 
 ### Fixed
-- Dragging a file from the Tray into Finder keeps its name, and dropping it into apps like
-  WhatsApp or Mail works.
-- Right-click a Tray item and choose **Copy** to paste the file into another app, as with Finder's
-  Copy.
 - Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.
 - Zip, Merge PDF and Convert to work for files in places that can't be written, like a mounted disk image: the result goes to Downloads.
 - Clicking Zip or Merge PDF twice no longer makes two copies.
@@ -55,6 +51,14 @@ last one.
 - The elongated calendar and timer move like Apple's pickers: the day or number in the middle is
   largest and brightest, and the ones either side shrink and fade smoothly as you scroll. Scroll
   the days to choose one, or click a day to glide it to the middle.
+
+## [1.4.3] - 2026-11-02
+
+### Fixed
+- Dragging a file from the Tray into Finder keeps its name, and dropping it into apps like
+  WhatsApp or Mail works.
+- Right-click a Tray item and choose **Copy** to paste the file into another app, as with Finder's
+  Copy.
 
 ## [1.4.2] - 2026-10-31
 
@@ -375,6 +379,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.4.3]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.3
 [1.4.2]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.2
 [1.4.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.1
 [1.4.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.0

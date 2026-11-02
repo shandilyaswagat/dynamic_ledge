@@ -10,6 +10,8 @@ last one.
 ### Changed
 - The installer disk is named after its version ("Dynamic Ledge 1.4.4 Installer"), so it isn't
   mistaken for the app in Finder's sidebar and two open disks don't end up with the same name.
+- Opening the installer shows an arrow from Dynamic Ledge to Applications, with a line saying to
+  drag it across.
 - A shorter README, with step-by-step install, update and uninstall guides and a clear privacy
   and permissions section.
 

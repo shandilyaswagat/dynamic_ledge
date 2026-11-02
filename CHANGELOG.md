@@ -7,6 +7,8 @@ last one.
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-11-02
+
 ### Fixed
 - Dragging a file from the Tray into Finder keeps its name, and dropping it into apps like
   WhatsApp or Mail works.
@@ -332,6 +334,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.4.3]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.3
 [1.4.2]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.2
 [1.4.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.1
 [1.4.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.0

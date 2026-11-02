@@ -13,6 +13,10 @@ export UNIVERSAL=1
 export CONFIG=release
 
 DMG="$ROOT/build/DynamicNotch.dmg"
+# The disk gets its own name, with the version, so it's never mistaken for the app in Finder's
+# sidebar, and an old disk left open doesn't turn the new one into "Dynamic Ledge 1".
+VERSION="${VERSION:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
+VOLUME="Dynamic Ledge $VERSION Installer"
 STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 # Assemble and sign outside synced folders so File Provider cannot reattach Finder metadata
@@ -23,7 +27,7 @@ mkdir -p "$ROOT/build"
 echo "› Packaging ${DMG}…"
 ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
-hdiutil create -volname "Dynamic Ledge" -srcfolder "$STAGING" -ov -format UDZO -quiet "$DMG"
+hdiutil create -volname "$VOLUME" -srcfolder "$STAGING" -ov -format UDZO -quiet "$DMG"
 
 # Only a Developer ID signature on the disk image means anything to Gatekeeper.
 if [[ "${SIGN_IDENTITY:--}" == "Developer ID"* ]]; then

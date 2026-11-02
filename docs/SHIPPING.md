@@ -10,7 +10,7 @@ There are two stages:
 | Cost | Free | Apple Developer Program, $99 a year |
 | What users see on first open | "Not Opened" warning, then **Open Anyway** in Privacy & Security | One normal "downloaded from the internet" prompt |
 | Permissions after an update | Kept (same certificate every release) | Kept |
-| What changes in the README | Install steps 3–4 and the Terminal option | Remove those steps and the note above them |
+| What changes in the README | Install steps 6–8 and the note under them | Remove those steps and the note |
 
 Release assets are always named `DynamicNotch.dmg`, so the README's link
 `releases/latest/download/DynamicNotch.dmg` always points to the newest version.

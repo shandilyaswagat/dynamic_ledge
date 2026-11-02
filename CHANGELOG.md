@@ -7,6 +7,12 @@ last one.
 
 ## [Unreleased]
 
+### Changed
+- The installer disk is named after its version ("Dynamic Ledge 1.4.4 Installer"), so it isn't
+  mistaken for the app in Finder's sidebar and two open disks don't end up with the same name.
+- A shorter README, with step-by-step install, update and uninstall guides and a clear privacy
+  and permissions section.
+
 ## [1.4.3] - 2026-11-02
 
 ### Fixed

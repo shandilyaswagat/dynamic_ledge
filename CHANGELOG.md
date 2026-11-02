@@ -27,6 +27,8 @@ last one.
   says so, with the project's name. Turn it off in Settings › General › Coding Assistants.
 - **Install updates automatically.** An optional switch in Software Update installs a verified
   new version when the daily check finds one, then relaunches. Off by default.
+- **Update count.** The anonymous daily count also says once when a Mac moves to a new version,
+  and which version it came from, so I can see how many people update. Nothing else is sent.
 
 ### Fixed
 - Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.

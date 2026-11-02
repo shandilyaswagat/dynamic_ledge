@@ -3,7 +3,7 @@ import Foundation
 import os
 
 /// Counts how many Macs use the app: once a day it sends TelemetryDeck one anonymous signal with
-/// the app and macOS versions. The Mac is a random ID made on first launch and hashed before it
+/// the app and macOS versions, and one more the first time a new version runs. The Mac is a random ID made on first launch and hashed before it
 /// leaves; nothing about you, your files or what you do in the app is sent.
 @MainActor
 public final class UsageReporter {
@@ -17,6 +17,7 @@ public final class UsageReporter {
 
     private let defaults: UserDefaults
     private let appID: String
+    private let info: [String: Any]
     private let send: Sender
     private let sessionID = UUID().uuidString
     private var timer: Timer?
@@ -27,9 +28,11 @@ public final class UsageReporter {
         self.init(appID: Self.telemetryDeckAppID, send: Self.post)
     }
 
-    init(defaults: UserDefaults = .standard, appID: String, send: @escaping Sender) {
+    init(defaults: UserDefaults = .standard, appID: String,
+         info: [String: Any] = Bundle.main.infoDictionary ?? [:], send: @escaping Sender) {
         self.defaults = defaults
         self.appID = appID
+        self.info = info
         self.send = send
     }
 
@@ -65,23 +68,34 @@ public final class UsageReporter {
         Task { await sendIfDue(now: Date()) }
     }
 
-    /// Sends today's signal unless it already went out. True when something was sent.
+    /// Sends today's signal unless it already went out, and an update signal the first time a new
+    /// version runs. True when something was sent.
     @discardableResult
     func sendIfDue(now: Date) async -> Bool {
         let day = Self.day(of: now)
-        guard !isSending, !appID.isEmpty, defaults.string(forKey: Key.lastDay) != day,
-              let userID = defaults.string(forKey: Key.userID) else { return false }
+        guard !isSending, !appID.isEmpty, let userID = defaults.string(forKey: Key.userID) else { return false }
+        let version = info["CFBundleShortVersionString"] as? String ?? "0"
+        let isNewInstall = defaults.bool(forKey: Key.pendingInstall)
+        // A Mac counted before versions were remembered (up to 1.4.3) has updated since, from a
+        // version we don't know.
+        let previousVersion = defaults.string(forKey: Key.lastVersion) ?? (isNewInstall ? version : "unknown")
+        var types: [String] = []
+        if defaults.string(forKey: Key.lastDay) != day {
+            if isNewInstall { types.append("App.installed") }
+            types.append("App.active")
+        }
+        if previousVersion != version { types.append("App.updated") }
+        guard !types.isEmpty else { return false }
         isSending = true
         defer { isSending = false }
-        var types = ["App.active"]
-        if defaults.bool(forKey: Key.pendingInstall) { types.insert("App.installed", at: 0) }
         guard let request = Self.request(types: types, appID: appID, userID: userID, sessionID: sessionID,
-                                         info: Bundle.main.infoDictionary ?? [:]) else { return false }
+                                         info: info, previousVersion: previousVersion) else { return false }
         guard await send(request) else {
             log.notice("Usage signal not sent; trying again later")
             return false
         }
         defaults.set(day, forKey: Key.lastDay)
+        defaults.set(version, forKey: Key.lastVersion)
         defaults.set(false, forKey: Key.pendingInstall)
         return true
     }
@@ -89,9 +103,9 @@ public final class UsageReporter {
     // MARK: Request
 
     /// One POST with a signal per type. Same payload keys as TelemetryDeck's own Swift SDK, so its
-    /// standard version and OS charts work.
+    /// standard version and OS charts work. `App.updated` also carries the version it came from.
     nonisolated static func request(types: [String], appID: String, userID: String, sessionID: String,
-                                    info: [String: Any]) -> URLRequest? {
+                                    info: [String: Any], previousVersion: String? = nil) -> URLRequest? {
         let version = info["CFBundleShortVersionString"] as? String ?? "0"
         let build = info["CFBundleVersion"] as? String ?? "0"
         let os = ProcessInfo.processInfo.operatingSystemVersion
@@ -118,12 +132,14 @@ public final class UsageReporter {
             "TelemetryDeck.Device.architecture": architecture,
             "TelemetryDeck.RunContext.isDebug": "\(isDebug)",
         ]
-        let signals: [[String: Any]] = types.map {
-            [
+        let signals: [[String: Any]] = types.map { type in
+            var payload = payload
+            if type == "App.updated", let previousVersion { payload["previousVersion"] = previousVersion }
+            return [
                 "appID": appID,
                 "clientUser": hashed(userID),
                 "sessionID": sessionID,
-                "type": $0,
+                "type": type,
                 // Test builds show up only in TelemetryDeck's test mode.
                 "isTestMode": isDebug,
                 "payload": payload,
@@ -169,5 +185,6 @@ public final class UsageReporter {
         static let userID = "usage.userID"
         static let lastDay = "usage.lastDay"
         static let pendingInstall = "usage.pendingInstall"
+        static let lastVersion = "usage.lastVersion"
     }
 }

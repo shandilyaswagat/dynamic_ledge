@@ -12,6 +12,10 @@ There are two stages:
 | Permissions after an update | Kept (same certificate every release) | Kept |
 | What changes in the README | Install steps 6–8 and the note under them | Remove those steps and the note |
 
+The installer window (an arrow from the app to Applications) is drawn by
+`Scripts/dmg-background.swift` and laid out by Finder from `make-dmg.sh`. The first release on a Mac
+asks to let Terminal control Finder; allow it. Without it the DMG still works, just plainly.
+
 Release assets are always named `DynamicNotch.dmg`, so the README's link
 `releases/latest/download/DynamicNotch.dmg` always points to the newest version.
 

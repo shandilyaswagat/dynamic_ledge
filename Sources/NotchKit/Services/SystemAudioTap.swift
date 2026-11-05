@@ -17,6 +17,8 @@ final class SystemAudioTap: @unchecked Sendable {
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
     private var procID: AudioDeviceIOProcID?
+    /// The output the tap is clocked from; the tap is rebuilt when the Mac switches outputs.
+    private(set) var outputDevice = AudioDeviceID(kAudioObjectUnknown)
     // Confined to `queue`.
     private var samples: [Float] = []
     private var sampleRate = 48000.0
@@ -31,10 +33,12 @@ final class SystemAudioTap: @unchecked Sendable {
 
     var isRunning: Bool { procID != nil }
 
+    /// Starts listening, clocked from `output` (the Mac's current output), as Apple's sample does.
     @discardableResult
-    func start() -> Bool {
+    func start(output: AudioDeviceID = AudioHW.defaultOutputDevice()) -> Bool {
         guard procID == nil else { return true }
-        guard #available(macOS 14.2, *) else { return false }
+        guard #available(macOS 14.2, *),
+              let outputUID = AudioHW.string(output, AudioHW.address(kAudioDevicePropertyDeviceUID)) else { return false }
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         description.uuid = UUID()
         description.isPrivate = true
@@ -46,16 +50,24 @@ final class SystemAudioTap: @unchecked Sendable {
         }
         tapID = tap
 
-        let rate = Self.sampleRate(of: tap)
+        // Levels are read as 32-bit floats, which is what taps deliver.
+        guard let format = Self.format(of: tap), format.mFormatID == kAudioFormatLinearPCM,
+              format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mBitsPerChannel == 32 else {
+            log.notice("The audio tap's format isn't 32-bit float")
+            stop()
+            return false
+        }
+        let rate = format.mSampleRate > 0 ? format.mSampleRate : 48000
         queue.sync { sampleRate = rate; samples.removeAll(keepingCapacity: true) }
 
         let aggregate: [String: Any] = [
             kAudioAggregateDeviceNameKey: "Dynamic Ledge music bars",
             kAudioAggregateDeviceUIDKey: "DynamicLedge.bars.\(UUID().uuidString)",
+            kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
             kAudioAggregateDeviceIsStackedKey: false,
             kAudioAggregateDeviceTapAutoStartKey: true,
-            kAudioAggregateDeviceSubDeviceListKey: [] as [Any],
+            kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: outputUID]],
             kAudioAggregateDeviceTapListKey: [[
                 kAudioSubTapUIDKey: description.uuid.uuidString,
                 kAudioSubTapDriftCompensationKey: true,
@@ -82,6 +94,7 @@ final class SystemAudioTap: @unchecked Sendable {
             stop()
             return false
         }
+        outputDevice = output
         return true
     }
 
@@ -99,6 +112,7 @@ final class SystemAudioTap: @unchecked Sendable {
             AudioHardwareDestroyProcessTap(tapID)
         }
         tapID = AudioObjectID(kAudioObjectUnknown)
+        outputDevice = AudioDeviceID(kAudioObjectUnknown)
     }
 
     deinit { stop() }
@@ -134,16 +148,11 @@ final class SystemAudioTap: @unchecked Sendable {
         onLevels?(levels)
     }
 
-    private static func sampleRate(of tap: AudioObjectID) -> Double {
+    private static func format(of tap: AudioObjectID) -> AudioStreamBasicDescription? {
         var format = AudioStreamBasicDescription()
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioTapPropertyFormat,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        guard AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format) == noErr,
-              format.mSampleRate > 0 else { return 48000 }
-        return format.mSampleRate
+        var address = AudioHW.address(kAudioTapPropertyFormat)
+        guard AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format) == noErr else { return nil }
+        return format
     }
 }

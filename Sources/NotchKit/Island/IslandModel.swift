@@ -1031,6 +1031,7 @@ public final class IslandModel {
             _ = nowPlaying.info?.isPlaying
             _ = settings.nowPlayingEnabled
             _ = settings.liveMusicBars
+            _ = audioOutput.currentDevice?.id
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.observeMusicBars() }
         }
@@ -1039,6 +1040,10 @@ public final class IslandModel {
     /// Listens to the Mac's sound only while Live music bars is on and something is playing.
     private func syncMusicBars() {
         let listens = settings.nowPlayingEnabled && settings.liveMusicBars && nowPlaying.info?.isPlaying == true
+        if listens, audioTap.isRunning, audioTap.outputDevice != AudioHW.defaultOutputDevice() {
+            // Switched to AirPods or speakers: listen through the new output.
+            audioTap.stop()
+        }
         if listens, !audioTap.isRunning {
             audioTap.onLevels = { [weak self] levels in
                 Task { @MainActor [weak self] in

@@ -24,15 +24,19 @@ last one.
   or its PDFs and images into one PDF, saved next to the first file and added to the Tray.
   Right-click a file to compress just that one.
 - **"Done" alert for coding assistants.** When Claude Code, Codex or Cursor finishes, the notch
-  says so, with the project's name. Turn it off in Settings › General › Coding Assistants.
+  says so, with the project's name. Turn it off in Settings › General › Coding Assistants, which
+  also takes its hook back out of the tool's settings.
 - **Install updates automatically.** An optional switch in Software Update installs a verified
-  new version when the daily check finds one, then relaunches. Off by default.
+  new version when the daily check finds one, then relaunches. Off by default. It waits while a
+  timer or stopwatch runs, a call is on, or a coding assistant is waiting for your answer.
 - **Text from images.** Copy a screenshot or picture and its text shows up in Clipboard, ready to
   paste. The text is read on your Mac and the image isn't kept. Turn it on in Settings › Home &
   Widgets › Text from images; it's off until you do.
 - **Live music bars.** The bars beside the camera move with what's actually playing. Turn on Live
   music bars in Settings › General › Now Playing; macOS asks once to let Dynamic Ledge hear your
   Mac's sound. It's only measured to move the bars, never recorded or sent. Needs macOS 14.2.
+- **Choose how the notch moves.** Settings › Appearance › Motion: Springy for more bounce,
+  Calm for no bounce at all, or Standard as before.
 - **Update count.** The anonymous daily count also says once when a Mac moves to a new version,
   and which version it came from, so I can see how many people update. Nothing else is sent.
 

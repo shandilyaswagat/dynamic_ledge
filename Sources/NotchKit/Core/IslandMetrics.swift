@@ -24,13 +24,15 @@ public enum IslandMetrics {
         public static let timer: CGFloat = 76
         public static let call: CGFloat = 72
         public static let download: CGFloat = 72
-        /// Who's asking, what they want to do, and Allow / Deny.
+        /// Who's asking and what they want to do, with Allow over Deny beside it. Tall enough for
+        /// the buttons, which leaves room for `agentRequestBaseLines` lines of the request.
         public static let agentRequest: CGFloat = 112
-        /// Each line of a request past the first two, up to `agentRequestLines`; longer ones scroll.
+        public static let agentRequestBaseLines = 4
+        /// Each line of a request past the first four, up to `agentRequestLines`; longer ones scroll.
         public static let agentRequestLine: CGFloat = 15
-        public static let agentRequestLines = 8
+        public static let agentRequestLines = 10
         public static func agentRequest(lines: Int) -> CGFloat {
-            agentRequest + CGFloat(min(max(lines, 2), agentRequestLines) - 2) * agentRequestLine
+            agentRequest + CGFloat(min(max(lines, agentRequestBaseLines), agentRequestLines) - agentRequestBaseLines) * agentRequestLine
         }
         public static let drop: CGFloat = 100
         public static let timerFinished: CGFloat = 72
@@ -77,6 +79,9 @@ public enum IslandMetrics {
     /// Concave shoulders where the shape meets the top edge, like the real notch.
     public static let compactFlare: CGFloat = 6
     public static let expandedFlare: CGFloat = 10
+    /// Allow and Deny's column beside a coding-assistant request, and the gap before it.
+    public static let agentButtonWidth: CGFloat = 92
+    public static let agentButtonColumn: CGFloat = agentButtonWidth + 14
     /// Minimum width of each alert ear, so "Low Battery" fits beside the camera.
     public static let alertEarWidth: CGFloat = 128
     /// Ear width for alerts that show a name (calendar events, shortcuts).

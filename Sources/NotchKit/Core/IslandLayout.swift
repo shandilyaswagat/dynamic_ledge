@@ -221,9 +221,10 @@ public struct LayoutEngine: Equatable, Sendable {
     }
 
     /// How many characters of an approval request fit on a line: 12 pt monospaced text in the
-    /// usual expanded width, less the panel's and the text box's padding.
+    /// usual expanded width, less the panel's padding, the Allow / Deny column beside the request
+    /// and the text box's padding.
     var agentCharactersPerLine: Int {
-        max(20, Int((expandedWidth / scale - 64) / 7.3))
+        max(20, Int((expandedWidth / scale - 64 - IslandMetrics.agentButtonColumn) / 7.3))
     }
 
     /// Responds to logical display space, independently of the user's text and control size.

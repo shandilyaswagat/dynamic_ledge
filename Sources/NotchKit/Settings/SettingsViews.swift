@@ -352,6 +352,12 @@ struct AppearanceSettingsView: View {
                 .frame(maxWidth: .infinity)
 
                 Toggle("Liquid animations", isOn: $settings.liquidAnimations)
+                Picker("Motion", selection: $settings.motionStyle) {
+                    Text("Springy").tag(MotionStyle.springy)
+                    Text("Standard").tag(MotionStyle.standard)
+                    Text("Calm").tag(MotionStyle.calm)
+                }
+                .pickerStyle(.segmented)
                 if settings.appearance.theme == .glass {
                     LabeledContent("Glass Tint") {
                         HStack(spacing: 8) {
@@ -641,7 +647,7 @@ private struct CodingAssistantSection: View {
             do {
                 if isOn {
                     guard let command = AgentHookSettings.currentCommand(socket: AgentBridge.defaultSocketPath, kind: kind) else { return }
-                    try AgentHookSettings.install(kind, command: command)
+                    try AgentHookSettings.install(kind, command: command, finished: settings.agentFinishedAlerts)
                     settings.agentApprovals.insert(kind)
                 } else {
                     try AgentHookSettings.uninstall(kind)

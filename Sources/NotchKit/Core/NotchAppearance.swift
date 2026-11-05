@@ -39,6 +39,17 @@ public enum NotchTheme: String, CaseIterable, Sendable, Codable, Identifiable {
     public var id: String { rawValue }
 }
 
+/// How lively the notch moves as it opens, closes and changes. Standard is the original.
+public enum MotionStyle: String, CaseIterable, Sendable, Codable, Identifiable {
+    /// More bounce, a touch quicker.
+    case springy
+    case standard
+    /// No bounce, a touch slower.
+    case calm
+
+    public var id: String { rawValue }
+}
+
 /// What displays without a notch show: a notch of their own, or a floating pill like the Dynamic
 /// Island. MacBooks with a notch always use the real one.
 public enum ExternalDisplayStyle: String, CaseIterable, Sendable, Codable, Identifiable {

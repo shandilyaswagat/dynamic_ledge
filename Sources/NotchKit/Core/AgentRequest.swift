@@ -301,6 +301,12 @@ public enum AgentHookSettings {
         case grouped(event: String, matcher: String)
         /// `version: 1, hooks.<event>: [{...entry}]` (Cursor, Copilot CLI).
         case flat(event: String, entry: (String) -> [String: Any])
+
+        var event: String {
+            switch self {
+            case .grouped(let event, _), .flat(let event, _): event
+            }
+        }
     }
 
     /// Where the "finished" hook goes, for the tools that have one.
@@ -312,11 +318,17 @@ public enum AgentHookSettings {
         }
     }
 
-    /// The layouts for every hook of ours this tool gets, each with its command.
-    static func hooks(for kind: AgentKind, command: String) -> [(Layout, String)] {
+    /// The layouts for every hook of ours this tool gets, each with its command. The finished
+    /// hook is only there while "Done" alerts are on.
+    static func hooks(for kind: AgentKind, command: String, finished: Bool = true) -> [(Layout, String)] {
         var hooks = [(layout(for: kind), command)]
-        if let finished = finishedLayout(for: kind) { hooks.append((finished, command + " " + finishedFlag)) }
+        if finished, let layout = finishedLayout(for: kind) { hooks.append((layout, command + " " + finishedFlag)) }
         return hooks
+    }
+
+    /// Every place a hook of ours can be for this tool, wanted or not.
+    static func allLayouts(for kind: AgentKind) -> [Layout] {
+        [layout(for: kind)] + [finishedLayout(for: kind)].compactMap { $0 }
     }
 
     static func layout(for kind: AgentKind) -> Layout {
@@ -371,30 +383,41 @@ public enum AgentHookSettings {
         return commands(in: settings, kind: kind).contains(where: isOurs)
     }
 
-    /// True when our hook is there with exactly this command (false after the app moved).
-    public static func isCurrent(_ kind: AgentKind, command: String, at url: URL? = nil) -> Bool {
+    /// True when exactly our wanted hooks are there with this command (false after the app
+    /// moved, or when the finished hook is there but "Done" alerts are off, or the other way).
+    public static func isCurrent(_ kind: AgentKind, command: String, finished: Bool = true, at url: URL? = nil) -> Bool {
         guard let settings = try? readExisting(url ?? defaultURL(for: kind)) else { return false }
-        return hooks(for: kind, command: command).allSatisfy { commands(in: settings, layout: $0.0).contains($0.1) }
+        let wanted = hooks(for: kind, command: command, finished: finished)
+        return allLayouts(for: kind).allSatisfy { layout in
+            let ours = commands(in: settings, layout: layout).filter(isOurs)
+            let command = wanted.first { $0.0.event == layout.event }?.1
+            return command.map { ours == [$0] } ?? ours.isEmpty
+        }
     }
 
-    /// Adds the hook (replacing an older one of ours, say from before the app moved).
-    public static func install(_ kind: AgentKind, command: String, at url: URL? = nil) throws {
+    /// Adds the hooks (replacing older ones of ours, say from before the app moved), and takes
+    /// out the finished hook when `finished` is off.
+    public static func install(_ kind: AgentKind, command: String, finished: Bool = true, at url: URL? = nil) throws {
         let url = url ?? defaultURL(for: kind)
         var settings = try read(url)
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
-        for (layout, command) in Self.hooks(for: kind, command: command) {
+        let wanted = Self.hooks(for: kind, command: command, finished: finished)
+        for layout in allLayouts(for: kind) {
+            let command = wanted.first { $0.0.event == layout.event }?.1
             switch layout {
             case .grouped(let event, let matcher):
                 var groups = (hooks[event] as? [[String: Any]] ?? []).compactMap(withoutOurs)
-                groups.append([
-                    "matcher": matcher,
-                    "hooks": [["type": "command", "command": command, "timeout": timeout]],
-                ])
-                hooks[event] = groups
+                if let command {
+                    groups.append([
+                        "matcher": matcher,
+                        "hooks": [["type": "command", "command": command, "timeout": timeout]],
+                    ])
+                }
+                hooks[event] = groups.isEmpty ? nil : groups
             case .flat(let event, let entry):
                 var entries = (hooks[event] as? [[String: Any]] ?? []).filter { !isOurs(entryCommand($0)) }
-                entries.append(entry(command))
-                hooks[event] = entries
+                if let command { entries.append(entry(command)) }
+                hooks[event] = entries.isEmpty ? nil : entries
                 if settings["version"] == nil { settings["version"] = 1 }
             }
         }
@@ -406,7 +429,7 @@ public enum AgentHookSettings {
         let url = url ?? defaultURL(for: kind)
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         var settings = try read(url)
-        let layouts = [layout(for: kind)] + [finishedLayout(for: kind)].compactMap { $0 }
+        let layouts = allLayouts(for: kind)
         guard layouts.contains(where: { commands(in: settings, layout: $0).contains(where: isOurs) }),
               var hooks = settings["hooks"] as? [String: Any] else { return }
         for layout in layouts {

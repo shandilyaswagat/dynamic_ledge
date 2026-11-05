@@ -106,6 +106,8 @@ struct AutomaticUpdateDecisionTests {
         #expect(Updater.shouldInstallAutomatically(enabled: true, userInitiated: false, canInstall: true))
         #expect(!Updater.shouldInstallAutomatically(enabled: false, userInitiated: false, canInstall: true))
         #expect(!Updater.shouldInstallAutomatically(enabled: true, userInitiated: true, canInstall: true))
+        #expect(!Updater.shouldInstallAutomatically(enabled: true, userInitiated: false, canInstall: true, isBusy: true),
+                "waits while something would be cut off")
         #expect(!Updater.shouldInstallAutomatically(enabled: true, userInitiated: false, canInstall: false))
     }
 }

@@ -179,10 +179,12 @@ struct AgentRequestTests {
         let normal = layout("ls")
         let twoLines = layout(String(repeating: "x", count: engine.agentCharactersPerLine + 5))
         let fourLines = layout("a\nb\nc\nd")
+        let sixLines = layout("a\nb\nc\nd\ne\nf")
         let huge = layout(String(repeating: "command ", count: 1_000))
         #expect(twoLines == normal, "two lines fit the usual panel")
-        #expect(fourLines.content.height > normal.content.height)
-        #expect(huge.content.height > fourLines.content.height)
+        #expect(fourLines == normal, "so do four, beside the buttons")
+        #expect(sixLines.content.height > normal.content.height)
+        #expect(huge.content.height > sixLines.content.height)
         #expect(huge.content.width == normal.content.width, "never wider than usual")
         #expect(huge.pill.maxY <= engine.windowSize.height)
     }
@@ -487,6 +489,23 @@ struct AgentKindsTests {
         let old = temporaryFile(#"{"hooks": {"PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "\#(command)"}]}]}}"#)
         #expect(!AgentHookSettings.isCurrent(.claude, command: command, at: old))
         #expect(AgentHookSettings.isCurrent(.claude, command: command, at: claude))
+    }
+
+    @Test func finishedHookFollowsDoneAlerts() throws {
+        let url = temporaryFile(#"{"hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "afplay done.aiff"}]}]}}"#)
+        let command = AgentHookSettings.command(executable: "/App", socket: "/s", kind: .claude)
+        func stopCommands() throws -> [String] {
+            let groups = (decode(try Data(contentsOf: url))["hooks"] as? [String: Any])?["Stop"] as? [[String: Any]] ?? []
+            return groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }.compactMap { $0["command"] as? String }
+        }
+        try AgentHookSettings.install(.claude, command: command, finished: true, at: url)
+        #expect(try stopCommands() == ["afplay done.aiff", command + " --finished"])
+        #expect(!AgentHookSettings.isCurrent(.claude, command: command, finished: false, at: url), "alerts turned off")
+
+        try AgentHookSettings.install(.claude, command: command, finished: false, at: url)
+        #expect(try stopCommands() == ["afplay done.aiff"], "the user's own Stop hook stays")
+        #expect(AgentHookSettings.isCurrent(.claude, command: command, finished: false, at: url))
+        #expect(!AgentHookSettings.isCurrent(.claude, command: command, finished: true, at: url))
     }
 
     @Test func finishedNoticesCarryOnlyTheFolderName() throws {

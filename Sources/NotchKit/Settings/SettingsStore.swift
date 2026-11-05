@@ -81,6 +81,7 @@ public final class SettingsStore {
     public var collapseOnPointerExit: Bool { didSet { defaults.set(collapseOnPointerExit, forKey: Key.collapseOnPointerExit) } }
     public var hapticsEnabled: Bool { didSet { defaults.set(hapticsEnabled, forKey: Key.haptics) } }
     public var liquidAnimations: Bool { didSet { defaults.set(liquidAnimations, forKey: Key.liquid) } }
+    public var motionStyle: MotionStyle { didSet { defaults.set(motionStyle.rawValue, forKey: Key.motionStyle) } }
     public var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: Key.menuBarIcon) } }
     public var display: DisplayChoice { didSet { defaults.set(display.rawValue, forKey: Key.display) } }
     public var timerSound: Bool { didSet { defaults.set(timerSound, forKey: Key.timerSound) } }
@@ -228,6 +229,7 @@ public final class SettingsStore {
         collapseOnPointerExit = defaults.object(forKey: Key.collapseOnPointerExit) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
         liquidAnimations = defaults.object(forKey: Key.liquid) as? Bool ?? true
+        motionStyle = defaults.string(forKey: Key.motionStyle).flatMap(MotionStyle.init(rawValue:)) ?? .standard
         showMenuBarIcon = defaults.object(forKey: Key.menuBarIcon) as? Bool ?? true
         display = (defaults.string(forKey: Key.display)).flatMap(DisplayChoice.init(rawValue:)) ?? .automatic
         timerSound = defaults.object(forKey: Key.timerSound) as? Bool ?? true
@@ -366,6 +368,7 @@ public final class SettingsStore {
         static let collapseOnPointerExit = "behavior.collapseOnPointerExit"
         static let haptics = "behavior.haptics"
         static let liquid = "behavior.liquidAnimations"
+        static let motionStyle = "behavior.motionStyle"
         static let menuBarIcon = "general.showMenuBarIcon"
         static let display = "general.display"
         static let timerSound = "timer.sound"

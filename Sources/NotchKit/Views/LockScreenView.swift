@@ -19,7 +19,7 @@ struct LockScreenView: View {
                 .allowsHitTesting(false)
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
-        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion), value: presentation)
+        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion, style: model.settings.motionStyle), value: presentation)
         .environment(\.colorScheme, .dark)
         .onAppear { shown = true }
     }

@@ -415,7 +415,7 @@ private struct AgentRequestView: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14 * s) {
+        HStack(alignment: .top, spacing: (IslandMetrics.agentButtonColumn - IslandMetrics.agentButtonWidth) * s) {
             details
             VStack(spacing: 6 * s) {
                 AgentButton(title: "Allow", prominent: true) { model.answerAgent(.allow) }
@@ -429,7 +429,7 @@ private struct AgentRequestView: View {
                     .minimumScaleFactor(0.8)
                     .accessibilityHint(Text("Closes this and answers in the assistant's own window"))
             }
-            .frame(width: 92 * s)
+            .frame(width: IslandMetrics.agentButtonWidth * s)
         }
         .padding(.horizontal, 20 * s)
         .accessibilityElement(children: .contain)

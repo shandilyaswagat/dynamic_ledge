@@ -49,8 +49,8 @@ Free, no account, nothing about you collected.
 - **Mirror** to check your camera before a call
 - Calendar, reminders, stopwatch, Stats and Keep Awake behind the grid button
 
-Make it small, medium or large, black or **Glass**, or stretch Home across the top with
-**Elongated**. No notch on your Mac or second screen? You still get one, or a floating **Pill**.
+Make it small, medium or large, black or **Glass**, springy or calm, or stretch Home across the
+top with **Elongated**. No notch on your Mac or second screen? You still get one, or a floating **Pill**.
 
 <a id="installing-it"></a>
 

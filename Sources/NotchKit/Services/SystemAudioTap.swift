@@ -8,7 +8,8 @@ import os
 /// memory, a few milliseconds at a time: nothing is recorded, saved or sent. macOS asks once
 /// before the first tap; if the user says no, the tap hears silence.
 final class SystemAudioTap: @unchecked Sendable {
-    /// Called on a background queue with a level from 0 to 1 per music bar.
+    /// Called on a background queue with a level from 0 to 1 per music bar. Set it once, before
+    /// the first `start()`.
     var onLevels: (@Sendable ([Double]) -> Void)?
 
     private let queue = DispatchQueue(label: "DynamicLedge.audio-tap", qos: .userInteractive)
@@ -23,6 +24,7 @@ final class SystemAudioTap: @unchecked Sendable {
     private var samples: [Float] = []
     private var sampleRate = 48000.0
     private var lastLevels: UInt64 = 0
+    private let meter = SpectrumMeter(size: windowSize)
 
     static let windowSize = 1024
     static let interval: UInt64 = 33_000_000
@@ -144,7 +146,7 @@ final class SystemAudioTap: @unchecked Sendable {
         let now = DispatchTime.now().uptimeNanoseconds
         guard samples.count >= Self.windowSize, now - lastLevels >= Self.interval else { return }
         lastLevels = now
-        let levels = FFTProcessor.computeBands(samples: Array(samples.suffix(Self.windowSize)), sampleRate: sampleRate)
+        let levels = meter?.bands(samples, sampleRate: sampleRate) ?? []
         onLevels?(levels)
     }
 

@@ -185,7 +185,7 @@ Dark-mode system colours, since the surface is always black.
 | Alert | spring, response 0.44, damping 0.74 |
 | Open (expanded, Home and panels, drop) | spring, response 0.48, damping 0.8 |
 | Hover swell / notch appearing on another display | spring, response 0.34, damping 0.72 |
-| Hide | spring, response 0.36, damping 0.92 (settles without a bounce) |
+| Hide | smooth, 0.42 s (settles without a bounce) |
 | Settings slider changes | spring, response 0.3, critically damped |
 | Hover lift | spring, response 0.3, damping 0.68 |
 | Content swap | old: fade + blur 4 + scale 0.97 out in 0.12 s; new: fade + blur 6 + scale 0.92 → 1 in a 0.34 s smooth curve after 0.06 s. Both scale from the top edge, so content grows out of the notch |
@@ -193,6 +193,11 @@ Dark-mode system colours, since the surface is always black.
 | Now Playing bars | 4 capsules, Core Animation keyframe loops of 1.2–1.9 s; resting height 28 % when paused. With Live music bars, heights follow bass, low mids, high mids and treble about 30 times a second (90 ms linear steps), rising fast and falling gently; 2 s of silence hands back to the loop |
 | Long Now Playing titles | Continuous horizontal loop at 25 pt/s, with a 32 pt gap; only while playing and only if the title is too wide. Paused and Reduce Motion show a still, truncated title. Sizes scale with the notch |
 | Timer done | bell swings ±16° |
+
+These are the Standard motion. Settings › Appearance › Motion can make every spring above
+(and Glass's, and the resize and hover springs) **Springy**: response × 0.92 and damping − 0.16,
+never below 0.5; or **Calm**: response × 1.12 and damping 1, so nothing bounces. Closing never
+bounces in any style (Calm closes in 0.5 s).
 
 Reduce Motion replaces springs with a 0.2 s ease and turns the liquid effect off.
 
@@ -210,9 +215,9 @@ Times read like the Clock app: `4:59`, `1:02:03`; track time left reads `-3:01`.
 
 ## Coding-assistant approval details
 
-The panel always keeps the usual expanded width. Up to two wrapped lines fit the usual 112 pt
-of content; each line after that adds 15 pt, up to eight lines (202 pt). Anything longer
-scrolls.
+The panel always keeps the usual expanded width. The request is 106 pt narrower than the panel
+(the button column), and up to four wrapped lines fit the usual 112 pt of content; each line
+after that adds 15 pt, up to ten lines (202 pt). Anything longer scrolls.
 The entire request is selectable and vertically scrollable, with no line limit or ellipsis.
 Beside it, a 92 pt column holds Allow (white capsule, black text) over Deny (white at 14 %),
 each 28 pt tall, with Ask in the assistant at the bottom; they stay visible while the request

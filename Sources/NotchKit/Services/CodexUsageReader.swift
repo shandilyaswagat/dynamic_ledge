@@ -30,7 +30,14 @@ enum CodexUsageReader {
         do { try process.run() } catch { return unavailable("Couldn't start Codex CLI.") }
         defer {
             try? input.fileHandleForWriting.close()
-            if process.isRunning { process.terminate() }
+            // Make sure it's gone: ask, then insist after a second.
+            if process.isRunning {
+                process.terminate()
+                let deadline = Date().addingTimeInterval(1)
+                while process.isRunning, Date() < deadline { usleep(20_000) }
+                if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+                process.waitUntilExit()
+            }
         }
         let requests: [[String: Any]] = [
             ["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "dynamic-ledge", "version": "1.0"]]],

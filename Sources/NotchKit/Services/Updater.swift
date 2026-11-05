@@ -23,6 +23,9 @@ public final class Updater {
     public private(set) var state: State = .idle
     /// Opt-in: only background checks may start a verified installation.
     public var installsAutomatically = false
+    /// True while relaunching would cut something off (a request waiting for Allow, a timer, a
+    /// call). An automatic install then waits for a later check.
+    @ObservationIgnored public var isBusy: () -> Bool = { false }
     /// Called once per new version found by an automatic check.
     @ObservationIgnored public var onAvailable: ((ReleaseInfo) -> Void)?
 
@@ -92,6 +95,13 @@ public final class Updater {
     }
 
     private func checkIfDue() {
+        // An automatic install that had to wait goes ahead once nothing is in the way.
+        if let release = availableRelease,
+           Self.shouldInstallAutomatically(enabled: installsAutomatically, userInitiated: false,
+                                           canInstall: canInstallInPlace(release), isBusy: isBusy()) {
+            install(release)
+            return
+        }
         let last = defaults.object(forKey: Key.lastCheck) as? Date ?? .distantPast
         guard Date().timeIntervalSince(last) >= Self.checkInterval else { return }
         check(userInitiated: false)
@@ -119,7 +129,8 @@ public final class Updater {
                         self.defaults.set(release.version.description, forKey: Key.announced)
                         self.onAvailable?(release)
                     }
-                    if Self.shouldInstallAutomatically(enabled: self.installsAutomatically, userInitiated: userInitiated, canInstall: self.canInstallInPlace(release)) {
+                    if Self.shouldInstallAutomatically(enabled: self.installsAutomatically, userInitiated: userInitiated,
+                                                       canInstall: self.canInstallInPlace(release), isBusy: self.isBusy()) {
                         self.install(release)
                     }
                 } else {
@@ -132,8 +143,8 @@ public final class Updater {
         }
     }
 
-    nonisolated static func shouldInstallAutomatically(enabled: Bool, userInitiated: Bool, canInstall: Bool) -> Bool {
-        enabled && !userInitiated && canInstall
+    nonisolated static func shouldInstallAutomatically(enabled: Bool, userInitiated: Bool, canInstall: Bool, isBusy: Bool = false) -> Bool {
+        enabled && !userInitiated && canInstall && !isBusy
     }
 
     /// Downloads, verifies and installs the release, then relaunches. Opens the release page

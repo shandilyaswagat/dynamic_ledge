@@ -29,6 +29,7 @@ enum SettingsSearch {
         .init(title: "Lock Screen", path: "General", page: .general, keywords: "locked screen"),
         .init(title: "Keyboard shortcuts", path: "General", page: .general, keywords: "hotkeys keyboard"),
         .init(title: "Appearance", path: "Appearance", page: .appearance, keywords: "theme look black glass"),
+        .init(title: "Motion", path: "Appearance", page: .appearance, keywords: "animation springy calm bounce speed liquid"),
         .init(title: "Home layout", path: "Appearance", page: .appearance, keywords: "standard elongated wide size"),
         .init(title: "Displays Without a Notch", path: "Appearance", page: .appearance, keywords: "pill island dynamic external monitor notch"),
         .init(title: "Home & Widgets", path: "Home & Widgets", page: .home, keywords: "home features"),

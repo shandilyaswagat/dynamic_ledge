@@ -38,41 +38,67 @@ extension TimerMode {
 
 enum Motion {
     /// Spring for a change of presentation, picked by where the shape is going. Opening has a
-    /// little give, like the iPhone's island; closing settles without a bounce.
-    static func shape(to presentation: IslandPresentation, reduceMotion: Bool, theme: NotchTheme = .black) -> Animation {
+    /// little give, like the iPhone's island; closing settles without a bounce. `style` makes
+    /// every spring livelier or calmer.
+    static func shape(
+        to presentation: IslandPresentation,
+        reduceMotion: Bool,
+        theme: NotchTheme = .black,
+        style: MotionStyle = .standard
+    ) -> Animation {
         if reduceMotion {
             return .easeInOut(duration: 0.2)
         }
-        if theme == .glass { return glassShape(to: presentation) }
+        if theme == .glass { return glassShape(to: presentation, style: style) }
         switch presentation {
         case .hidden(peek: true):
-            return .spring(response: 0.34, dampingFraction: 0.72)
+            return spring(0.34, 0.72, style)
         case .hidden:
             // Retracting: smooth and deliberate, no overshoot, so it settles exactly at the edge.
-            return .smooth(duration: 0.42)
+            return .smooth(duration: style == .calm ? 0.5 : 0.42)
         case .idle, .compact:
-            return .spring(response: 0.42, dampingFraction: 0.76)
+            return spring(0.42, 0.76, style)
         case .alert:
-            return .spring(response: 0.44, dampingFraction: 0.74)
+            return spring(0.44, 0.74, style)
         case .expanded, .nook, .drop:
-            return .spring(response: 0.48, dampingFraction: 0.8)
+            return spring(0.48, 0.8, style)
         }
     }
 
     /// Glass moves like a drop of liquid: a touch slower, with more give as it opens and a soft
     /// settle as it closes.
-    private static func glassShape(to presentation: IslandPresentation) -> Animation {
+    private static func glassShape(to presentation: IslandPresentation, style: MotionStyle) -> Animation {
         switch presentation {
         case .hidden(peek: true):
-            .spring(response: 0.4, dampingFraction: 0.64)
+            spring(0.4, 0.64, style)
         case .hidden:
-            .spring(response: 0.5, dampingFraction: 0.92)
+            // Closing never bounces, whatever the style.
+            spring(0.5, 0.92, style == .springy ? .standard : style)
         case .idle, .compact:
-            .spring(response: 0.5, dampingFraction: 0.7)
+            spring(0.5, 0.7, style)
         case .alert:
-            .spring(response: 0.52, dampingFraction: 0.68)
+            spring(0.52, 0.68, style)
         case .expanded, .nook, .drop:
-            .spring(response: 0.56, dampingFraction: 0.74)
+            spring(0.56, 0.74, style)
+        }
+    }
+
+    /// A spring tuned by `style`: Springy is a little quicker with more bounce, Calm a little
+    /// slower and doesn't bounce at all.
+    static func spring(_ response: Double, _ dampingFraction: Double, _ style: MotionStyle) -> Animation {
+        switch style {
+        case .standard: .spring(response: response, dampingFraction: dampingFraction)
+        case .springy: .spring(response: response * 0.92, dampingFraction: damping(dampingFraction, style))
+        case .calm: .spring(response: response * 1.12, dampingFraction: damping(dampingFraction, style))
+        }
+    }
+
+    /// Springy takes away 0.16 of the damping, but never below 0.5, where it would wobble.
+    static func damping(_ value: Double, _ style: MotionStyle) -> Double {
+        switch style {
+        case .standard: value
+        case .springy: max(value - 0.16, 0.5)
+        case .calm: 1
         }
     }
 
@@ -81,12 +107,12 @@ enum Motion {
     static let resize = Animation.spring(response: 0.38, dampingFraction: 0.86)
     static let hover = Animation.spring(response: 0.3, dampingFraction: 0.68)
 
-    static func resize(_ theme: NotchTheme) -> Animation {
-        theme == .glass ? .spring(response: 0.46, dampingFraction: 0.8) : resize
+    static func resize(_ theme: NotchTheme, style: MotionStyle = .standard) -> Animation {
+        theme == .glass ? spring(0.46, 0.8, style) : spring(0.38, 0.86, style)
     }
 
-    static func hover(_ theme: NotchTheme) -> Animation {
-        theme == .glass ? .spring(response: 0.36, dampingFraction: 0.6) : hover
+    static func hover(_ theme: NotchTheme, style: MotionStyle = .standard) -> Animation {
+        theme == .glass ? spring(0.36, 0.6, style) : spring(0.3, 0.68, style)
     }
 }
 

@@ -163,6 +163,10 @@ public final class IslandModel {
         calendar.onGranted = { [weak self] in self?.showTab(.calendar) }
         reminders.onGranted = { [weak self] in self?.showTab(.reminders) }
         updater.onAvailable = { [weak self] release in self?.receive(.updateAvailable(version: release.version.description)) }
+        updater.isBusy = { [weak self] in
+            guard let self else { return false }
+            return !self.agents.pending.isEmpty || self.timer.isActive || self.stopwatch.isActive || self.calls.session != nil
+        }
         power.onAlert = { [weak self] alert in self?.receive(alert) }
         audioRoute.onAlert = { [weak self] alert in self?.receive(alert) }
         nowPlaying.lingerDuration = settings.pausedMediaLinger
@@ -176,6 +180,13 @@ public final class IslandModel {
         observeActivities()
         observeSettings()
         observeLyrics()
+        // Set once, before the tap ever starts: its audio queue reads it.
+        audioTap.onLevels = { [weak self] levels in
+            Task { @MainActor [weak self] in
+                guard let self, self.audioTap.isRunning else { return }
+                self.spectrum.update(levels: levels)
+            }
+        }
         observeMusicBars()
     }
 
@@ -199,13 +210,7 @@ public final class IslandModel {
         agents.enabledKinds = settings.agentApprovals
         if settings.agentApprovalsEnabled {
             agents.start()
-            // Keeps each hook pointing at this copy of the app, for example after it moved.
-            for kind in settings.agentApprovals {
-                if let command = AgentHookSettings.currentCommand(socket: agents.socketPath, kind: kind),
-                   !AgentHookSettings.isCurrent(kind, command: command) {
-                    try? AgentHookSettings.install(kind, command: command)
-                }
-            }
+            refreshAgentHooks()
         }
         microphone.start()
         if settings.remindersEnabled { reminders.start() }
@@ -1025,6 +1030,16 @@ public final class IslandModel {
         }
     }
 
+    /// Keeps each hook pointing at this copy of the app (for example after it moved), with the
+    /// finished hook only while "Done" alerts are on.
+    private func refreshAgentHooks() {
+        for kind in settings.agentApprovals {
+            guard let command = AgentHookSettings.currentCommand(socket: agents.socketPath, kind: kind),
+                  !AgentHookSettings.isCurrent(kind, command: command, finished: settings.agentFinishedAlerts) else { continue }
+            try? AgentHookSettings.install(kind, command: command, finished: settings.agentFinishedAlerts)
+        }
+    }
+
     private func observeMusicBars() {
         syncMusicBars()
         withObservationTracking {
@@ -1045,12 +1060,6 @@ public final class IslandModel {
             audioTap.stop()
         }
         if listens, !audioTap.isRunning {
-            audioTap.onLevels = { [weak self] levels in
-                Task { @MainActor [weak self] in
-                    guard let self, self.audioTap.isRunning else { return }
-                    self.spectrum.update(levels: levels)
-                }
-            }
             if !audioTap.start() { spectrum.reset() }
         } else if !listens, audioTap.isRunning {
             audioTap.stop()
@@ -1071,6 +1080,7 @@ public final class IslandModel {
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
             _ = settings.agentApprovals
+            _ = settings.agentFinishedAlerts
             _ = settings.remindersEnabled
             _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
@@ -1099,7 +1109,12 @@ public final class IslandModel {
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
                 if self.settings.sharesUsage { self.usage.start(isNewInstall: false) } else { self.usage.stop() }
                 self.agents.enabledKinds = self.settings.agentApprovals
-                if self.settings.agentApprovalsEnabled { self.agents.start() } else { self.agents.stop() }
+                if self.settings.agentApprovalsEnabled {
+                    self.agents.start()
+                    self.refreshAgentHooks()
+                } else {
+                    self.agents.stop()
+                }
                 if self.settings.downloadsEnabled {
                     self.downloads.start()
                     self.downloadProgress.start()

@@ -34,11 +34,11 @@ struct IslandRootView: View {
             IslandContentLayer(model: model, presentation: presentation, layout: layout)
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
-        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion, theme: appearance.theme), value: presentation)
+        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion, theme: appearance.theme, style: model.settings.motionStyle), value: presentation)
         .animation(Motion.settings, value: model.settings.appearance)
         // Lyrics arriving, a second app playing, Clipboard's search bar: the shape eases to fit.
-        .animation(reduceMotion ? nil : Motion.resize(appearance.theme), value: model.homeContent)
-        .animation(reduceMotion ? nil : Motion.hover(appearance.theme), value: model.isHoveringPill)
+        .animation(reduceMotion ? nil : Motion.resize(appearance.theme, style: model.settings.motionStyle), value: model.homeContent)
+        .animation(reduceMotion ? nil : Motion.hover(appearance.theme, style: model.settings.motionStyle), value: model.isHoveringPill)
         .environment(\.colorScheme, .dark)
         // No scroll bars anywhere in the notch, even when macOS shows them because a mouse is
         // connected: they'd cover content and squeeze narrow lists like the timer's wheels.

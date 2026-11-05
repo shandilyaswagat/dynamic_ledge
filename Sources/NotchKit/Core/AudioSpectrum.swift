@@ -28,22 +28,55 @@ public enum FFTProcessor {
         bandRanges: [ClosedRange<Double>] = barBands,
         tilt: [Double] = barTilt
     ) -> [Double] {
-        let silent = Array(repeating: 0.0, count: bandRanges.count)
-        guard samples.count >= 16, sampleRate > 0 else { return silent }
-        let log2n = vDSP_Length(log2(Double(samples.count)).rounded(.down))
-        let n = 1 << log2n
+        guard samples.count >= 16, sampleRate > 0, let meter = SpectrumMeter(size: samples.count) else {
+            return Array(repeating: 0, count: bandRanges.count)
+        }
+        return meter.bands(samples, sampleRate: sampleRate, bandRanges: bandRanges, tilt: tilt)
+    }
+}
+
+/// The FFT set-up, window and buffers for one window size, made once and reused, so measuring 30
+/// times a second allocates nothing. Use it from one thread at a time.
+final class SpectrumMeter {
+    let size: Int
+    private let log2n: vDSP_Length
+    private let setup: FFTSetup
+    private var window: [Float]
+    private var windowed: [Float]
+    private var real: [Float]
+    private var imag: [Float]
+    private var magnitudes: [Float]
+
+    /// The largest power of two up to `size`; nil below 16 samples.
+    init?(size: Int) {
+        guard size >= 16 else { return nil }
+        log2n = vDSP_Length(log2(Double(size)).rounded(.down))
+        self.size = 1 << log2n
+        guard let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return nil }
+        self.setup = setup
+        window = [Float](repeating: 0, count: self.size)
+        vDSP_hann_window(&window, vDSP_Length(self.size), Int32(vDSP_HANN_NORM))
+        windowed = [Float](repeating: 0, count: self.size)
+        real = [Float](repeating: 0, count: self.size / 2)
+        imag = [Float](repeating: 0, count: self.size / 2)
+        magnitudes = [Float](repeating: 0, count: self.size / 2)
+    }
+
+    deinit { vDSP_destroy_fftsetup(setup) }
+
+    /// Measures the last `size` samples.
+    func bands(
+        _ samples: [Float],
+        sampleRate: Double,
+        bandRanges: [ClosedRange<Double>] = FFTProcessor.barBands,
+        tilt: [Double] = FFTProcessor.barTilt
+    ) -> [Double] {
+        guard samples.count >= size, sampleRate > 0 else { return Array(repeating: 0, count: bandRanges.count) }
+        let n = size
         let halfN = n / 2
-        guard let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return silent }
-        defer { vDSP_destroy_fftsetup(setup) }
-
-        var window = [Float](repeating: 0, count: n)
-        vDSP_hann_window(&window, vDSP_Length(n), Int32(vDSP_HANN_NORM))
-        var windowed = [Float](repeating: 0, count: n)
-        samples.withUnsafeBufferPointer { vDSP_vmul($0.baseAddress!, 1, window, 1, &windowed, 1, vDSP_Length(n)) }
-
-        var real = [Float](repeating: 0, count: halfN)
-        var imag = [Float](repeating: 0, count: halfN)
-        var magnitudes = [Float](repeating: 0, count: halfN)
+        samples.withUnsafeBufferPointer { buffer in
+            vDSP_vmul(buffer.baseAddress! + (samples.count - n), 1, window, 1, &windowed, 1, vDSP_Length(n))
+        }
         real.withUnsafeMutableBufferPointer { realPointer in
             imag.withUnsafeMutableBufferPointer { imagPointer in
                 var split = DSPSplitComplex(realp: realPointer.baseAddress!, imagp: imagPointer.baseAddress!)
@@ -67,7 +100,7 @@ public enum FFTProcessor {
             let peak = magnitudes[first...last].max() ?? 0
             let amplitude = Double(peak).squareRoot() * scale
             let decibels = 20 * log10(max(amplitude, 1e-9)) + (tilt.indices.contains(index) ? tilt[index] : 0)
-            return min(max((decibels - floorDecibels) / rangeDecibels, 0), 1)
+            return min(max((decibels - FFTProcessor.floorDecibels) / FFTProcessor.rangeDecibels, 0), 1)
         }
     }
 }

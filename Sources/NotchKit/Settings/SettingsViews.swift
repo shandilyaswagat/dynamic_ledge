@@ -513,6 +513,9 @@ struct NowPlayingSettingsView: View {
                 IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app, or just the ones you pick", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
                 if settings.nowPlayingEnabled {
                     IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when available. The song name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
+                    if SystemAudioTap.isSupported {
+                        IconToggle(title: "Live music bars", detail: "The bars move with the music. Dynamic Ledge measures your Mac's sound while something plays; nothing is recorded or sent. macOS asks for access once", symbol: "waveform", color: .pink, isOn: $settings.liveMusicBars)
+                    }
                 }
                 if !nowPlaying.isAvailable {
                     Text("Now Playing isn’t available on this Mac.").font(.caption).foregroundStyle(.secondary)
@@ -843,6 +846,9 @@ struct HomeSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 IconToggle(title: "Clipboard", detail: "Text you copied recently. Passwords are skipped; only pinned clips are saved", symbol: "doc.on.clipboard.fill", color: .orange, isOn: $settings.clipboardEnabled)
+                if settings.clipboardEnabled {
+                    IconToggle(title: "Text from images", detail: "When you copy an image, its text is read on this Mac and added to Clipboard. The image isn't kept", symbol: "text.viewfinder", color: .orange, isOn: $settings.clipboardReadsImages)
+                }
                 IconToggle(title: "Notes", detail: "A quick scratchpad, saved as you type", symbol: "note.text", color: .yellow, isOn: $settings.notesEnabled)
                 IconToggle(title: "Reminders", detail: "Today's to-dos, ticked off from the notch", symbol: "checklist", color: .blue, isOn: $settings.remindersEnabled)
                 IconToggle(title: "Finished downloads", detail: "A heads-up when a file lands in Downloads. macOS asks for access once", symbol: "arrow.down.circle.fill", color: .blue, isOn: $settings.downloadsEnabled)

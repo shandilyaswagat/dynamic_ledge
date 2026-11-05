@@ -47,7 +47,7 @@ struct NowPlayingExpandedView: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                WaveformBars(color: accent, isPlaying: info?.isPlaying == true)
+                WaveformBars(color: accent, isPlaying: info?.isPlaying == true, spectrum: model.spectrum)
                     .frame(width: 20 * s, height: 18 * s)
             }
 

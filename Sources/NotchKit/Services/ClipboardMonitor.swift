@@ -4,7 +4,8 @@ import Observation
 /// Watches the pasteboard for copied text. macOS has no change notification, so it checks the
 /// change count a little more than once a second, which costs next to nothing. Copies marked
 /// private (passwords) are skipped. Only clips the user pins are saved, so they're still there
-/// after a restart; the rest stays in memory.
+/// after a restart; the rest stays in memory. With `readsTextInImages`, a copied image's text is
+/// read on this Mac and kept as a clip; the image itself isn't.
 @MainActor
 @Observable
 public final class ClipboardMonitor {
@@ -22,6 +23,10 @@ public final class ClipboardMonitor {
     @ObservationIgnored private var lastChangeCount: Int
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
+    /// Text from images (Settings › Home & Widgets). Off by default.
+    @ObservationIgnored public var readsTextInImages = false
+    /// Reading the last copied image, if it's still going.
+    @ObservationIgnored private(set) var recognition: Task<Void, Never>?
 
     public init(pasteboard: NSPasteboard = .general, defaults: UserDefaults = .standard) {
         self.pasteboard = pasteboard
@@ -50,6 +55,8 @@ public final class ClipboardMonitor {
     public func stop() {
         timer?.invalidate()
         timer = nil
+        recognition?.cancel()
+        recognition = nil
         history.removeAll()
     }
 
@@ -58,9 +65,20 @@ public final class ClipboardMonitor {
         guard count != lastChangeCount else { return }
         lastChangeCount = count
         let types = (pasteboard.types ?? []).map(\.rawValue)
-        guard ClipboardRules.shouldRecord(types: types),
-              let text = pasteboard.string(forType: .string) else { return }
-        history.add(text, appName: NSWorkspace.shared.frontmostApplication?.localizedName)
+        guard ClipboardRules.shouldRecord(types: types) else { return }
+        let appName = NSWorkspace.shared.frontmostApplication?.localizedName
+        if let text = pasteboard.string(forType: .string) {
+            history.add(text, appName: appName)
+            return
+        }
+        guard readsTextInImages, ClipboardRules.isImage(types: types),
+              let image = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff) else { return }
+        recognition?.cancel()
+        recognition = Task { [weak self] in
+            let text = await TextRecognizer.text(in: image)
+            guard !Task.isCancelled, let self, self.isRunning, let text else { return }
+            self.history.add(text, appName: appName)
+        }
     }
 
     /// Puts an entry back on the pasteboard so it can be pasted, and moves it to the front

@@ -2,119 +2,122 @@ import Accelerate
 import Foundation
 import Observation
 
-public struct SpectrumBand: Equatable, Sendable {
-    public let index: Int
-    public let frequencyRange: ClosedRange<Double>
-    public var magnitude: Double
-
-    public init(index: Int, frequencyRange: ClosedRange<Double>, magnitude: Double = 0) {
-        self.index = index
-        self.frequencyRange = frequencyRange
-        self.magnitude = magnitude
-    }
-}
-
+/// Turns a short run of audio into how loud each frequency band is, for the music bars.
 public enum FFTProcessor {
-    /// 5 standard visualization bands: Sub-bass (20-100Hz), Bass (100-300Hz),
-    /// Midrange (300-1500Hz), Upper-mids (1500-5000Hz), Treble (5000-20000Hz)
-    public static let standardBands: [ClosedRange<Double>] = [
-        20...120,
-        120...350,
-        350...1500,
-        1500...5000,
-        5000...20000
+    /// One range per music bar: bass, low mids, high mids, treble.
+    public static let barBands: [ClosedRange<Double>] = [
+        40...250,
+        250...1000,
+        1000...4000,
+        4000...12000,
     ]
 
-    /// Calculates normalized 0...1 frequency band magnitudes from floating-point PCM audio samples.
+    /// Music has much less energy in the highs, so higher bands are lifted to move as much.
+    public static let barTilt: [Double] = [0, 3, 8, 14]
+
+    /// Quieter than this shows as an empty bar.
+    static let floorDecibels = -70.0
+    /// Loudness from the floor to full scale, in decibels.
+    static let rangeDecibels = 60.0
+
+    /// Each band's level from 0 (silent) to 1 (very loud), on a decibel scale. Uses the largest
+    /// power of two of `samples` that fits.
     public static func computeBands(
         samples: [Float],
-        sampleRate: Double = 44100,
-        bandRanges: [ClosedRange<Double>] = standardBands
+        sampleRate: Double = 48000,
+        bandRanges: [ClosedRange<Double>] = barBands,
+        tilt: [Double] = barTilt
     ) -> [Double] {
-        let count = samples.count
-        guard count >= 16 else { return Array(repeating: 0.0, count: bandRanges.count) }
-
-        // Apply Hann window
-        var window = [Float](repeating: 0, count: count)
-        vDSP_hann_window(&window, vDSP_Length(count), Int32(vDSP_HANN_NORM))
-        var windowed = [Float](repeating: 0, count: count)
-        vDSP_vmul(samples, 1, window, 1, &windowed, 1, vDSP_Length(count))
-
-        // Power-of-2 length for DFT / FFT
-        let log2n = vDSP_Length(floor(log2(Double(count))))
+        let silent = Array(repeating: 0.0, count: bandRanges.count)
+        guard samples.count >= 16, sampleRate > 0 else { return silent }
+        let log2n = vDSP_Length(log2(Double(samples.count)).rounded(.down))
         let n = 1 << log2n
         let halfN = n / 2
-
-        guard let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else {
-            return Array(repeating: 0.0, count: bandRanges.count)
-        }
+        guard let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return silent }
         defer { vDSP_destroy_fftsetup(setup) }
+
+        var window = [Float](repeating: 0, count: n)
+        vDSP_hann_window(&window, vDSP_Length(n), Int32(vDSP_HANN_NORM))
+        var windowed = [Float](repeating: 0, count: n)
+        samples.withUnsafeBufferPointer { vDSP_vmul($0.baseAddress!, 1, window, 1, &windowed, 1, vDSP_Length(n)) }
 
         var real = [Float](repeating: 0, count: halfN)
         var imag = [Float](repeating: 0, count: halfN)
-
-        let bandOutputs = real.withUnsafeMutableBufferPointer { realPtr in
-            imag.withUnsafeMutableBufferPointer { imagPtr -> [Double] in
-                var splitComplex = DSPSplitComplex(
-                    realp: realPtr.baseAddress!,
-                    imagp: imagPtr.baseAddress!
-                )
-
-                windowed.withUnsafeBytes { rawPtr in
-                    let complexPtr = rawPtr.bindMemory(to: DSPComplex.self)
-                    vDSP_ctoz(complexPtr.baseAddress!, 2, &splitComplex, 1, vDSP_Length(halfN))
+        var magnitudes = [Float](repeating: 0, count: halfN)
+        real.withUnsafeMutableBufferPointer { realPointer in
+            imag.withUnsafeMutableBufferPointer { imagPointer in
+                var split = DSPSplitComplex(realp: realPointer.baseAddress!, imagp: imagPointer.baseAddress!)
+                windowed.withUnsafeBytes { raw in
+                    vDSP_ctoz(raw.bindMemory(to: DSPComplex.self).baseAddress!, 2, &split, 1, vDSP_Length(halfN))
                 }
-
-                vDSP_fft_zrip(setup, &splitComplex, 1, log2n, FFTDirection(FFT_FORWARD))
-
-                var magnitudes = [Float](repeating: 0, count: halfN)
-                vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(halfN))
-
-                let binWidth = sampleRate / Double(n)
-                return bandRanges.map { range in
-                    var sum: Double = 0
-                    var binCount = 0
-                    for (binIdx, power) in magnitudes.enumerated() {
-                        let freq = Double(binIdx) * binWidth
-                        if range.contains(freq) {
-                            sum += Double(power)
-                            binCount += 1
-                        }
-                    }
-                    if binCount == 0 { return 0.0 }
-                    let avg = sqrt(sum / Double(binCount))
-                    // Normalize with logarithmic scaling
-                    let db = 20 * log10(max(avg, 1e-5))
-                    let normalized = (db + 60) / 60.0
-                    return max(0.0, min(1.0, normalized))
-                }
+                vDSP_fft_zrip(setup, &split, 1, log2n, FFTDirection(FFT_FORWARD))
+                vDSP_zvmags(&split, 1, &magnitudes, 1, vDSP_Length(halfN))
             }
         }
 
-        return bandOutputs
+        // The real FFT comes back doubled and summed over n samples: this makes a full-scale
+        // sine about 0 dB.
+        let scale = 1 / Double(n)
+        let binWidth = sampleRate / Double(n)
+        return bandRanges.enumerated().map { index, range in
+            let first = max(1, Int((range.lowerBound / binWidth).rounded(.up)))
+            let last = min(halfN - 1, Int((range.upperBound / binWidth).rounded(.down)))
+            guard first <= last else { return 0 }
+            // The loudest bin, so a band of many bins isn't drowned by its quiet ones.
+            let peak = magnitudes[first...last].max() ?? 0
+            let amplitude = Double(peak).squareRoot() * scale
+            let decibels = 20 * log10(max(amplitude, 1e-9)) + (tilt.indices.contains(index) ? tilt[index] : 0)
+            return min(max((decibels - floorDecibels) / rangeDecibels, 0), 1)
+        }
     }
 }
 
+/// The music bars' levels, smoothed so they rise quickly and fall gently, like a real meter.
 @MainActor
 @Observable
 public final class AudioSpectrumAnalyzer {
-    public private(set) var bands: [Double] = [0.0, 0.0, 0.0, 0.0, 0.0]
+    public private(set) var bands: [Double]
+    /// True while real levels are coming in. A tap that only hears silence (macOS access was
+    /// refused, or a quiet passage) turns it off after a moment, so the bars go back to their
+    /// own motion instead of lying flat.
     public private(set) var isCapturing = false
+    @ObservationIgnored private var silentSince: Date?
 
-    public init() {}
+    /// How long silence lasts before the bars stop following the sound.
+    static let silenceTimeout: TimeInterval = 2
 
-    public func update(samples: [Float], sampleRate: Double = 44100) {
-        let computed = FFTProcessor.computeBands(samples: samples, sampleRate: sampleRate)
-        // Smooth transitions
+    public init(barCount: Int = FFTProcessor.barBands.count) {
+        bands = Array(repeating: 0, count: barCount)
+    }
+
+    public func update(samples: [Float], sampleRate: Double = 48000) {
+        update(levels: FFTProcessor.computeBands(samples: samples, sampleRate: sampleRate))
+    }
+
+    public func update(levels: [Double], now: Date = Date()) {
+        if levels.allSatisfy({ $0 < 0.02 }) {
+            let since = silentSince ?? now
+            silentSince = since
+            if now.timeIntervalSince(since) >= Self.silenceTimeout {
+                if isCapturing { reset() }
+                return
+            }
+        } else {
+            silentSince = nil
+            isCapturing = true
+        }
         var smoothed = bands
-        for i in 0..<min(bands.count, computed.count) {
-            smoothed[i] = smoothed[i] * 0.4 + computed[i] * 0.6
+        for index in 0..<min(smoothed.count, levels.count) {
+            let rising = levels[index] > smoothed[index]
+            let weight = rising ? 0.7 : 0.35
+            smoothed[index] += (levels[index] - smoothed[index]) * weight
         }
         bands = smoothed
     }
 
     public func reset() {
-        bands = [0.0, 0.0, 0.0, 0.0, 0.0]
+        bands = Array(repeating: 0, count: bands.count)
         isCapturing = false
+        silentSince = nil
     }
 }

@@ -407,34 +407,41 @@ private struct LevelBar: View {
     }
 }
 
-/// A coding assistant asking to use a tool: who, what, and Deny / Allow. Closing the notch
-/// instead sends the question back to the assistant's own window.
+/// A coding assistant asking to use a tool: who and what on the left, Allow over Deny on the
+/// right. Closing the notch instead sends the question back to the assistant's own window.
 private struct AgentRequestView: View {
     let model: IslandModel
     let request: AgentRequest
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8 * s) {
-            HStack(spacing: 8 * s) {
-                Image(systemName: "terminal.fill")
-                    .font(.system(size: 13 * s, weight: .semibold))
-                    .foregroundStyle(NotchColor.orange)
-                Text(request.agent)
-                    .font(.system(size: 13 * s, weight: .semibold))
-                    .foregroundStyle(.white)
-                if !request.project.isEmpty {
-                    Text(request.project)
-                        .font(.system(size: 12 * s, weight: .medium))
-                        .foregroundStyle(NotchColor.secondaryText)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer(minLength: 4 * s)
-                Text(request.title)
-                    .font(.system(size: 12 * s, weight: .medium))
+        HStack(alignment: .top, spacing: 14 * s) {
+            details
+            VStack(spacing: 6 * s) {
+                AgentButton(title: "Allow", prominent: true) { model.answerAgent(.allow) }
+                AgentButton(title: "Deny") { model.answerAgent(.deny) }
+                Spacer(minLength: 0)
+                Button("Ask in \(request.agent)") { model.answerAgent(.ask) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10.5 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityHint(Text("Closes this and answers in the assistant's own window"))
+            }
+            .frame(width: 92 * s)
+        }
+        .padding(.horizontal, 20 * s)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("\(request.agent) wants to \(request.title.lowercased())"))
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 8 * s) {
+            // The request's title goes first when the line is short; the request below says it too.
+            ViewThatFits(in: .horizontal) {
+                header(showsTitle: true)
+                header(showsTitle: false)
             }
             ScrollView(.vertical) {
                 Text(verbatim: request.reviewDetail.isEmpty ? request.toolName : request.visibleReviewDetail)
@@ -450,26 +457,38 @@ private struct AgentRequestView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Color.white.opacity(0.08)))
             .accessibilityLabel(Text("Full request. Scroll to review all details."))
-            HStack(spacing: 8 * s) {
-                Button("Ask in \(request.agent)") { model.answerAgent(.ask) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11 * s, weight: .medium))
+        }
+    }
+
+    private func header(showsTitle: Bool) -> some View {
+        HStack(spacing: 8 * s) {
+            Image(systemName: "terminal.fill")
+                .font(.system(size: 13 * s, weight: .semibold))
+                .foregroundStyle(NotchColor.orange)
+            Text(request.agent)
+                .font(.system(size: 13 * s, weight: .semibold))
+                .foregroundStyle(.white)
+            if !request.project.isEmpty {
+                Text(request.project)
+                    .font(.system(size: 12 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)
-                    .accessibilityHint(Text("Closes this and answers in the assistant's own window"))
-                Spacer(minLength: 0)
-                AgentButton(title: "Deny", tint: NotchColor.red) { model.answerAgent(.deny) }
-                AgentButton(title: "Allow", tint: NotchColor.green, prominent: true) { model.answerAgent(.allow) }
+                    .truncationMode(.middle)
+            }
+            if showsTitle {
+                Spacer(minLength: 4 * s)
+                Text(request.title)
+                    .font(.system(size: 12 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
             }
         }
-        .padding(.horizontal, 20 * s)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("\(request.agent) wants to \(request.title.lowercased())"))
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
+/// White for the main answer, smoked grey for the other, both full-width capsules.
 private struct AgentButton: View {
     let title: LocalizedStringKey
-    let tint: Color
     var prominent = false
     let action: () -> Void
     @Environment(\.notchScale) private var s
@@ -477,11 +496,12 @@ private struct AgentButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12 * s, weight: .semibold))
-                .foregroundStyle(prominent ? .black : tint)
-                .padding(.horizontal, 16 * s)
-                .frame(height: 26 * s)
-                .background(Capsule().fill(prominent ? tint : tint.opacity(0.2)))
+                .font(.system(size: 12.5 * s, weight: .semibold))
+                .foregroundStyle(prominent ? .black : .white.opacity(0.9))
+                .frame(maxWidth: .infinity)
+                .frame(height: 28 * s)
+                .background(Capsule().fill(prominent ? Color.white : Color.white.opacity(0.14)))
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }

@@ -71,7 +71,8 @@ struct CompactView: View {
         case .nowPlaying:
             WaveformBars(
                 color: NotchColor.accent(model.nowPlaying.accent),
-                isPlaying: model.nowPlaying.info?.isPlaying == true
+                isPlaying: model.nowPlaying.info?.isPlaying == true,
+                spectrum: model.spectrum
             )
             .frame(width: scale.icon * 0.9, height: scale.icon * 0.78)
         case .timer:
@@ -124,7 +125,7 @@ struct MinimalView: View {
                 if model.nowPlaying.artwork != nil || model.nowPlaying.appIcon != nil {
                     ArtworkView(artwork: model.nowPlaying.artwork, fallbackIcon: model.nowPlaying.appIcon, size: inner, cornerRadius: inner / 2)
                 } else {
-                    WaveformBars(color: NotchColor.accent(model.nowPlaying.accent), isPlaying: model.nowPlaying.info?.isPlaying == true)
+                    WaveformBars(color: NotchColor.accent(model.nowPlaying.accent), isPlaying: model.nowPlaying.info?.isPlaying == true, spectrum: model.spectrum)
                         .frame(width: inner * 0.7, height: inner * 0.6)
                 }
             case .timer:

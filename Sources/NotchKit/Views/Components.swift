@@ -2,10 +2,12 @@ import AppKit
 import SwiftUI
 
 /// The bouncing bars from the iPhone's music activity. The motion is a Core Animation keyframe
-/// loop, so it runs in the system render server and costs the app almost no CPU.
+/// loop, so it runs in the system render server and costs the app almost no CPU. With a
+/// `spectrum` that's hearing the music (Live music bars), the bars follow its levels instead.
 struct WaveformBars: NSViewRepresentable {
     var color: Color
     var isPlaying: Bool
+    var spectrum: AudioSpectrumAnalyzer?
     var barCount = 4
 
     func makeNSView(context: Context) -> WaveformBarsView {
@@ -14,12 +16,21 @@ struct WaveformBars: NSViewRepresentable {
 
     func updateNSView(_ view: WaveformBarsView, context: Context) {
         view.update(color: NSColor(color), isPlaying: isPlaying)
+        view.spectrum = spectrum
     }
 }
 
 final class WaveformBarsView: NSView {
     private var bars: [CALayer] = []
     private var isPlaying = false
+    /// Read outside SwiftUI, so 30 updates a second redraw only these layers.
+    var spectrum: AudioSpectrumAnalyzer? {
+        didSet {
+            guard spectrum !== oldValue else { return }
+            followSpectrum()
+        }
+    }
+    private var isFollowing = false
 
     /// Heights per bar as a fraction of the view, looped at slightly different speeds so the
     /// bars never fall into step.
@@ -67,6 +78,44 @@ final class WaveformBarsView: NSView {
         applyMotion(animatedTransition: false)
     }
 
+    /// Follows the spectrum's levels while it's capturing and music plays, otherwise the loop.
+    private func followSpectrum() {
+        guard let spectrum else {
+            if isFollowing { isFollowing = false; applyMotion(animatedTransition: true) }
+            return
+        }
+        let following = withObservationTracking {
+            spectrum.isCapturing ? spectrum.bands : nil
+        } onChange: { [weak self] in
+            DispatchQueue.main.async { self?.followSpectrum() }
+        }
+        if let following, isPlaying {
+            show(levels: following)
+        } else if isFollowing {
+            isFollowing = false
+            applyMotion(animatedTransition: true)
+        }
+    }
+
+    private func show(levels: [Double]) {
+        let size = bounds.size
+        guard size.width > 0, size.height > 0, !bars.isEmpty else { return }
+        if !isFollowing {
+            isFollowing = true
+            bars.forEach { $0.removeAnimation(forKey: "level") }
+        }
+        let width = bars[0].bounds.width
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.09)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .linear))
+        for (index, bar) in bars.enumerated() {
+            let level = CGFloat(levels.indices.contains(index) ? levels[index] : 0)
+            let height = size.height * (Self.restingLevel + (1 - Self.restingLevel) * level)
+            bar.bounds.size.height = max(width, height)
+        }
+        CATransaction.commit()
+    }
+
     private func applyMotion(animatedTransition: Bool) {
         let size = bounds.size
         guard size.width > 0, size.height > 0, !bars.isEmpty else { return }
@@ -81,7 +130,7 @@ final class WaveformBarsView: NSView {
             bar.cornerRadius = width / 2
             bar.position = CGPoint(x: CGFloat(index) * (width + spacing) + width / 2, y: size.height / 2)
             bar.bounds = CGRect(x: 0, y: 0, width: width, height: max(width, size.height * Self.restingLevel))
-            guard isPlaying else { continue }
+            guard isPlaying, !isFollowing else { continue }
 
             let levels = Self.levels[index % Self.levels.count]
             let animation = CAKeyframeAnimation(keyPath: "bounds.size.height")

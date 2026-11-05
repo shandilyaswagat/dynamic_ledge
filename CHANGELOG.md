@@ -27,6 +27,12 @@ last one.
   says so, with the project's name. Turn it off in Settings › General › Coding Assistants.
 - **Install updates automatically.** An optional switch in Software Update installs a verified
   new version when the daily check finds one, then relaunches. Off by default.
+- **Text from images.** Copy a screenshot or picture and its text shows up in Clipboard, ready to
+  paste. The text is read on your Mac and the image isn't kept. Turn it on in Settings › Home &
+  Widgets › Text from images; it's off until you do.
+- **Live music bars.** The bars beside the camera move with what's actually playing. Turn on Live
+  music bars in Settings › General › Now Playing; macOS asks once to let Dynamic Ledge hear your
+  Mac's sound. It's only measured to move the bars, never recorded or sent. Needs macOS 14.2.
 - **Update count.** The anonymous daily count also says once when a Mac moves to a new version,
   and which version it came from, so I can see how many people update. Nothing else is sent.
 
@@ -38,6 +44,8 @@ last one.
 - AI Agent Usage stops checking when Dynamic Ledge stops its services.
 
 ### Changed
+- Coding-assistant requests show Allow and Deny as white and grey buttons stacked on the right,
+  with the request beside them.
 - AI Agent Usage covers Codex and Antigravity. Claude Code keeps its limits only on Anthropic's
   servers, which would mean using your Claude sign-in, so it isn't listed.
 - **Settings looks like System Settings.** A sidebar with search, back and forward buttons, the

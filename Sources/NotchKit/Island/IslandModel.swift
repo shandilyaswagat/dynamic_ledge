@@ -32,6 +32,8 @@ public final class IslandModel {
     public let aiUsage: AIUsageService
     /// Speakers, headphones and displays the Mac can play through, for the music view's picker.
     public let audioOutput = AudioOutputService()
+    /// Levels for the music bars, while Live music bars is on and something plays.
+    public let spectrum = AudioSpectrumAnalyzer()
     /// A text field in the open nook has the keyboard (Notes or a new to-do in the elongated
     /// layout). The notch stays open while you type, even if the pointer wanders off.
     public var isTypingInNook = false
@@ -92,6 +94,7 @@ public final class IslandModel {
     }
 
     @ObservationIgnored private let alarm = AlarmSound()
+    @ObservationIgnored private let audioTap = SystemAudioTap()
     @ObservationIgnored private var alertTask: Task<Void, Never>?
     @ObservationIgnored private var collapseTask: Task<Void, Never>?
     @ObservationIgnored private var hoverExpandTask: Task<Void, Never>?
@@ -173,6 +176,7 @@ public final class IslandModel {
         observeActivities()
         observeSettings()
         observeLyrics()
+        observeMusicBars()
     }
 
     public func startServices() {
@@ -184,7 +188,9 @@ public final class IslandModel {
         calendar.start()
         levels.start()
         audioOutput.start()
+        clipboard.readsTextInImages = settings.clipboardReadsImages
         if settings.clipboardEnabled { clipboard.start() }
+        syncMusicBars()
         if settings.aiUsageEnabled { aiUsage.startAutomaticRefreshes() }
         if settings.downloadsEnabled {
             downloads.start()
@@ -233,6 +239,8 @@ public final class IslandModel {
         reminders.stop()
         stats.stop()
         aiUsage.stopAutomaticRefreshes()
+        audioTap.stop()
+        spectrum.reset()
         hotKeys.unregister()
         updater.stopAutomaticChecks()
         usage.stop()
@@ -1017,6 +1025,34 @@ public final class IslandModel {
         }
     }
 
+    private func observeMusicBars() {
+        syncMusicBars()
+        withObservationTracking {
+            _ = nowPlaying.info?.isPlaying
+            _ = settings.nowPlayingEnabled
+            _ = settings.liveMusicBars
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.observeMusicBars() }
+        }
+    }
+
+    /// Listens to the Mac's sound only while Live music bars is on and something is playing.
+    private func syncMusicBars() {
+        let listens = settings.nowPlayingEnabled && settings.liveMusicBars && nowPlaying.info?.isPlaying == true
+        if listens, !audioTap.isRunning {
+            audioTap.onLevels = { [weak self] levels in
+                Task { @MainActor [weak self] in
+                    guard let self, self.audioTap.isRunning else { return }
+                    self.spectrum.update(levels: levels)
+                }
+            }
+            if !audioTap.start() { spectrum.reset() }
+        } else if !listens, audioTap.isRunning {
+            audioTap.stop()
+            spectrum.reset()
+        }
+    }
+
     private func observeSettings() {
         withObservationTracking {
             _ = settings.pausedMediaLinger
@@ -1026,6 +1062,7 @@ public final class IslandModel {
             _ = settings.trayEnabled
             _ = settings.mirrorEnabled
             _ = settings.clipboardEnabled
+            _ = settings.clipboardReadsImages
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
             _ = settings.agentApprovals
@@ -1065,6 +1102,7 @@ public final class IslandModel {
                     self.downloads.stop()
                     self.downloadProgress.stop()
                 }
+                self.clipboard.readsTextInImages = self.settings.clipboardReadsImages
                 if self.settings.clipboardEnabled {
                     self.clipboard.start()
                 } else {

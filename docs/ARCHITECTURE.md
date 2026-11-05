@@ -30,7 +30,10 @@ Sources/
     │   ├── AudioRouteMonitor       Bluetooth headphones becoming the output
     │   ├── PowerMonitor            IOKit power-source notifications
     │   ├── TrayStore               Up to 30 session-only references; generated shortcuts cleaned on clear/exit
-    │   ├── ClipboardMonitor        Copied text, in memory only; skips private copies
+    │   ├── ClipboardMonitor        Copied text, in memory only; skips private copies; with
+    │   │                           Text from images, reads copied pictures' text (Vision, offline)
+    │   ├── SystemAudioTap          Core Audio tap for Live music bars (macOS 14.2+), only while
+    │   │                           music plays; measures levels in memory, records nothing
     │   ├── NotesStore              The Notes scratchpad with its formatting (RTF), saved to preferences
     │   ├── TodoStore               The elongated layout's to-do list, saved to preferences
     │   ├── CalendarService         EventKit: next event and 5-minute heads-ups

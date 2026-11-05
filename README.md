@@ -44,7 +44,7 @@ Free, no account, nothing about you collected.
 - **Home** with what's live, your next event, quick timers and Shortcuts
 - **Tray** for files you need again soon. Drop them on the notch, drag them out later, or AirDrop
   them. Zip them, merge PDFs and images into one PDF, or convert an image to another format
-- **Clipboard** with the last 20 things you copied
+- **Clipboard** with the last 20 things you copied, and the text from images you copy (if you turn it on)
 - **Notes**, a little scratchpad
 - **Mirror** to check your camera before a call
 - Calendar, reminders, stopwatch, Stats and Keep Awake behind the grid button
@@ -138,10 +138,13 @@ everything else keeps working.
 | Reminders | Today's to-dos | You click Connect in Reminders |
 | Accessibility | Hang Up, and dragging a document window into Tray | You first use one of them |
 | Automation | Reading which file or web page a window shows, for Tray | You drag a window into Tray |
+| System audio | Live music bars. The sound is only measured, never recorded or sent | You turn on Live music bars |
 
 **What it keeps on your Mac:**
 - **Clipboard:** the last 20 bits of text, in memory only. Gone when you quit, except clips you
   pin. Anything a password manager marks private is skipped. Turn Clipboard off any time.
+  With **Text from images** on, a copied picture's text is read on your Mac and kept like any
+  other clip; the picture itself isn't kept.
 - **Tray:** links to your files, never copies. Your original files are never changed. Clears when
   you quit, except pinned items.
 - **Notes and settings:** saved on your Mac only.

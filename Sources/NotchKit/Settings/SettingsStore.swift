@@ -108,6 +108,8 @@ public final class SettingsStore {
     public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
+    /// The music bars follow what's playing, measured from the Mac's sound. Off by default.
+    public var liveMusicBars: Bool { didSet { defaults.set(liveMusicBars, forKey: Key.liveMusicBars) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
     public var callsEnabled: Bool { didSet { defaults.set(callsEnabled, forKey: Key.calls) } }
     public var airDropEnabled: Bool { didSet { defaults.set(airDropEnabled, forKey: Key.airDrop) } }
@@ -118,6 +120,8 @@ public final class SettingsStore {
     public var mirrorEnabled: Bool { didSet { defaults.set(mirrorEnabled, forKey: Key.mirror) } }
     /// Keep a history of copied text (memory only, passwords skipped).
     public var clipboardEnabled: Bool { didSet { defaults.set(clipboardEnabled, forKey: Key.clipboard) } }
+    /// Copied images have their text read on this Mac and added to Clipboard. Off by default.
+    public var clipboardReadsImages: Bool { didSet { defaults.set(clipboardReadsImages, forKey: Key.clipboardImages) } }
     public var notesEnabled: Bool { didSet { defaults.set(notesEnabled, forKey: Key.notes) } }
     /// Show a heads-up when a download finishes. Off until asked for: macOS asks for Downloads access.
     public var downloadsEnabled: Bool { didSet { defaults.set(downloadsEnabled, forKey: Key.downloads) } }
@@ -233,6 +237,7 @@ public final class SettingsStore {
         nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
         recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
+        liveMusicBars = defaults.object(forKey: Key.liveMusicBars) as? Bool ?? false
         if let saved = defaults.stringArray(forKey: Key.agentApprovalKinds) {
             agentApprovals = Set(saved.compactMap(AgentKind.init(rawValue:)))
         } else {
@@ -249,6 +254,7 @@ public final class SettingsStore {
         trayEnabled = defaults.object(forKey: Key.tray) as? Bool ?? true
         mirrorEnabled = defaults.object(forKey: Key.mirror) as? Bool ?? true
         clipboardEnabled = defaults.object(forKey: Key.clipboard) as? Bool ?? true
+        clipboardReadsImages = defaults.object(forKey: Key.clipboardImages) as? Bool ?? false
         notesEnabled = defaults.object(forKey: Key.notes) as? Bool ?? true
         downloadsEnabled = defaults.object(forKey: Key.downloads) as? Bool ?? false
         remindersEnabled = defaults.object(forKey: Key.reminders) as? Bool ?? true
@@ -365,6 +371,7 @@ public final class SettingsStore {
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
         static let lyrics = "activity.lyrics"
+        static let liveMusicBars = "activity.liveMusicBars"
         /// The single Claude Code switch from earlier builds, read once to carry it over.
         static let agentApprovals = "activity.agentApprovals"
         static let agentApprovalKinds = "activity.agentApprovalKinds"
@@ -382,6 +389,7 @@ public final class SettingsStore {
         static let tray = "home.tray"
         static let mirror = "home.mirror"
         static let clipboard = "home.clipboard"
+        static let clipboardImages = "home.clipboardImages"
         static let notes = "home.notes"
         static let downloads = "alert.downloads"
         static let reminders = "home.reminders"

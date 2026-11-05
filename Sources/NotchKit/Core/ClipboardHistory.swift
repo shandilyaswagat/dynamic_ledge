@@ -118,4 +118,10 @@ public enum ClipboardRules {
     public static func shouldRecord(types: [String]) -> Bool {
         !types.contains(where: privateTypes.contains)
     }
+
+    /// A copied picture, such as a screenshot. Files copied in Finder carry their icon as an
+    /// image too, so anything with a file URL isn't one.
+    public static func isImage(types: [String]) -> Bool {
+        types.contains { $0 == "public.png" || $0 == "public.tiff" } && !types.contains("public.file-url")
+    }
 }

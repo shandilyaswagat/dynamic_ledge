@@ -99,7 +99,8 @@ prompt is answered there. So while a Claude Code request waits, `AgentTranscript
 new lines of that session's transcript (the `transcript_path` in the request) every half second,
 on this Mac only. It first finds the newest call of the same tool with the same input that has
 no result yet (earlier runs of the same command already have theirs), then closes the request
-when that call's result appears. Nothing from the transcript is kept or sent. The hook also
+when that call's result appears. Nothing from the transcript is kept or sent. Settings › Coding Assistants › Close when answered
+in Claude Code (on by default) switches it off; then no transcript is opened. The hook also
 gives up if the assistant stops waiting for it (its parent process goes away). Questions and plans
 (`AskUserQuestion`, `ExitPlanMode`) have their own choices, so they never reach the notch.
 

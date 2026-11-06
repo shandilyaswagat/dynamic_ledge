@@ -63,6 +63,16 @@ public final class AgentBridge {
         onChange?()
     }
 
+    /// Read Claude Code's session transcript to notice a request answered there. Off, a request
+    /// answered in Claude Code stays in the notch until it's closed or times out.
+    @ObservationIgnored public var watchesTranscripts = true {
+        didSet {
+            guard !watchesTranscripts else { return }
+            transcriptWatches.values.forEach { $0.stop() }
+            transcriptWatches.removeAll()
+        }
+    }
+
     /// Only these assistants are shown; anything else is sent back to ask as usual.
     @ObservationIgnored public var enabledKinds: Set<AgentKind> = Set(AgentKind.allCases)
 
@@ -88,7 +98,7 @@ public final class AgentBridge {
         }
         // Claude Code shows its own prompt too, and keeps our hook waiting when it's answered
         // there. Its session transcript then gets the tool's result, so the notch lets it go.
-        if kind == .claude, let watch = AgentTranscriptWatch(hookInput: input, onAnswered: { [weak self] in
+        if kind == .claude, watchesTranscripts, let watch = AgentTranscriptWatch(hookInput: input, onAnswered: { [weak self] in
             Task { @MainActor in self?.answer(id, .ask) }
         }) {
             transcriptWatches[id] = watch

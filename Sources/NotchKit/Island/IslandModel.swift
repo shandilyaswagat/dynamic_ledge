@@ -216,6 +216,7 @@ public final class IslandModel {
             downloadProgress.start()
         }
         agents.enabledKinds = settings.agentApprovals
+        agents.watchesTranscripts = settings.agentWatchesTranscript
         if settings.agentApprovalsEnabled {
             agents.start()
             refreshAgentHooks()
@@ -1109,6 +1110,7 @@ public final class IslandModel {
             _ = settings.downloadsEnabled
             _ = settings.agentApprovals
             _ = settings.agentFinishedAlerts
+            _ = settings.agentWatchesTranscript
             _ = settings.remindersEnabled
             _ = settings.statsEnabled
             _ = settings.keyboardShortcutsEnabled
@@ -1137,6 +1139,7 @@ public final class IslandModel {
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }
                 if self.settings.sharesUsage { self.usage.start(isNewInstall: false) } else { self.usage.stop() }
                 self.agents.enabledKinds = self.settings.agentApprovals
+                self.agents.watchesTranscripts = self.settings.agentWatchesTranscript
                 if self.settings.agentApprovalsEnabled {
                     self.agents.start()
                     self.refreshAgentHooks()

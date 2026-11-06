@@ -106,6 +106,9 @@ public final class SettingsStore {
 
     /// Show a short alert when an assistant with approvals switched on finishes its work.
     public var agentFinishedAlerts: Bool { didSet { defaults.set(agentFinishedAlerts, forKey: Key.agentFinishedAlerts) } }
+    /// Close a Claude Code request in the notch once it's answered in Claude Code, by reading the
+    /// new lines of that session's transcript while it waits.
+    public var agentWatchesTranscript: Bool { didSet { defaults.set(agentWatchesTranscript, forKey: Key.agentWatchesTranscript) } }
     public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
@@ -267,6 +270,7 @@ public final class SettingsStore {
         installsUpdatesAutomatically = defaults.object(forKey: Key.installsUpdatesAutomatically) as? Bool ?? false
         sharesUsage = defaults.object(forKey: Key.sharesUsage) as? Bool ?? true
         agentFinishedAlerts = defaults.object(forKey: Key.agentFinishedAlerts) as? Bool ?? true
+        agentWatchesTranscript = defaults.object(forKey: Key.agentWatchesTranscript) as? Bool ?? true
         aiUsageEnabled = defaults.object(forKey: Key.aiUsageEnabled) as? Bool ?? false
         // Early test builds stored API keys here in plain text; they are no longer used.
         for key in ["aiUsageClaudeApiKey", "aiUsageCodexApiKey", "aiUsageCodexOrgId", "aiUsageAntigravityApiKey", "aiUsage.claudeEnabled"] {
@@ -403,6 +407,7 @@ public final class SettingsStore {
         static let installsUpdatesAutomatically = "general.installsUpdatesAutomatically"
         static let sharesUsage = "general.sharesUsage"
         static let agentFinishedAlerts = "agents.finishedAlerts"
+        static let agentWatchesTranscript = "agents.watchesTranscript"
         static let aiUsageEnabled = "aiUsage.enabled"
         static let aiUsageShowHomeWidget = "aiUsage.showHomeWidget"
         static let aiUsageCodexEnabled = "aiUsage.codexEnabled"

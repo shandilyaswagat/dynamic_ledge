@@ -8,6 +8,9 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Close when answered in Claude Code.** A switch in Settings › General › Coding Assistants
+  for the check that closes a request in the notch once it's answered in Claude Code's own
+  window. It's on unless you switch it off; off, nothing is read from Claude Code's sessions.
 - **Home from an approval.** The back button on a coding assistant's request opens Home and
   leaves the request waiting. It comes back when the notch closes, or goes away if you answer it
   in the assistant.

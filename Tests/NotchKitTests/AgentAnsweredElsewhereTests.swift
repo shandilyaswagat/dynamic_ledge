@@ -101,6 +101,26 @@ struct AgentAnsweredElsewhereTests {
         #expect(await hook.value.isEmpty)
     }
 
+    @Test func switchedOffTheTranscriptIsntRead() async throws {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        #expect(SettingsStore(defaults: defaults).agentWatchesTranscript, "on unless switched off")
+        let url = try transcript(call("now", "ls"))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let path = socketPath()
+        let bridge = AgentBridge(socketPath: path)
+        bridge.watchesTranscripts = false
+        bridge.start()
+        defer { bridge.stop() }
+        let data = input(transcript: url)
+        let hook = Task.detached { AgentHookClient.answer(input: data, socket: path) }
+        try await waitUntil { bridge.pending.count == 1 }
+        try append(result("now"), to: url)
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(bridge.pending.count == 1, "stays until it's answered in the notch")
+        bridge.answer(bridge.pending[0].id, .deny)
+        #expect(await hook.value == AgentDecision.deny.claudeHookOutput)
+    }
+
     @Test func questionsNeverReachTheNotch() async throws {
         let url = try transcript()
         defer { try? FileManager.default.removeItem(at: url) }

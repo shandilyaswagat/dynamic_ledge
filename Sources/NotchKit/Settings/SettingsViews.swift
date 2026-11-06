@@ -617,10 +617,19 @@ private struct CodingAssistantSection: View {
                 }
             }
             .disabled(!settings.agentApprovals.contains(where: \.reportsFinishing))
+            Toggle(isOn: $settings.agentWatchesTranscript) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Close when answered in Claude Code")
+                    Text("Reads new lines of that session's transcript on this Mac while a request waits")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .disabled(!settings.agentApprovals.contains(.claude))
         } header: {
             Text("Approvals")
         } footer: {
-            Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. If you answer Claude Code in its own window, the notch sees the result in that session's transcript on this Mac and closes the request. Questions and plans stay in the assistant's window. Switching one on adds a hook to that assistant’s settings file (Claude Code, Codex and Cursor get a second one that says when they finish); switching it off removes them. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
+            Text("When an assistant wants to run a command or change a file, the notch shows what it wants to do, with Allow and Deny. Close it, or wait two minutes, and the assistant asks in its own window as usual. With Close when answered in Claude Code on, answering in Claude Code's own window closes the request in the notch too. Questions and plans stay in the assistant's window. Switching one on adds a hook to that assistant’s settings file (Claude Code, Codex and Cursor get a second one that says when they finish); switching it off removes them. New sessions pick it up. Codex asks you to review new hooks once: type /hooks in Codex.")
         }
     }
 

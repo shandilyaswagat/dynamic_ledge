@@ -36,7 +36,7 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Alert | notch + 2 × max(ear, 128), compact height + 6 | shoulders 6, bottom min(0.42 × h, 16) |
 | Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14 | shoulders 10, bottom 30 |
 | Minimal bubble | circle, compact height − 6, 4 pt right of the shape, vertically centred on the strip | — |
-| Hover lift | +3 each side, +2 at the bottom; the top never moves | — |
+| Hover lift | 5 % wider and taller (at least +3 each side and +2 at the bottom); the top never moves | — |
 
 Expanded content heights: Now Playing 140 · Timer 72 · Call 72 · Home 84 (144 with media) ·
 Drop 100 · Timer done 72. The strip beside the camera stays empty in expanded views.
@@ -55,8 +55,8 @@ top edge of the screen.
 * Moving away slides it back up into the edge.
 
 **Pill** (Settings › Appearance › Displays Without a Notch) swaps that notch for a floating pill,
-like the Dynamic Island: no shoulders, 6 pt below the top edge, a 120 pt middle kept clear for
-compact content, fully round ends while compact and 32 pt corners when open. At rest it's a
+like the Dynamic Island: no shoulders, 6 pt below the top edge, a 76 pt middle kept clear for
+compact content (about 170 × 32 at the usual settings), fully round ends while compact and 32 pt corners when open. At rest it's a
 smaller, invisible pill in the same spot, so it grows out of it. Content moves down with it.
 MacBook notches are never affected.
 
@@ -182,14 +182,15 @@ Dark-mode system colours, since the surface is always black.
 
 | Moment | Animation |
 |---|---|
-| Compact / idle | spring, response 0.42, damping 0.76 |
-| Alert | spring, response 0.44, damping 0.74 |
-| Open (expanded, Home and panels, drop) | spring, response 0.48, damping 0.8 |
+| Compact / idle | spring, response 0.4, damping 0.7 |
+| Alert | spring, response 0.38, damping 0.66 |
+| Open (expanded, Home and panels, drop) | spring, response 0.37, damping 0.65: overshoots about 7 % and settles back |
+| Closing to a smaller view (open → compact, compact → idle) | spring, response 0.38, critically damped, so it never bounces |
 | Hover swell / notch appearing on another display | spring, response 0.34, damping 0.72 |
 | Hide | smooth, 0.42 s (settles without a bounce) |
 | Settings slider changes | spring, response 0.3, critically damped |
-| Hover lift | spring, response 0.3, damping 0.68 |
-| Content swap | old: fade + blur 4 + scale 0.97 out in 0.12 s; new: fade + blur 6 + scale 0.92 → 1 in a 0.34 s smooth curve after 0.06 s. Both scale from the top edge, so content grows out of the notch |
+| Hover lift | spring, response 0.32, damping 0.9 |
+| Content swap | old: fade + blur 8 + scale 0.97 out in 0.1 s; new: fade + blur 10 + scale 0.92 → 1 in a 0.3 s smooth curve after 0.05 s. Both scale from the top edge, so content grows out of the notch |
 | Liquid pulse (bubble split) | strength 0 → 1 in 0.08 s, back to 0 over 0.6 s |
 | Now Playing bars | 4 capsules, Core Animation keyframe loops of 1.2–1.9 s; resting height 28 % when paused. With Live music bars, heights follow bass, low mids, high mids and treble about 30 times a second (90 ms linear steps), rising fast and falling gently; 2 s of silence hands back to the loop |
 | Long Now Playing titles | Continuous horizontal loop at 25 pt/s, with a 32 pt gap; only while playing and only if the title is too wide. Paused and Reduce Motion show a still, truncated title. Sizes scale with the notch |
@@ -198,7 +199,8 @@ Dark-mode system colours, since the surface is always black.
 These are the Standard motion. Settings › Appearance › Motion can make every spring above
 (and Glass's, and the resize and hover springs) **Springy**: response × 0.92 and damping − 0.16,
 never below 0.5; or **Calm**: response × 1.12 and damping 1, so nothing bounces. Closing never
-bounces in any style (Calm closes in 0.5 s).
+bounces in any style (Calm closes with response 0.42, or 0.5 s to hidden). Glass opens with
+response 0.46–0.48 and damping 0.62–0.66, and closes critically damped in 0.46.
 
 Reduce Motion replaces springs with a 0.2 s ease and turns the liquid effect off.
 

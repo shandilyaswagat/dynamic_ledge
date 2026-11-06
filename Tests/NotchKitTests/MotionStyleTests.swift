@@ -5,8 +5,9 @@ import Testing
 @MainActor
 @Suite("Motion style")
 struct MotionStyleTests {
-    @Test func standardKeepsTheOriginalSprings() {
-        #expect(Motion.shape(to: .expanded(.nowPlaying), reduceMotion: false) == .spring(response: 0.48, dampingFraction: 0.8))
+    @Test func standardOpensWithASmallOvershoot() {
+        #expect(Motion.shape(to: .expanded(.nowPlaying), reduceMotion: false) == .spring(response: 0.37, dampingFraction: 0.65))
+        #expect(Motion.shape(from: .compact(primary: .timer, secondary: nil), to: .expanded(.nowPlaying), reduceMotion: false) == .spring(response: 0.37, dampingFraction: 0.65))
         #expect(Motion.shape(to: .hidden(peek: false), reduceMotion: false) == .smooth(duration: 0.42))
         #expect(Motion.resize(.black) == Motion.resize)
         #expect(Motion.hover(.black) == Motion.hover)
@@ -26,6 +27,25 @@ struct MotionStyleTests {
         let glassClose = Motion.shape(to: .hidden(peek: false), reduceMotion: false, theme: .glass, style: .springy)
         #expect(glassClose == .spring(response: 0.5, dampingFraction: 0.92))
         #expect(Motion.shape(to: .hidden(peek: false), reduceMotion: false, style: .springy) == .smooth(duration: 0.42))
+    }
+
+    @Test func closingToASmallerViewIsCriticallyDamped() {
+        let compact = IslandPresentation.compact(primary: .timer, secondary: nil)
+        for style in MotionStyle.allCases {
+            for theme in NotchTheme.allCases {
+                let close = Motion.shape(from: .expanded(.nowPlaying), to: compact, reduceMotion: false, theme: theme, style: style)
+                let expected: Double = theme == .glass ? (style == .calm ? 0.52 : 0.46) : (style == .calm ? 0.42 : 0.38)
+                #expect(close == .spring(response: expected, dampingFraction: 1), "\(style) \(theme)")
+            }
+        }
+        #expect(Motion.isClosing(from: .nook(.home), to: .idle))
+        #expect(!Motion.isClosing(from: .idle, to: compact))
+        #expect(!Motion.isClosing(from: .nook(.home), to: .expanded(.timer)), "switching between open views isn't closing")
+    }
+
+    @Test func hoverLiftsByFivePercent() {
+        #expect(IslandMetrics.hoverGrowth(for: CGSize(width: 200, height: 40)) == CGSize(width: 5, height: 2))
+        #expect(IslandMetrics.hoverGrowth(for: CGSize(width: 60, height: 20)) == CGSize(width: 3, height: 2), "never less than before")
     }
 
     @Test func reduceMotionWins() {

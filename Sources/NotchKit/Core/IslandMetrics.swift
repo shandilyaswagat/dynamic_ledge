@@ -95,8 +95,12 @@ public enum IslandMetrics {
     public static let windowMargin: CGFloat = 48
     /// Closest the widest view may come to a screen edge.
     public static let screenEdgeInset: CGFloat = 8
-    /// How much a hovered compact shape grows (horizontal each side, vertical).
-    public static let hoverGrowth = CGSize(width: 3, height: 2)
+    /// How much a hovered resting shape grows: 5 % wider and taller, never less than 3 pt a side
+    /// and 2 pt down.
+    public static let hoverScale: CGFloat = 1.05
+    public static func hoverGrowth(for size: CGSize) -> CGSize {
+        CGSize(width: max(3, (size.width * (hoverScale - 1) / 2).rounded()), height: max(2, (size.height * (hoverScale - 1)).rounded()))
+    }
     /// Extra hit area around the shape so the pointer doesn't have to be pixel-perfect.
     public static let hitSlop: CGFloat = 4
     /// Displays without a notch get a virtual one at the top centre, the size of a MacBook's.
@@ -107,8 +111,9 @@ public enum IslandMetrics {
     /// Pill style: how far the pill floats below the top edge of the screen.
     public static let pillTop: CGFloat = 6
     /// Pill style: the middle of the pill that compact content keeps clear, like the Dynamic
-    /// Island's camera. Narrower than a notch, so the resting pill is small.
-    public static let pillCoreWidth: CGFloat = 120
+    /// Island's camera. Narrow, so the compact pill is short and round, about 170 by 32 at the
+    /// usual settings.
+    public static let pillCoreWidth: CGFloat = 76
     /// Pill style: corner radius of the open pill (compact forms are fully round).
     public static let pillExpandedRadius: CGFloat = 32
 }

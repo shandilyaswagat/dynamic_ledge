@@ -53,6 +53,9 @@ last one.
 - AI Agent Usage stops checking when Dynamic Ledge stops its services.
 
 ### Changed
+- **Bouncier notch.** Opening now springs out quickly with a small overshoot, like the iPhone's
+  island, and closing settles back without a bounce. Hovering lifts the notch a little more, and
+  content blurs in and out more softly.
 - Coding-assistant requests show Allow and Deny as white and grey buttons stacked on the right,
   with the request beside them.
 - AI Agent Usage covers Codex and Antigravity. Claude Code keeps its limits only on Anthropic's

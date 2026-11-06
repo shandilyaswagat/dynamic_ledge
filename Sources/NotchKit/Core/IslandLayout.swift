@@ -260,7 +260,7 @@ public struct LayoutEngine: Equatable, Sendable {
     private var widestContent: CGFloat {
         max(
             max(expandedWidth, appearance.nookLayout == .elongated ? elongatedWidth : nookWidth) + 2 * IslandMetrics.expandedFlare,
-            compactBodyWidth + 2 * (IslandMetrics.compactFlare + bubbleGap + bubbleDiameter + IslandMetrics.hoverGrowth.width),
+            compactBodyWidth + 2 * (IslandMetrics.compactFlare + bubbleGap + bubbleDiameter + IslandMetrics.hoverGrowth(for: CGSize(width: compactBodyWidth + 2 * IslandMetrics.compactFlare, height: compactHeight)).width),
             alertBodySize.width + 2 * IslandMetrics.compactFlare
         )
     }
@@ -344,7 +344,7 @@ public struct LayoutEngine: Equatable, Sendable {
 
         if hovering, presentation.isRestingPill {
             // Grows sideways and down; the top stays fused to the screen edge.
-            let growth = IslandMetrics.hoverGrowth
+            let growth = IslandMetrics.hoverGrowth(for: layout.pill.size)
             layout.pill = CGRect(
                 x: layout.pill.minX - growth.width,
                 y: layout.pill.minY,

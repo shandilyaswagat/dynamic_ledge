@@ -6,6 +6,8 @@ struct IslandRootView: View {
     /// The screen this window is on. Only the screen in use shows what's opened.
     let display: DisplayContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// What was showing before the latest change, so closing can use a spring that doesn't bounce.
+    @State private var previous: IslandPresentation?
 
     var body: some View {
         let presentation = model.presentation(onDisplay: display.id)
@@ -34,7 +36,8 @@ struct IslandRootView: View {
             IslandContentLayer(model: model, presentation: presentation, layout: layout)
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
-        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion, theme: appearance.theme, style: model.settings.motionStyle), value: presentation)
+        .animation(Motion.shape(from: previous, to: presentation, reduceMotion: reduceMotion, theme: appearance.theme, style: model.settings.motionStyle), value: presentation)
+        .onChange(of: presentation, initial: true) { _, new in previous = new }
         .animation(Motion.settings, value: model.settings.appearance)
         // Lyrics arriving, a second app playing, Clipboard's search bar: the shape eases to fit.
         .animation(reduceMotion ? nil : Motion.resize(appearance.theme, style: model.settings.motionStyle), value: model.homeContent)

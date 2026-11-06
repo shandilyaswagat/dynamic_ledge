@@ -37,10 +37,12 @@ extension TimerMode {
 }
 
 enum Motion {
-    /// Spring for a change of presentation, picked by where the shape is going. Opening has a
-    /// little give, like the iPhone's island; closing settles without a bounce. `style` makes
-    /// every spring livelier or calmer.
+    /// Spring for a change of presentation. Opening has the give of the iPhone's island: a quick
+    /// spring that overshoots by about 7 % and settles back. Closing (to anything smaller than
+    /// where it was) settles critically damped, so it never bounces. `style` makes every opening
+    /// livelier or calmer.
     static func shape(
+        from previous: IslandPresentation? = nil,
         to presentation: IslandPresentation,
         reduceMotion: Bool,
         theme: NotchTheme = .black,
@@ -49,37 +51,71 @@ enum Motion {
         if reduceMotion {
             return .easeInOut(duration: 0.2)
         }
-        if theme == .glass { return glassShape(to: presentation, style: style) }
+        if theme == .glass { return glassShape(from: previous, to: presentation, style: style) }
         switch presentation {
         case .hidden(peek: true):
             return spring(0.34, 0.72, style)
         case .hidden:
             // Retracting: smooth and deliberate, no overshoot, so it settles exactly at the edge.
             return .smooth(duration: style == .calm ? 0.5 : 0.42)
+        default:
+            break
+        }
+        if let previous, isClosing(from: previous, to: presentation) {
+            return .spring(response: style == .calm ? 0.42 : 0.38, dampingFraction: 1)
+        }
+        switch presentation {
+        case .hidden:
+            return spring(0.34, 0.72, style)
         case .idle, .compact:
-            return spring(0.42, 0.76, style)
+            return spring(0.4, 0.7, style)
         case .alert:
-            return spring(0.44, 0.74, style)
+            return spring(0.38, 0.66, style)
         case .expanded, .nook, .drop:
-            return spring(0.48, 0.8, style)
+            return spring(0.37, 0.65, style)
         }
     }
 
     /// Glass moves like a drop of liquid: a touch slower, with more give as it opens and a soft
     /// settle as it closes.
-    private static func glassShape(to presentation: IslandPresentation, style: MotionStyle) -> Animation {
+    private static func glassShape(from previous: IslandPresentation?, to presentation: IslandPresentation, style: MotionStyle) -> Animation {
         switch presentation {
         case .hidden(peek: true):
-            spring(0.4, 0.64, style)
+            return spring(0.4, 0.64, style)
         case .hidden:
             // Closing never bounces, whatever the style.
-            spring(0.5, 0.92, style == .springy ? .standard : style)
+            return spring(0.5, 0.92, style == .springy ? .standard : style)
+        default:
+            break
+        }
+        if let previous, isClosing(from: previous, to: presentation) {
+            return .spring(response: style == .calm ? 0.52 : 0.46, dampingFraction: 1)
+        }
+        switch presentation {
+        case .hidden:
+            return spring(0.4, 0.64, style)
         case .idle, .compact:
-            spring(0.5, 0.7, style)
+            return spring(0.48, 0.66, style)
         case .alert:
-            spring(0.52, 0.68, style)
+            return spring(0.46, 0.62, style)
         case .expanded, .nook, .drop:
-            spring(0.56, 0.74, style)
+            return spring(0.46, 0.62, style)
+        }
+    }
+
+    /// True when the shape is shrinking to a smaller kind of view, like the open notch going
+    /// back to the activity beside the camera.
+    static func isClosing(from previous: IslandPresentation, to presentation: IslandPresentation) -> Bool {
+        rank(presentation) < rank(previous)
+    }
+
+    private static func rank(_ presentation: IslandPresentation) -> Int {
+        switch presentation {
+        case .hidden: 0
+        case .idle: 1
+        case .compact: 2
+        case .alert(let alert): alert.usesExpandedLayout ? 4 : 3
+        case .expanded, .nook, .drop: 4
         }
     }
 
@@ -105,14 +141,15 @@ enum Motion {
     static let settings = Animation.spring(response: 0.3, dampingFraction: 1)
     /// The open notch growing or shrinking to fit what's in it.
     static let resize = Animation.spring(response: 0.38, dampingFraction: 0.86)
-    static let hover = Animation.spring(response: 0.3, dampingFraction: 0.68)
+    /// The resting shape lifting under the pointer: quick and without a bounce.
+    static let hover = Animation.spring(response: 0.32, dampingFraction: 0.9)
 
     static func resize(_ theme: NotchTheme, style: MotionStyle = .standard) -> Animation {
         theme == .glass ? spring(0.46, 0.8, style) : spring(0.38, 0.86, style)
     }
 
     static func hover(_ theme: NotchTheme, style: MotionStyle = .standard) -> Animation {
-        theme == .glass ? spring(0.36, 0.6, style) : spring(0.3, 0.68, style)
+        theme == .glass ? spring(0.36, 0.8, style) : spring(0.32, 0.9, style)
     }
 }
 
@@ -157,13 +194,13 @@ extension AnyTransition {
     static var islandContent: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: BlurFade(blur: 6, scale: 0.92, opacity: 0),
+                active: BlurFade(blur: 10, scale: 0.92, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.smooth(duration: 0.34).delay(0.06)),
+            ).animation(.smooth(duration: 0.3).delay(0.05)),
             removal: .modifier(
-                active: BlurFade(blur: 4, scale: 0.97, opacity: 0),
+                active: BlurFade(blur: 8, scale: 0.97, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeIn(duration: 0.12))
+            ).animation(.easeIn(duration: 0.1))
         )
     }
 

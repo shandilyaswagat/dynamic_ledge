@@ -7,6 +7,7 @@ struct LockScreenView: View {
     let model: IslandModel
     let metrics: ScreenMetrics
     @State private var shown = false
+    @State private var previous: IslandPresentation?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -19,7 +20,8 @@ struct LockScreenView: View {
                 .allowsHitTesting(false)
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
-        .animation(Motion.shape(to: presentation, reduceMotion: reduceMotion, style: model.settings.motionStyle), value: presentation)
+        .animation(Motion.shape(from: previous, to: presentation, reduceMotion: reduceMotion, style: model.settings.motionStyle), value: presentation)
+        .onChange(of: presentation, initial: true) { _, new in previous = new }
         .environment(\.colorScheme, .dark)
         .onAppear { shown = true }
     }

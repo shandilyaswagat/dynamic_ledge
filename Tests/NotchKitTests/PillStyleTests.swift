@@ -36,6 +36,13 @@ struct PillStyleTests {
         #expect(layout.pill.midX == engine.anchorX)
     }
 
+    @Test func compactPillIsShortAndRound() {
+        let engine = LayoutEngine(screen: external, appearance: pill)
+        let layout = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: false)
+        #expect(layout.pill.width == 170)
+        #expect(layout.pill.height == 32)
+    }
+
     @Test func openPillMovesItsContentDownWithIt() {
         let notch = LayoutEngine(screen: external, appearance: .standard).layout(for: .expanded(.timer), homeHasMedia: false, hovering: false)
         let engine = LayoutEngine(screen: external, appearance: pill)

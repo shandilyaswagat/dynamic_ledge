@@ -63,6 +63,11 @@ struct IslandContentLayer: View {
     /// Home or one of its tabs was already open before this render. Switching between them keeps
     /// the shape still, so the content just crossfades instead of growing out of the notch again.
     @State private var nookWasOpen = false
+    /// True while the shape springs to a new presentation, so the content stretches and bounces
+    /// with it. Off once it has settled, so later resizes (lyrics arriving, a search bar) don't
+    /// squash the content.
+    @State private var isSpringing = false
+    @State private var settle: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -71,6 +76,15 @@ struct IslandContentLayer: View {
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
         .onChange(of: presentation.homeTab != nil, initial: true) { _, isOpen in nookWasOpen = isOpen }
+        .onChange(of: ContentKey(presentation)) {
+            isSpringing = true
+            settle?.cancel()
+            settle = Task {
+                try? await Task.sleep(for: .seconds(StretchWithShell.duration))
+                guard !Task.isCancelled else { return }
+                isSpringing = false
+            }
+        }
     }
 
     private var pillShape: IslandShape {
@@ -80,10 +94,17 @@ struct IslandContentLayer: View {
     private var pill: some View {
         ZStack(alignment: .topLeading) {
             if presentation.isVisible {
+                let resting = layout.restingPill
                 NotchContent(model: model, presentation: presentation, size: layout.content.size, cameraGap: layout.cameraGap, stripHeight: layout.stripHeight)
                     .environment(\.notchScale, layout.contentScale)
                     .frame(width: layout.content.width, height: layout.content.height)
-                    .offset(x: layout.content.minX - layout.pill.minX, y: layout.content.minY - layout.pill.minY)
+                    .offset(x: layout.content.minX - resting.minX, y: layout.content.minY - resting.minY)
+                    .frame(width: max(resting.width, 1), height: max(resting.height, 1), alignment: .topLeading)
+                    .modifier(StretchWithShell(
+                        resting: resting.size,
+                        isOpenView: Motion.isOpenView(presentation),
+                        stretches: isSpringing && model.settings.appearance.theme != .glass
+                    ))
                     .id(ContentKey(presentation))
                     .transition(contentTransition)
             }
@@ -119,7 +140,8 @@ struct IslandContentLayer: View {
 
     private var contentTransition: AnyTransition {
         if nookWasOpen && presentation.homeTab != nil { return .nookTab }
-        return model.settings.appearance.theme == .glass ? .glassContent : .islandContent
+        if model.settings.appearance.theme == .glass { return .glassContent }
+        return Motion.isOpenView(presentation) ? .islandOpenContent : .islandCompactContent
     }
 
     private var hasBubble: Bool {
@@ -142,6 +164,45 @@ struct IslandContentLayer: View {
         // When tucked away the bubble is a point inside the shape; it must not steal clicks.
         .allowsHitTesting(hasBubble)
         .position(x: layout.bubble.midX, y: layout.bubble.midY)
+    }
+}
+
+/// Content stretches with the shape as it springs open or closed, like the Dynamic Island's: an
+/// open view is drawn at its full size and scaled to the shape's current size from the top
+/// edge, so it overshoots and settles with it. Compact content only lifts with the shape under
+/// the pointer, by the same 5 %.
+struct StretchWithShell: ViewModifier {
+    /// The size the content is laid out for.
+    let resting: CGSize
+    let isOpenView: Bool
+    let stretches: Bool
+
+    /// Long enough for the opening spring to settle.
+    static let duration = 0.9
+
+    func body(content: Content) -> some View {
+        // The clear view takes the shape's current size, frame by frame as it animates; the
+        // content keeps its own size on top of it.
+        Color.clear
+            .overlay(alignment: .top) { content }
+            .visualEffect { [resting, isOpenView, stretches] view, proxy in
+                let scale = Self.scale(current: proxy.size, resting: resting, isOpenView: isOpenView, stretches: stretches)
+                return view.scaleEffect(x: scale.width, y: scale.height, anchor: .top)
+            }
+    }
+
+    /// How much to scale content laid out at `resting` inside a shape that is `current` now.
+    nonisolated static func scale(current: CGSize, resting: CGSize, isOpenView: Bool, stretches: Bool) -> CGSize {
+        guard resting.width > 1, resting.height > 1, current.width > 0, current.height > 0 else { return CGSize(width: 1, height: 1) }
+        let x = current.width / resting.width
+        let y = current.height / resting.height
+        if isOpenView {
+            guard stretches else { return CGSize(width: 1, height: 1) }
+            return CGSize(width: min(max(x, 0.2), 1.15), height: min(max(y, 0.1), 1.15))
+        }
+        // Compact: only ever grows, and only as much as the hover lift.
+        let lift = min(max(x, 1), IslandMetrics.hoverScale)
+        return CGSize(width: lift, height: lift)
     }
 }
 

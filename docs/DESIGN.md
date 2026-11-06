@@ -33,8 +33,9 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Hover on the notch | notch + 20 wide, + 3 tall | shoulders 5, bottom 11 |
 | Compact | notch + 2 × ear, height = max(thickness, notch height) | shoulders 6, bottom min(0.42 × h, 14) |
 | Ear width | `round(h × 1.15) + (width − 180) / 2`, at least 80 % of that slot | — |
+| Music ear | slimmer, like the Dynamic Island: max(round(h × 1.03), ear − 14), never wider than the ear (33 at the usual settings, so 245 wide on a 179 pt notch) | — |
 | Alert | notch + 2 × max(ear, 128), compact height + 6 | shoulders 6, bottom min(0.42 × h, 16) |
-| Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14 | shoulders 10, bottom 30 |
+| Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14. Open music is 1.79 × its height wide (the Dynamic Island player's 321 × 179) | shoulders 10, continuous bottom 46 (approvals and other open alerts 30) |
 | Minimal bubble | circle, compact height − 6, 4 pt right of the shape, vertically centred on the strip | — |
 | Hover lift | 5 % wider and taller (at least +3 each side and +2 at the bottom); the top never moves | — |
 
@@ -56,7 +57,7 @@ top edge of the screen.
 
 **Pill** (Settings › Appearance › Displays Without a Notch) swaps that notch for a floating pill,
 like the Dynamic Island: no shoulders, 6 pt below the top edge, a 76 pt middle kept clear for
-compact content (about 170 × 32 at the usual settings), fully round ends while compact and 32 pt corners when open. At rest it's a
+compact content (about 170 × 32 at the usual settings), fully round ends while compact and 46 pt corners when open. At rest it's a
 smaller, invisible pill in the same spot, so it grows out of it. Content moves down with it.
 MacBook notches are never affected.
 
@@ -190,7 +191,7 @@ Dark-mode system colours, since the surface is always black.
 | Hide | smooth, 0.42 s (settles without a bounce) |
 | Settings slider changes | spring, response 0.3, critically damped |
 | Hover lift | spring, response 0.32, damping 0.9 |
-| Content swap | old: fade + blur 8 + scale 0.97 out in 0.1 s; new: fade + blur 10 + scale 0.92 → 1 in a 0.3 s smooth curve after 0.05 s. Both scale from the top edge, so content grows out of the notch |
+| Content swap | an open view is drawn at full size and stretched to the shape's current size from the top edge for 0.9 s after a change, so it bounces with the shape. Opening: compact content blurs (8) out in 0.08 s; the open view fades in and unblurs (10) in 0.08 s after 0.04 s. Closing: the open view fades and blurs out in 0.12 s after 0.06 s; compact content returns in 0.1 s after 0.1 s. Compact content scales with the hover lift. Glass keeps its slower swap |
 | Liquid pulse (bubble split) | strength 0 → 1 in 0.08 s, back to 0 over 0.6 s |
 | Now Playing bars | 4 capsules, Core Animation keyframe loops of 1.2–1.9 s; resting height 28 % when paused. With Live music bars, heights follow bass, low mids, high mids and treble about 30 times a second (90 ms linear steps), rising fast and falling gently; 2 s of silence hands back to the loop |
 | Long Now Playing titles | Continuous horizontal loop at 25 pt/s, with a 32 pt gap; only while playing and only if the title is too wide. Paused and Reduce Motion show a still, truncated title. Sizes scale with the notch |

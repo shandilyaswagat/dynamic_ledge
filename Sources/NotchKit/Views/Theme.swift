@@ -103,6 +103,12 @@ enum Motion {
         }
     }
 
+    /// Views that open below the camera (music, Home and the panels, a drop, an approval),
+    /// rather than sitting beside it.
+    static func isOpenView(_ presentation: IslandPresentation) -> Bool {
+        rank(presentation) >= 4
+    }
+
     /// True when the shape is shrinking to a smaller kind of view, like the open notch going
     /// back to the activity beside the camera.
     static func isClosing(from previous: IslandPresentation, to presentation: IslandPresentation) -> Bool {
@@ -189,18 +195,34 @@ private struct BlurFade: ViewModifier {
 }
 
 extension AnyTransition {
-    /// Content grows out of the notch: it unblurs and scales up from the top edge as the shape
-    /// opens, and leaves quickly so the shape never closes over it.
-    static var islandContent: AnyTransition {
+    /// An open view (music, Home, a panel) appearing: it fades and unblurs quickly while the
+    /// shape is still small, then grows with it, as `StretchWithShell` scales it. Leaving, it
+    /// fades as the shape closes past about half way. Timed from the Dynamic Island's player.
+    static var islandOpenContent: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: BlurFade(blur: 10, scale: 0.92, opacity: 0),
+                active: BlurFade(blur: 10, scale: 1, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.smooth(duration: 0.3).delay(0.05)),
+            ).animation(.easeOut(duration: 0.08).delay(0.04)),
             removal: .modifier(
-                active: BlurFade(blur: 8, scale: 0.97, opacity: 0),
+                active: BlurFade(blur: 10, scale: 1, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeIn(duration: 0.1))
+            ).animation(.easeIn(duration: 0.12).delay(0.06))
+        )
+    }
+
+    /// What sits beside the camera: it blurs away as soon as the shape starts opening, and comes
+    /// back once a closing shape is nearly compact again.
+    static var islandCompactContent: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: BlurFade(blur: 8, scale: 1, opacity: 0),
+                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
+            ).animation(.easeOut(duration: 0.1).delay(0.1)),
+            removal: .modifier(
+                active: BlurFade(blur: 8, scale: 1, opacity: 0),
+                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
+            ).animation(.easeIn(duration: 0.08))
         )
     }
 

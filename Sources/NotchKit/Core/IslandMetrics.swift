@@ -13,6 +13,18 @@ public enum IslandMetrics {
         return max((slot * 0.8).rounded(), (slot + (appearance.width - 180) / 2).rounded())
     }
 
+    /// Music beside the camera: the artwork or the bars, their padding and a little air.
+    public static func musicEarWidth(height: CGFloat) -> CGFloat {
+        (height * 1.03).rounded()
+    }
+
+    /// How much slimmer music's ears are than other activities' at the usual width setting.
+    public static let musicEarTrim: CGFloat = 14
+
+    /// The open music view is 1.79 times as wide as it is tall, like the Dynamic Island's
+    /// player (321 by 179).
+    public static let nowPlayingAspect: CGFloat = 321.0 / 179.0
+
     public static func expandedWidth(_ appearance: NotchAppearance) -> CGFloat {
         min(max(appearance.width + 190, 360), 560)
     }
@@ -75,7 +87,10 @@ public enum IslandMetrics {
     /// Space between the notch strip and the content, and below the content.
     public static let notchContentGap: CGFloat = 2
     public static let notchBottomPadding: CGFloat = 14
-    public static let notchExpandedRadius: CGFloat = 30
+    /// Open views round off like the Dynamic Island's player.
+    public static let notchExpandedRadius: CGFloat = 46
+    /// Approvals and other open alerts, whose content reaches into the corners.
+    public static let alertExpandedRadius: CGFloat = 30
     /// Concave shoulders where the shape meets the top edge, like the real notch.
     public static let compactFlare: CGFloat = 6
     public static let expandedFlare: CGFloat = 10
@@ -115,7 +130,7 @@ public enum IslandMetrics {
     /// usual settings.
     public static let pillCoreWidth: CGFloat = 76
     /// Pill style: corner radius of the open pill (compact forms are fully round).
-    public static let pillExpandedRadius: CGFloat = 32
+    public static let pillExpandedRadius: CGFloat = 46
 }
 
 /// Which widgets the Home tab shows.

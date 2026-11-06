@@ -92,3 +92,66 @@ struct RestingNotchTests {
         #expect(idle.width > engine.notchInWindow.width, "nothing to hide behind, so it shows")
     }
 }
+
+@MainActor
+@Suite("Dynamic Island proportions")
+struct IslandProportionTests {
+    private let macBook = ScreenMetrics(size: CGSize(width: 1470, height: 956), notch: CGRect(x: 645.5, y: 0, width: 179, height: 32), menuBarHeight: 32)
+
+    private var engine: LayoutEngine {
+        var appearance = NotchAppearance.standard
+        appearance.size = .large
+        return LayoutEngine(screen: macBook, appearance: appearance)
+    }
+
+    @Test func musicHugsTheCameraButTimersKeepTheirRoom() {
+        let music = engine.layout(for: .compact(primary: .nowPlaying, secondary: nil), homeHasMedia: true, hovering: false)
+        let timer = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: false)
+        #expect(music.pill.width - 2 * music.flare == CGFloat(179 + 2 * 33))
+        #expect(timer.pill.width - 2 * timer.flare == engine.compactBodyWidth)
+        #expect(music.pill.width < timer.pill.width)
+    }
+
+    @Test func wideSettingsStillWidenMusic() {
+        var appearance = NotchAppearance.standard
+        appearance.size = .large
+        appearance.width = 360
+        let wide = LayoutEngine(screen: macBook, appearance: appearance)
+        #expect(wide.compactBodyWidth(for: .nowPlaying) > engine.compactBodyWidth(for: .nowPlaying) + 100)
+    }
+
+    @Test func openMusicHasThePlayersProportions() {
+        let layout = engine.layout(for: .expanded(.nowPlaying), home: HomeContent(hasMedia: true), hovering: false)
+        let aspect = layout.pill.insetBy(dx: layout.flare, dy: 0).width / layout.pill.height
+        #expect(abs(aspect - IslandMetrics.nowPlayingAspect) < 0.02)
+        #expect(layout.bottomRadius == IslandMetrics.notchExpandedRadius)
+    }
+
+    @Test func hoverLiftsTheShapeButNotTheContentBox() {
+        let rest = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: false)
+        let hover = engine.layout(for: .compact(primary: .timer, secondary: nil), homeHasMedia: false, hovering: true)
+        #expect(hover.pill.width > rest.pill.width)
+        #expect(hover.restingPill == rest.pill)
+        #expect(hover.content == rest.content)
+    }
+
+    @Test func openContentStretchesWithTheShapeWhileItSprings() {
+        let resting = CGSize(width: 340, height: 190)
+        let half = StretchWithShell.scale(current: CGSize(width: 170, height: 95), resting: resting, isOpenView: true, stretches: true)
+        #expect(half == CGSize(width: 0.5, height: 0.5))
+        let overshoot = StretchWithShell.scale(current: CGSize(width: 362, height: 202), resting: resting, isOpenView: true, stretches: true)
+        #expect(overshoot.width > 1 && overshoot.height > 1)
+        #expect(StretchWithShell.scale(current: CGSize(width: 170, height: 95), resting: resting, isOpenView: true, stretches: false) == CGSize(width: 1, height: 1),
+                "a resize after it settles doesn't squash it")
+    }
+
+    @Test func compactContentOnlyLiftsWithHover() {
+        let resting = CGSize(width: 245, height: 32)
+        let lifted = StretchWithShell.scale(current: CGSize(width: 257, height: 34), resting: resting, isOpenView: false, stretches: true)
+        #expect(lifted.width > 1 && lifted.width <= IslandMetrics.hoverScale)
+        let opening = StretchWithShell.scale(current: CGSize(width: 500, height: 200), resting: resting, isOpenView: false, stretches: true)
+        #expect(opening.width == IslandMetrics.hoverScale, "never blown up as the shape opens")
+        let shrunk = StretchWithShell.scale(current: CGSize(width: 180, height: 31), resting: resting, isOpenView: false, stretches: true)
+        #expect(shrunk == CGSize(width: 1, height: 1))
+    }
+}

@@ -53,9 +53,12 @@ last one.
 - AI Agent Usage stops checking when Dynamic Ledge stops its services.
 
 ### Changed
-- **Bouncier notch.** Opening now springs out quickly with a small overshoot, like the iPhone's
-  island, and closing settles back without a bounce. Hovering lifts the notch a little more, and
-  content blurs in and out more softly.
+- **Moves like the Dynamic Island.** Opening springs out quickly with a small overshoot and the
+  content stretches and bounces with it; closing settles back without a bounce. Content swaps
+  faster, hovering lifts the notch and what's in it by 5 %, and open views have rounder,
+  smoother corners.
+- **Slimmer music.** While music plays, the artwork and bars sit closer to the camera, and the
+  open player has the Dynamic Island's proportions.
 - Coding-assistant requests show Allow and Deny as white and grey buttons stacked on the right,
   with the request beside them.
 - AI Agent Usage covers Codex and Antigravity. Claude Code keeps its limits only on Anthropic's

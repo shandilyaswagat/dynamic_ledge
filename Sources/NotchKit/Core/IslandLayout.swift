@@ -26,6 +26,10 @@ public struct IslandLayout: Equatable, Sendable {
     /// Height of the camera housing from the top edge, kept black in the Glass theme so the
     /// notch never shows through. Zero on displays without a notch.
     public var notchBand: CGFloat
+    /// The shape's bounds without the hover lift: the box content is laid out in. While the shape
+    /// springs open or closed, or lifts under the pointer, content stretches from this size to
+    /// the shape's current one, so it bounces with it. Not animated.
+    public var restingPill: CGRect
 
     public init(
         canvasSize: CGSize,
@@ -55,6 +59,7 @@ public struct IslandLayout: Equatable, Sendable {
         self.contentScale = contentScale
         self.stripHeight = 0
         self.notchBand = 0
+        self.restingPill = pill
     }
 
     /// The values SwiftUI interpolates during a spring.
@@ -110,6 +115,12 @@ public struct AnimatableVector: VectorArithmetic, Sendable {
 
 /// The outline shared by the drawn surface and the content clip.
 public enum IslandPath {
+    /// A continuous corner of radius r starts 1.28 r from the corner…
+    static let continuousReach: CGFloat = 1.28
+    /// …with its control points this far along that, which keeps it close to a circle of r at
+    /// the apex while easing into the straight edges.
+    static let continuousHandle: CGFloat = 0.33
+
     public static func path(in rect: CGRect, topRadius: CGFloat, bottomRadius: CGFloat, flare: CGFloat) -> Path {
         guard rect.width > 0.5, rect.height > 0.5 else { return Path() }
         let flare = min(max(flare, 0), rect.width / 4, rect.height / 2)
@@ -130,8 +141,18 @@ public enum IslandPath {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
         path.addArc(tangent1End: CGPoint(x: left, y: rect.minY), tangent2End: CGPoint(x: left, y: rect.maxY), radius: flare)
-        path.addArc(tangent1End: CGPoint(x: left, y: rect.maxY), tangent2End: CGPoint(x: right, y: rect.maxY), radius: bottom)
-        path.addArc(tangent1End: CGPoint(x: right, y: rect.maxY), tangent2End: CGPoint(x: right, y: rect.minY), radius: bottom)
+        // Continuous (squircle-like) bottom corners, as Apple draws them: the curve starts
+        // further from the corner and eases in, instead of a circular arc.
+        let reach = min(bottom * continuousReach, rect.height - flare, (right - left) / 2)
+        let handle = reach * continuousHandle
+        path.addLine(to: CGPoint(x: left, y: rect.maxY - reach))
+        path.addCurve(to: CGPoint(x: left + reach, y: rect.maxY),
+                      control1: CGPoint(x: left, y: rect.maxY - handle),
+                      control2: CGPoint(x: left + handle, y: rect.maxY))
+        path.addLine(to: CGPoint(x: right - reach, y: rect.maxY))
+        path.addCurve(to: CGPoint(x: right, y: rect.maxY - reach),
+                      control1: CGPoint(x: right - handle, y: rect.maxY),
+                      control2: CGPoint(x: right, y: rect.maxY - handle))
         path.addArc(tangent1End: CGPoint(x: right, y: rect.minY), tangent2End: CGPoint(x: rect.maxX, y: rect.minY), radius: flare)
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
         path.closeSubpath()
@@ -189,6 +210,15 @@ public struct LayoutEngine: Equatable, Sendable {
     /// Width of the compact shape without shoulders.
     public var compactBodyWidth: CGFloat {
         notch.width + 2 * earWidth
+    }
+
+    /// Music only needs the artwork on one side and the bars on the other, so its ears are
+    /// slimmer, hugging the camera like the Dynamic Island. Wider width settings still widen it.
+    public func compactBodyWidth(for kind: ActivityKind) -> CGFloat {
+        guard kind == .nowPlaying else { return compactBodyWidth }
+        let slim = (IslandMetrics.musicEarWidth(height: compactHeight) * scale).rounded()
+        let ear = min(earWidth, max(slim, earWidth - (IslandMetrics.musicEarTrim * scale).rounded()))
+        return notch.width + 2 * ear
     }
 
     /// Volume and brightness use a slimmer shape than other alerts.
@@ -342,17 +372,6 @@ public struct LayoutEngine: Equatable, Sendable {
         layout.contentScale = scale
         layout.notchBand = isVirtualNotch ? 0 : notch.maxY
 
-        if hovering, presentation.isRestingPill {
-            // Grows sideways and down; the top stays fused to the screen edge.
-            let growth = IslandMetrics.hoverGrowth(for: layout.pill.size)
-            layout.pill = CGRect(
-                x: layout.pill.minX - growth.width,
-                y: layout.pill.minY,
-                width: layout.pill.width + 2 * growth.width,
-                height: layout.pill.height + growth.height
-            )
-        }
-
         if appearance.pitchBlack || appearance.theme == .glass {
             // Glass draws its own edge.
             layout.shadow = 0
@@ -360,6 +379,22 @@ public struct LayoutEngine: Equatable, Sendable {
         }
 
         if isPill { layout = floating(layout, for: presentation) }
+        layout.restingPill = layout.pill
+
+        if hovering, presentation.isRestingPill {
+            // Grows sideways and down; the top stays where it is.
+            let growth = IslandMetrics.hoverGrowth(for: layout.pill.size)
+            layout.pill = CGRect(
+                x: layout.pill.minX - growth.width,
+                y: layout.pill.minY,
+                width: layout.pill.width + 2 * growth.width,
+                height: layout.pill.height + growth.height
+            )
+            if isPill {
+                layout.topRadius = layout.pill.height / 2
+                layout.bottomRadius = layout.pill.height / 2
+            }
+        }
 
         if layout.bubble == .zero {
             // Tucked into the right end of the shape, so it oozes out from there when it appears.
@@ -423,8 +458,8 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.pill = shape(body: notch.width + 24, height: height, flare: IslandMetrics.compactFlare)
             layout.shadow = 0.2
             layout.content = layout.pill.insetBy(dx: IslandMetrics.compactFlare, dy: 0)
-        case .compact(_, let secondary):
-            layout.pill = shape(body: compactBodyWidth, height: height, flare: IslandMetrics.compactFlare)
+        case .compact(let primary, let secondary):
+            layout.pill = shape(body: compactBodyWidth(for: primary), height: height, flare: IslandMetrics.compactFlare)
             layout.shadow = 0.3
             layout.content = layout.pill.insetBy(dx: IslandMetrics.compactFlare, dy: 0)
             layout.cameraGap = cameraGap
@@ -452,10 +487,15 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.cameraGap = cameraGap
         default:
             let contentHeight = expandedContentHeight(for: presentation, home: home) ?? IslandMetrics.ContentHeight.timer
-            let width = expandedWidth
+            let width = presentation == .expanded(.nowPlaying)
+                ? max((expandedHeight(content: contentHeight) * IslandMetrics.nowPlayingAspect).rounded(), compactBodyWidth(for: .nowPlaying) + 40)
+                : expandedWidth
             layout.pill = shape(body: width, height: expandedHeight(content: contentHeight), flare: IslandMetrics.expandedFlare)
             layout.flare = IslandMetrics.expandedFlare
-            layout.bottomRadius = (IslandMetrics.notchExpandedRadius * scale).rounded()
+            // Approvals fill their corners with the request and the buttons, so they keep
+            // tighter corners.
+            let radius = if case .alert = presentation { IslandMetrics.alertExpandedRadius } else { IslandMetrics.notchExpandedRadius }
+            layout.bottomRadius = (radius * scale).rounded()
             layout.shadow = 1
             layout.content = CGRect(
                 x: centerX - width / 2,

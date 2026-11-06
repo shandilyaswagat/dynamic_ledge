@@ -462,6 +462,10 @@ private struct AgentRequestView: View {
 
     private func header(showsTitle: Bool) -> some View {
         HStack(spacing: 8 * s) {
+            // Home, leaving the request waiting: it comes back when the notch closes.
+            BackToHomeButton(model: model) { model.setAsideAgentRequest() }
+                .padding(.leading, -6 * s)
+                .help("Home. The request keeps waiting")
             Image(systemName: "terminal.fill")
                 .font(.system(size: 13 * s, weight: .semibold))
                 .foregroundStyle(NotchColor.orange)

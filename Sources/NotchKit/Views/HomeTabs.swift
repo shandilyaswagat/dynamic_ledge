@@ -99,12 +99,14 @@ private struct PanelTitle: View {
 /// round highlight under the pointer. Used on panels and on every activity's expanded view.
 struct BackToHomeButton: View {
     let model: IslandModel
+    /// What going back does, when it's more than opening Home.
+    var action: (() -> Void)?
     @State private var isHovering = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
         Button {
-            model.showTab(.home)
+            if let action { action() } else { model.showTab(.home) }
         } label: {
             Image(systemName: "chevron.backward")
                 .font(.system(size: 13 * s, weight: .semibold))

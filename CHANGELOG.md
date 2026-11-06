@@ -8,6 +8,9 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Home from an approval.** The back button on a coding assistant's request opens Home and
+  leaves the request waiting. It comes back when the notch closes, or goes away if you answer it
+  in the assistant.
 - **Pill for other screens.** Pick **Pill** in Settings › Appearance and external displays (and
   Macs without a notch) show a floating pill just below the top edge, like the Dynamic Island,
   instead of a notch. A MacBook's own notch always stays a notch.

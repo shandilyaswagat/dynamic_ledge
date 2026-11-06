@@ -113,4 +113,36 @@ struct AgentAnsweredElsewhereTests {
         #expect(reply.isEmpty, "Claude Code asks it in its own window")
         #expect(bridge.pending.isEmpty)
     }
+
+    @Test func homeLeavesTheRequestWaitingAndItComesBack() async throws {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        let settings = SettingsStore(defaults: defaults)
+        settings.agentApprovals = [.claude]
+        let model = IslandModel(
+            settings: settings,
+            tray: TrayStore(folder: nil),
+            clipboard: ClipboardMonitor(pasteboard: NSPasteboard(name: NSPasteboard.Name("NotchTests-\(UUID().uuidString)"))),
+            notes: NotesStore(defaults: defaults)
+        )
+        model.agents.start()
+        defer { model.agents.stop() }
+        let path = model.agents.socketPath
+        let data = json(["hook_event_name": "PermissionRequest", "tool_name": "Bash", "tool_input": ["command": "ls"], "cwd": "/w/app"])
+        let hook = Task.detached { AgentHookClient.answer(input: data, socket: path) }
+        try await waitUntil { model.agents.pending.count == 1 }
+        guard case .agentRequest(let shown)? = model.alerts.current else {
+            Issue.record("the request should show")
+            return
+        }
+
+        model.setAsideAgentRequest()
+        #expect(model.alerts.current == nil)
+        #expect(model.expandTarget == .home)
+        #expect(model.agents.pending.map(\.id) == [shown.id], "still waiting, unanswered")
+
+        model.collapse()
+        #expect(model.alerts.current == .agentRequest(shown), "back once Home closes")
+        model.answerAgent(.allow)
+        #expect(await hook.value == AgentDecision.allow.claudeHookOutput)
+    }
 }

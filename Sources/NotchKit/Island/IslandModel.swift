@@ -644,7 +644,13 @@ public final class IslandModel {
         if expandTarget == .notes { notes.save() }
         expandTarget = nil
         syncStatsSampling()
-        pumpAlerts()
+        if !setAsideAgentRequests.isEmpty {
+            // Back to the requests that were set aside to use Home.
+            setAsideAgentRequests.removeAll()
+            syncAgentAlert()
+        } else {
+            pumpAlerts()
+        }
     }
 
     /// Two-finger swipe: bring the next activity to the front.
@@ -728,6 +734,19 @@ public final class IslandModel {
         }
     }
 
+    /// Requests set aside to use Home. They keep waiting (and can still be answered in the
+    /// assistant's window) and come back when the notch closes.
+    private var setAsideAgentRequests: Set<UUID> = []
+
+    /// Leaves the request on show unanswered and opens Home.
+    public func setAsideAgentRequest() {
+        guard case .agentRequest(let request) = alerts.current else { return }
+        setAsideAgentRequests.insert(request.id)
+        alerts.dismissCurrent()
+        scheduleAlertExpiry()
+        expand(.home)
+    }
+
     /// Answers the request on show.
     public func answerAgent(_ decision: AgentDecision) {
         guard case .agentRequest(let request) = alerts.current else { return }
@@ -736,7 +755,8 @@ public final class IslandModel {
 
     /// Keeps the notch showing the oldest waiting request, one at a time.
     private func syncAgentAlert() {
-        let head = agents.pending.first
+        setAsideAgentRequests.formIntersection(agents.pending.map(\.id))
+        let head = agents.pending.first { !setAsideAgentRequests.contains($0.id) }
         if case .agentRequest(let shown) = alerts.current, shown.id != head?.id {
             alerts.dismissCurrent()
             scheduleAlertExpiry()

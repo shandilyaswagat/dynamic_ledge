@@ -16,6 +16,7 @@ public final class AgentBridge {
     @ObservationIgnored private var server: AgentSocketServer?
     @ObservationIgnored private var connections: [UUID: Int32] = [:]
     @ObservationIgnored private var timeouts: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var transcriptWatches: [UUID: AgentTranscriptWatch] = [:]
 
     /// Answered with `ask` a little before Claude Code gives up on the hook, so the assistant
     /// always gets a reply and falls back to its own prompt.
@@ -53,6 +54,7 @@ public final class AgentBridge {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
         let request = pending.remove(at: index)
         timeouts.removeValue(forKey: id)?.cancel()
+        transcriptWatches.removeValue(forKey: id)?.stop()
         if let connection = connections.removeValue(forKey: id) {
             server?.respond(on: connection, with: request.kind.output(for: decision))
         }
@@ -77,6 +79,14 @@ public final class AgentBridge {
             guard !Task.isCancelled else { return }
             self?.answer(id, .ask)
         }
+        // Claude Code shows its own prompt too, and keeps our hook waiting when it's answered
+        // there. Its session transcript then gets the tool's result, so the notch lets it go.
+        if kind == .claude, let watch = AgentTranscriptWatch(hookInput: input, onAnswered: { [weak self] in
+            Task { @MainActor in self?.answer(id, .ask) }
+        }) {
+            transcriptWatches[id] = watch
+            watch.start()
+        }
         onChange?()
     }
 
@@ -96,6 +106,7 @@ public final class AgentBridge {
         guard let id = connections.first(where: { $0.value == connection })?.key else { return }
         connections[id] = nil
         timeouts.removeValue(forKey: id)?.cancel()
+        transcriptWatches.removeValue(forKey: id)?.stop()
         pending.removeAll { $0.id == id }
         onChange?()
     }

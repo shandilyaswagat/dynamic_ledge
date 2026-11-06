@@ -15,6 +15,11 @@ last one.
 - A shorter README, with step-by-step install, update and uninstall guides and a clear privacy
   and permissions section.
 
+### Fixed
+- An approval answered in Claude Code's own window now leaves the notch straight away, instead
+  of staying there until it timed out. Claude's questions and plans, which have their own choices,
+  stay in Claude Code instead of showing Allow and Deny in the notch.
+
 ## [1.4.3] - 2026-11-02
 
 ### Fixed

@@ -97,7 +97,17 @@ public enum AgentHookClient {
 
         var reply = Data()
         var chunk = [UInt8](repeating: 0, count: 4096)
+        // Wait in short steps so the hook can tell when the assistant stops waiting for it: if
+        // it goes away, this process is handed to launchd, and leaving closes the request in
+        // the notch.
+        let parent = getppid()
+        let deadline = Date().addingTimeInterval(TimeInterval(AgentHookSettings.timeout - 5))
         while !reply.contains(0x0A) {
+            guard getppid() == parent, Date() < deadline else { return Data() }
+            var waiting = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            let ready = poll(&waiting, 1, 1000)
+            if ready == 0 || (ready < 0 && errno == EINTR) { continue }
+            guard ready > 0 else { break }
             let count = read(fd, &chunk, chunk.count)
             if count <= 0 { break }
             reply.append(contentsOf: chunk[0..<count])

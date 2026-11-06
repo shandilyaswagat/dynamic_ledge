@@ -57,7 +57,8 @@ last one.
   content grows and bounces with it; closing settles back without a bounce. Content swaps
   faster with a lighter blur, hovering lifts the notch and what's in it by 5 %, and open views
   have rounder, smoother corners. Glass now moves the same way and no longer stutters as it
-  starts to open, and Springy bounces without wobbling.
+  starts to open, closing draws the content back into the notch instead of blinking it out,
+  and Springy bounces without wobbling.
 - **Slimmer music.** While music plays, the artwork and bars sit closer to the camera, and the
   open player has the Dynamic Island's proportions.
 - Coding-assistant requests show Allow and Deny as white and grey buttons stacked on the right,

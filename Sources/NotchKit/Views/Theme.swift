@@ -172,8 +172,8 @@ private struct BlurFade: ViewModifier {
 
 extension AnyTransition {
     /// An open view (music, Home, a panel) appearing: it fades in with a light blur while the
-    /// shape grows, and `StretchWithShell` grows it with the shape. Leaving, it fades quickly so
-    /// the shape never closes over it. The blur stays light: heavy blur over a large view looks
+    /// shape grows, and `StretchWithShell` grows it with the shape. Leaving, it shrinks with the
+    /// shape back into the notch and fades as it goes. The blur stays light: heavy blur over a large view looks
     /// smeared and costs frames.
     static var islandOpenContent: AnyTransition {
         .asymmetric(
@@ -184,7 +184,7 @@ extension AnyTransition {
             removal: .modifier(
                 active: BlurFade(blur: 2, scale: 1, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeOut(duration: 0.1))
+            ).animation(.easeIn(duration: 0.14).delay(0.03))
         )
     }
 

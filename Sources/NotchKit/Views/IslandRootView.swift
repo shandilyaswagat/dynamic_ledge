@@ -63,11 +63,12 @@ struct IslandContentLayer: View {
     /// Home or one of its tabs was already open before this render. Switching between them keeps
     /// the shape still, so the content just crossfades instead of growing out of the notch again.
     @State private var nookWasOpen = false
-    /// True while the shape springs to a new presentation, so the content stretches and bounces
-    /// with it. Off once it has settled, so later resizes (lyrics arriving, a search bar) don't
-    /// squash the content.
-    @State private var isSpringing = false
-    @State private var settle: Task<Void, Never>?
+    /// What an open view resizes to fit in place: lyrics arriving, a search bar, a settings change.
+    /// While it does, the content keeps its size instead of growing with the shape, so it doesn't
+    /// zoom. Opening and closing always grow and shrink it with the shape.
+    @State private var resizeKey: ResizeKey?
+    @State private var isResizing = false
+    @State private var resizeEnd: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -76,15 +77,26 @@ struct IslandContentLayer: View {
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
         .onChange(of: presentation.homeTab != nil, initial: true) { _, isOpen in nookWasOpen = isOpen }
-        .onChange(of: ContentKey(presentation)) {
-            isSpringing = true
-            settle?.cancel()
-            settle = Task {
-                try? await Task.sleep(for: .seconds(StretchWithShell.duration))
+        .onChange(of: currentResizeKey, initial: true) { old, new in
+            resizeKey = new
+            guard old != new else { return }
+            isResizing = true
+            resizeEnd?.cancel()
+            resizeEnd = Task {
+                try? await Task.sleep(for: .seconds(StretchWithShell.resizeDuration))
                 guard !Task.isCancelled else { return }
-                isSpringing = false
+                isResizing = false
             }
         }
+    }
+
+    private var currentResizeKey: ResizeKey {
+        ResizeKey(home: model.homeContent, appearance: model.settings.appearance)
+    }
+
+    /// True from the very render that changes the size, before `onChange` has run.
+    private var resizesInPlace: Bool {
+        isResizing || (resizeKey != nil && resizeKey != currentResizeKey)
     }
 
     private var pillShape: IslandShape {
@@ -103,7 +115,7 @@ struct IslandContentLayer: View {
                     .modifier(StretchWithShell(
                         resting: resting.size,
                         isOpenView: Motion.isOpenView(presentation),
-                        stretches: isSpringing
+                        stretches: !resizesInPlace
                     ))
                     .id(ContentKey(presentation))
                     .transition(contentTransition)
@@ -176,8 +188,8 @@ struct StretchWithShell: ViewModifier {
     let isOpenView: Bool
     let stretches: Bool
 
-    /// Long enough for the opening spring to settle.
-    static let duration = 0.9
+    /// Long enough for the resize spring to settle.
+    static let resizeDuration = 0.7
     /// The smallest an open view is drawn while the shape grows out of the notch.
     nonisolated static let minimumOpenScale: CGFloat = 0.6
 
@@ -208,6 +220,11 @@ struct StretchWithShell: ViewModifier {
         let lift = min(max(x, 1), IslandMetrics.hoverScale)
         return CGSize(width: lift, height: lift)
     }
+}
+
+private struct ResizeKey: Equatable {
+    let home: HomeContent
+    let appearance: NotchAppearance
 }
 
 /// Identity of the content, so SwiftUI swaps views (with a transition) only when the content

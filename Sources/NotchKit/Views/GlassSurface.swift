@@ -21,9 +21,11 @@ struct GlassSurface: View, Animatable {
         let amount = glassAmount
         ZStack(alignment: .topLeading) {
             if opacity > 0.001 {
+                // Always there, only faded: making the glass the moment the notch starts to open
+                // costs a few frames, so the opening would start with a jump.
+                glass
+                    .opacity(amount)
                 if amount > 0.001 {
-                    glass
-                        .opacity(amount)
                     ZStack(alignment: .topLeading) {
                         smoke
                         rim

@@ -51,7 +51,6 @@ enum Motion {
         if reduceMotion {
             return .easeInOut(duration: 0.2)
         }
-        if theme == .glass { return glassShape(from: previous, to: presentation, style: style) }
         switch presentation {
         case .hidden(peek: true):
             return spring(0.34, 0.72, style)
@@ -71,35 +70,11 @@ enum Motion {
             return spring(0.4, 0.7, style)
         case .alert:
             return spring(0.38, 0.66, style)
-        case .expanded, .nook, .drop:
+        case .expanded, .drop:
             return spring(0.37, 0.65, style)
-        }
-    }
-
-    /// Glass moves like a drop of liquid: a touch slower, with more give as it opens and a soft
-    /// settle as it closes.
-    private static func glassShape(from previous: IslandPresentation?, to presentation: IslandPresentation, style: MotionStyle) -> Animation {
-        switch presentation {
-        case .hidden(peek: true):
-            return spring(0.4, 0.64, style)
-        case .hidden:
-            // Closing never bounces, whatever the style.
-            return spring(0.5, 0.92, style == .springy ? .standard : style)
-        default:
-            break
-        }
-        if let previous, isClosing(from: previous, to: presentation) {
-            return .spring(response: style == .calm ? 0.52 : 0.46, dampingFraction: 1)
-        }
-        switch presentation {
-        case .hidden:
-            return spring(0.4, 0.64, style)
-        case .idle, .compact:
-            return spring(0.48, 0.66, style)
-        case .alert:
-            return spring(0.46, 0.62, style)
-        case .expanded, .nook, .drop:
-            return spring(0.46, 0.62, style)
+        case .nook:
+            // Home and its panels are big: the same bounce in points would look like a wobble.
+            return spring(0.4, 0.74, style)
         }
     }
 
@@ -130,16 +105,17 @@ enum Motion {
     static func spring(_ response: Double, _ dampingFraction: Double, _ style: MotionStyle) -> Animation {
         switch style {
         case .standard: .spring(response: response, dampingFraction: dampingFraction)
-        case .springy: .spring(response: response * 0.92, dampingFraction: damping(dampingFraction, style))
+        case .springy: .spring(response: response * 0.95, dampingFraction: damping(dampingFraction, style))
         case .calm: .spring(response: response * 1.12, dampingFraction: damping(dampingFraction, style))
         }
     }
 
-    /// Springy takes away 0.16 of the damping, but never below 0.5, where it would wobble.
+    /// Springy takes away 0.1 of the damping, but never below 0.56 (about 12 % overshoot):
+    /// lower than that reads as a wobble rather than a bounce.
     static func damping(_ value: Double, _ style: MotionStyle) -> Double {
         switch style {
         case .standard: value
-        case .springy: max(value - 0.16, 0.5)
+        case .springy: max(value - 0.1, 0.56)
         case .calm: 1
         }
     }
@@ -151,11 +127,11 @@ enum Motion {
     static let hover = Animation.spring(response: 0.32, dampingFraction: 0.9)
 
     static func resize(_ theme: NotchTheme, style: MotionStyle = .standard) -> Animation {
-        theme == .glass ? spring(0.46, 0.8, style) : spring(0.38, 0.86, style)
+        spring(0.38, 0.86, style)
     }
 
     static func hover(_ theme: NotchTheme, style: MotionStyle = .standard) -> Animation {
-        theme == .glass ? spring(0.36, 0.8, style) : spring(0.32, 0.9, style)
+        spring(0.32, 0.9, style)
     }
 }
 
@@ -195,49 +171,35 @@ private struct BlurFade: ViewModifier {
 }
 
 extension AnyTransition {
-    /// An open view (music, Home, a panel) appearing: it fades and unblurs quickly while the
-    /// shape is still small, then grows with it, as `StretchWithShell` scales it. Leaving, it
-    /// fades as the shape closes past about half way. Timed from the Dynamic Island's player.
+    /// An open view (music, Home, a panel) appearing: it fades in with a light blur while the
+    /// shape grows, and `StretchWithShell` grows it with the shape. Leaving, it fades quickly so
+    /// the shape never closes over it. The blur stays light: heavy blur over a large view looks
+    /// smeared and costs frames.
     static var islandOpenContent: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: BlurFade(blur: 10, scale: 1, opacity: 0),
+                active: BlurFade(blur: 3, scale: 1, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeOut(duration: 0.08).delay(0.04)),
+            ).animation(.easeOut(duration: 0.18).delay(0.03)),
             removal: .modifier(
-                active: BlurFade(blur: 10, scale: 1, opacity: 0),
+                active: BlurFade(blur: 2, scale: 1, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeIn(duration: 0.12).delay(0.06))
+            ).animation(.easeOut(duration: 0.1))
         )
     }
 
-    /// What sits beside the camera: it blurs away as soon as the shape starts opening, and comes
-    /// back once a closing shape is nearly compact again.
+    /// What sits beside the camera: it fades as soon as the shape starts opening, and comes back
+    /// once a closing shape is nearly compact again.
     static var islandCompactContent: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: BlurFade(blur: 8, scale: 1, opacity: 0),
+                active: BlurFade(blur: 2, scale: 0.94, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeOut(duration: 0.1).delay(0.1)),
+            ).animation(.easeOut(duration: 0.16).delay(0.08)),
             removal: .modifier(
-                active: BlurFade(blur: 8, scale: 1, opacity: 0),
+                active: BlurFade(blur: 2, scale: 1, opacity: 0),
                 identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeIn(duration: 0.08))
-        )
-    }
-
-    /// The Glass theme's version: content condenses out of the glass more slowly, with a deeper
-    /// blur, so it reads as forming inside the liquid rather than appearing on top of it.
-    static var glassContent: AnyTransition {
-        .asymmetric(
-            insertion: .modifier(
-                active: BlurFade(blur: 10, scale: 0.9, opacity: 0),
-                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.smooth(duration: 0.44).delay(0.08)),
-            removal: .modifier(
-                active: BlurFade(blur: 6, scale: 0.96, opacity: 0),
-                identity: BlurFade(blur: 0, scale: 1, opacity: 1)
-            ).animation(.easeIn(duration: 0.14))
+            ).animation(.easeOut(duration: 0.08))
         )
     }
 

@@ -16,16 +16,16 @@ struct MotionStyleTests {
     @Test func springyBouncesMoreAndCalmNotAtAll() {
         for damping in [0.6, 0.68, 0.8, 0.92] {
             #expect(Motion.damping(damping, .springy) < damping)
-            #expect(Motion.damping(damping, .springy) >= 0.5, "never wobbly")
+            #expect(Motion.damping(damping, .springy) >= 0.56, "bouncy, never wobbly")
             #expect(Motion.damping(damping, .calm) == 1)
         }
         #expect(Motion.spring(0.48, 0.8, .calm) == .spring(response: 0.48 * 1.12, dampingFraction: 1))
-        #expect(Motion.spring(0.48, 0.8, .springy) == .spring(response: 0.48 * 0.92, dampingFraction: 0.64))
+        #expect(Motion.spring(0.48, 0.8, .springy) == .spring(response: 0.48 * 0.95, dampingFraction: 0.8 - 0.1))
     }
 
     @Test func closingNeverBounces() {
         let glassClose = Motion.shape(to: .hidden(peek: false), reduceMotion: false, theme: .glass, style: .springy)
-        #expect(glassClose == .spring(response: 0.5, dampingFraction: 0.92))
+        #expect(glassClose == .smooth(duration: 0.42), "Glass closes like Black")
         #expect(Motion.shape(to: .hidden(peek: false), reduceMotion: false, style: .springy) == .smooth(duration: 0.42))
     }
 
@@ -34,7 +34,7 @@ struct MotionStyleTests {
         for style in MotionStyle.allCases {
             for theme in NotchTheme.allCases {
                 let close = Motion.shape(from: .expanded(.nowPlaying), to: compact, reduceMotion: false, theme: theme, style: style)
-                let expected: Double = theme == .glass ? (style == .calm ? 0.52 : 0.46) : (style == .calm ? 0.42 : 0.38)
+                let expected: Double = style == .calm ? 0.42 : 0.38
                 #expect(close == .spring(response: expected, dampingFraction: 1), "\(style) \(theme)")
             }
         }
@@ -46,6 +46,19 @@ struct MotionStyleTests {
     @Test func hoverLiftsByFivePercent() {
         #expect(IslandMetrics.hoverGrowth(for: CGSize(width: 200, height: 40)) == CGSize(width: 5, height: 2))
         #expect(IslandMetrics.hoverGrowth(for: CGSize(width: 60, height: 20)) == CGSize(width: 3, height: 2), "never less than before")
+    }
+
+    @Test func glassMovesLikeBlack() {
+        for presentation: IslandPresentation in [.expanded(.nowPlaying), .nook(.home), .compact(primary: .timer, secondary: nil), .hidden(peek: true)] {
+            for style in MotionStyle.allCases {
+                #expect(Motion.shape(to: presentation, reduceMotion: false, theme: .glass, style: style)
+                        == Motion.shape(to: presentation, reduceMotion: false, theme: .black, style: style))
+            }
+        }
+    }
+
+    @Test func bigPanelsBounceLess() {
+        #expect(Motion.shape(to: .nook(.home), reduceMotion: false) == .spring(response: 0.4, dampingFraction: 0.74))
     }
 
     @Test func reduceMotionWins() {
@@ -137,10 +150,12 @@ struct IslandProportionTests {
 
     @Test func openContentStretchesWithTheShapeWhileItSprings() {
         let resting = CGSize(width: 340, height: 190)
-        let half = StretchWithShell.scale(current: CGSize(width: 170, height: 95), resting: resting, isOpenView: true, stretches: true)
-        #expect(half == CGSize(width: 0.5, height: 0.5))
+        let early = StretchWithShell.scale(current: CGSize(width: 170, height: 40), resting: resting, isOpenView: true, stretches: true)
+        #expect(early == CGSize(width: StretchWithShell.minimumOpenScale, height: StretchWithShell.minimumOpenScale), "even, never squashed")
+        let growing = StretchWithShell.scale(current: CGSize(width: 272, height: 120), resting: resting, isOpenView: true, stretches: true)
+        #expect(abs(growing.width - 0.8) < 0.001 && growing.width == growing.height)
         let overshoot = StretchWithShell.scale(current: CGSize(width: 362, height: 202), resting: resting, isOpenView: true, stretches: true)
-        #expect(overshoot.width > 1 && overshoot.height > 1)
+        #expect(overshoot.width > 1 && overshoot.width == overshoot.height)
         #expect(StretchWithShell.scale(current: CGSize(width: 170, height: 95), resting: resting, isOpenView: true, stretches: false) == CGSize(width: 1, height: 1),
                 "a resize after it settles doesn't squash it")
     }

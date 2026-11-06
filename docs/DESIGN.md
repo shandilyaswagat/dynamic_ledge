@@ -185,23 +185,25 @@ Dark-mode system colours, since the surface is always black.
 |---|---|
 | Compact / idle | spring, response 0.4, damping 0.7 |
 | Alert | spring, response 0.38, damping 0.66 |
-| Open (expanded, Home and panels, drop) | spring, response 0.37, damping 0.65: overshoots about 7 % and settles back |
+| Open (an activity, a drop) | spring, response 0.37, damping 0.65: overshoots about 7 % and settles back |
+| Open (Home and its panels) | spring, response 0.4, damping 0.74: the same bounce in points would wobble on a 560 pt panel |
 | Closing to a smaller view (open → compact, compact → idle) | spring, response 0.38, critically damped, so it never bounces |
 | Hover swell / notch appearing on another display | spring, response 0.34, damping 0.72 |
 | Hide | smooth, 0.42 s (settles without a bounce) |
 | Settings slider changes | spring, response 0.3, critically damped |
 | Hover lift | spring, response 0.32, damping 0.9 |
-| Content swap | an open view is drawn at full size and stretched to the shape's current size from the top edge for 0.9 s after a change, so it bounces with the shape. Opening: compact content blurs (8) out in 0.08 s; the open view fades in and unblurs (10) in 0.08 s after 0.04 s. Closing: the open view fades and blurs out in 0.12 s after 0.06 s; compact content returns in 0.1 s after 0.1 s. Compact content scales with the hover lift. Glass keeps its slower swap |
+| Content swap | for 0.9 s after a change an open view is drawn at full size and scaled evenly with the shape's width from the top edge (never below 60 %), so it grows and bounces with the shape without being squashed. Opening: compact content fades out in 0.08 s; the open view fades in with a light blur (3) in 0.18 s after 0.03 s. Closing: the open view fades out in 0.1 s; compact content returns (blur 2, scale 0.94 → 1) in 0.16 s after 0.08 s. Compact content scales with the hover lift. Black and Glass move the same way. Blurs stay light: heavy blur over a large view looks smeared and drops frames |
 | Liquid pulse (bubble split) | strength 0 → 1 in 0.08 s, back to 0 over 0.6 s |
 | Now Playing bars | 4 capsules, Core Animation keyframe loops of 1.2–1.9 s; resting height 28 % when paused. With Live music bars, heights follow bass, low mids, high mids and treble about 30 times a second (90 ms linear steps), rising fast and falling gently; 2 s of silence hands back to the loop |
 | Long Now Playing titles | Continuous horizontal loop at 25 pt/s, with a 32 pt gap; only while playing and only if the title is too wide. Paused and Reduce Motion show a still, truncated title. Sizes scale with the notch |
 | Timer done | bell swings ±16° |
 
 These are the Standard motion. Settings › Appearance › Motion can make every spring above
-(and Glass's, and the resize and hover springs) **Springy**: response × 0.92 and damping − 0.16,
-never below 0.5; or **Calm**: response × 1.12 and damping 1, so nothing bounces. Closing never
-bounces in any style (Calm closes with response 0.42, or 0.5 s to hidden). Glass opens with
-response 0.46–0.48 and damping 0.62–0.66, and closes critically damped in 0.46.
+(and the resize and hover springs) **Springy**: response × 0.95 and damping − 0.1, never below
+0.56 (about 12 % overshoot; lower reads as a wobble); or **Calm**: response × 1.12 and damping 1,
+so nothing bounces. Closing never bounces in any style (Calm closes with response 0.42, or 0.5 s
+to hidden). Glass keeps its Liquid Glass layer while the notch shows, only faded, because making
+it as the notch starts to open costs a few frames.
 
 Reduce Motion replaces springs with a 0.2 s ease and turns the liquid effect off.
 

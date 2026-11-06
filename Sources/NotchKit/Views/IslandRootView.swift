@@ -103,7 +103,7 @@ struct IslandContentLayer: View {
                     .modifier(StretchWithShell(
                         resting: resting.size,
                         isOpenView: Motion.isOpenView(presentation),
-                        stretches: isSpringing && model.settings.appearance.theme != .glass
+                        stretches: isSpringing
                     ))
                     .id(ContentKey(presentation))
                     .transition(contentTransition)
@@ -140,7 +140,6 @@ struct IslandContentLayer: View {
 
     private var contentTransition: AnyTransition {
         if nookWasOpen && presentation.homeTab != nil { return .nookTab }
-        if model.settings.appearance.theme == .glass { return .glassContent }
         return Motion.isOpenView(presentation) ? .islandOpenContent : .islandCompactContent
     }
 
@@ -167,8 +166,8 @@ struct IslandContentLayer: View {
     }
 }
 
-/// Content stretches with the shape as it springs open or closed, like the Dynamic Island's: an
-/// open view is drawn at its full size and scaled to the shape's current size from the top
+/// Content grows with the shape as it springs open or closed, like the Dynamic Island's: an
+/// open view is drawn at its full size and scaled evenly with the shape's width from the top
 /// edge, so it overshoots and settles with it. Compact content only lifts with the shape under
 /// the pointer, by the same 5 %.
 struct StretchWithShell: ViewModifier {
@@ -179,6 +178,8 @@ struct StretchWithShell: ViewModifier {
 
     /// Long enough for the opening spring to settle.
     static let duration = 0.9
+    /// The smallest an open view is drawn while the shape grows out of the notch.
+    nonisolated static let minimumOpenScale: CGFloat = 0.6
 
     func body(content: Content) -> some View {
         // The clear view takes the shape's current size, frame by frame as it animates; the
@@ -195,10 +196,13 @@ struct StretchWithShell: ViewModifier {
     nonisolated static func scale(current: CGSize, resting: CGSize, isOpenView: Bool, stretches: Bool) -> CGSize {
         guard resting.width > 1, resting.height > 1, current.width > 0, current.height > 0 else { return CGSize(width: 1, height: 1) }
         let x = current.width / resting.width
-        let y = current.height / resting.height
         if isOpenView {
             guard stretches else { return CGSize(width: 1, height: 1) }
-            return CGSize(width: min(max(x, 0.2), 1.15), height: min(max(y, 0.1), 1.15))
+            // One scale for both directions, following the width, so the content grows and
+            // bounces without being squashed. It never starts smaller than 60 %: the shape is
+            // still tiny then and the content is only just fading in.
+            let uniform = min(max(x, minimumOpenScale), 1.08)
+            return CGSize(width: uniform, height: uniform)
         }
         // Compact: only ever grows, and only as much as the hover lift.
         let lift = min(max(x, 1), IslandMetrics.hoverScale)

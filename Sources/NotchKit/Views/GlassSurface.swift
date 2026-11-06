@@ -9,6 +9,10 @@ struct GlassSurface: View, Animatable {
     var layout: IslandLayout
     /// 0 clear … 1 fully tinted: how dark the glass stays at the bottom.
     var tint: Double
+    /// The pointer is on the notch or it's open: keep the glass ready, only faded. Making it the
+    /// moment the notch starts to open costs a few frames, so the opening would start with a
+    /// jump; keeping it all the time would cost graphics work while music plays for hours.
+    var prepared: Bool = false
 
     nonisolated var animatableData: AnimatableVector {
         get { layout.animatableData }
@@ -20,11 +24,11 @@ struct GlassSurface: View, Animatable {
         let hasBubble = layout.bubble.width > 0.5 && layout.bubble.height > 0.5
         let amount = glassAmount
         ZStack(alignment: .topLeading) {
-            if opacity > 0.001 {
-                // Always there, only faded: making the glass the moment the notch starts to open
-                // costs a few frames, so the opening would start with a jump.
+            if prepared || amount > 0.001 {
                 glass
-                    .opacity(amount)
+                    .opacity(opacity > 0.001 ? amount : 0)
+            }
+            if opacity > 0.001 {
                 if amount > 0.001 {
                     ZStack(alignment: .topLeading) {
                         smoke

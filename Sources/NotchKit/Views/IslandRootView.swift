@@ -19,7 +19,11 @@ struct IslandRootView: View {
             // Only the bubble splitting off (or merging back) melts; the notch itself keeps crisp
             // edges as it opens and closes.
             if appearance.theme == .glass {
-                GlassSurface(layout: layout, tint: appearance.glassTint)
+                GlassSurface(
+                    layout: layout,
+                    tint: appearance.glassTint,
+                    prepared: model.isHoveringPill || model.isHoveringNotch || presentation.isExpandedFamily
+                )
                     .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
             } else {
                 KeyframeAnimator(initialValue: 0.0, trigger: presentation.topology.split) { pulse in

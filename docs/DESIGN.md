@@ -37,7 +37,7 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Alert | notch + 2 × max(ear, 128), compact height + 6 | shoulders 6, bottom min(0.42 × h, 16) |
 | Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14. Open music is 1.79 × its height wide (the Dynamic Island player's 321 × 179) | shoulders 10, continuous bottom 46 (approvals and other open alerts 30) |
 | Minimal bubble | circle, compact height − 6, 4 pt right of the shape, vertically centred on the strip | — |
-| Hover lift | 5 % wider and taller (at least +3 each side and +2 at the bottom); the top never moves | — |
+| Hover lift | 5 % wider and taller (at least +3 each side and +2 at the bottom); the top never moves, and the second activity's bubble moves out with the edge | — |
 
 Expanded content heights: Now Playing 140 · Timer 72 · Call 72 · Home 84 (144 with media) ·
 Drop 100 · Timer done 72. The strip beside the camera stays empty in expanded views.
@@ -202,8 +202,9 @@ These are the Standard motion. Settings › Appearance › Motion can make every
 (and the resize and hover springs) **Springy**: response × 0.95 and damping − 0.1, never below
 0.56 (about 12 % overshoot; lower reads as a wobble); or **Calm**: response × 1.12 and damping 1,
 so nothing bounces. Closing never bounces in any style (Calm closes with response 0.42, or 0.5 s
-to hidden). Glass keeps its Liquid Glass layer while the notch shows, only faded, because making
-it as the notch starts to open costs a few frames.
+to hidden). Glass gets its Liquid Glass layer ready, only faded, once the pointer is on the notch
+or it's open, because making it as the notch starts to open costs a few frames; it isn't kept
+while an activity just sits beside the camera.
 
 Reduce Motion replaces springs with a 0.2 s ease and turns the liquid effect off.
 

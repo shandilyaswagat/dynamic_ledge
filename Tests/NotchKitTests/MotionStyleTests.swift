@@ -148,6 +148,14 @@ struct IslandProportionTests {
         #expect(hover.content == rest.content)
     }
 
+    @Test func hoverKeepsTheGapToTheSecondActivity() {
+        let presentation = IslandPresentation.compact(primary: .nowPlaying, secondary: .timer)
+        for hovering in [false, true] {
+            let layout = engine.layout(for: presentation, homeHasMedia: true, hovering: hovering)
+            #expect(layout.bubble.minX - layout.pill.maxX >= 4, "hovering \(hovering)")
+        }
+    }
+
     @Test func openContentStretchesWithTheShapeWhileItSprings() {
         let resting = CGSize(width: 340, height: 190)
         let early = StretchWithShell.scale(current: CGSize(width: 170, height: 40), resting: resting, isOpenView: true, stretches: true)

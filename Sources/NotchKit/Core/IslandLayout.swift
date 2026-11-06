@@ -394,6 +394,10 @@ public struct LayoutEngine: Equatable, Sendable {
                 layout.topRadius = layout.pill.height / 2
                 layout.bottomRadius = layout.pill.height / 2
             }
+            // The second activity's bubble moves out with the edge, so the gap stays.
+            if layout.bubble != .zero {
+                layout.bubble = layout.bubble.offsetBy(dx: growth.width, dy: 0)
+            }
         }
 
         if layout.bubble == .zero {

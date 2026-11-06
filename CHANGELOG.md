@@ -11,8 +11,8 @@ last one.
 - **Pill for other screens.** Pick **Pill** in Settings › Appearance and external displays (and
   Macs without a notch) show a floating pill just below the top edge, like the Dynamic Island,
   instead of a notch. A MacBook's own notch always stays a notch.
-- **AI Agent Usage.** See how much of Codex's limits you've used and when they reset, and how
-  many tokens your latest Antigravity session took, in Home or its own panel. It's off until you turn it on in Settings ›
+- **AI Agent Usage.** See how much of Codex's and Antigravity's limits you've used and when they
+  reset, in Home or its own panel. It's off until you turn it on in Settings ›
   General › Coding Assistants. Everything is read on this Mac; nothing is sent anywhere and no API
   keys are needed.
 - **Choose where sound plays.** A button in the open music view switches between your Mac's
@@ -38,7 +38,8 @@ last one.
 - **Choose how the notch moves.** Settings › Appearance › Motion: Springy for more bounce,
   Calm for no bounce at all, or Standard as before.
 - **Update count.** The anonymous daily count also says once when a Mac moves to a new version,
-  and which version it came from, so I can see how many people update. Nothing else is sent.
+  and which version it came from, so I can see how many people update. It now also includes the
+  kind of Mac (its model code, like "Mac14,2"). Nothing else is sent.
 
 ### Fixed
 - With nothing going on, the notch stays exactly the size of your Mac's notch at every size, even

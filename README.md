@@ -123,7 +123,7 @@ All the code is here, so anyone can check.
 | What | Why | What's sent |
 |---|---|---|
 | GitHub | Checking for updates, once a day | Nothing about you |
-| [TelemetryDeck](https://telemetrydeck.com) | Counting how many Macs use and update the app, once a day | A random ID (hashed, not tied to you), the app version (and the one before, after an update) and macOS version |
+| [TelemetryDeck](https://telemetrydeck.com) | Counting how many Macs use and update the app, once a day | A random ID (hashed, not tied to you), the app version (and the one before, after an update), macOS version and the kind of Mac (its model code, like "Mac14,2") |
 | [lrclib.net](https://lrclib.net) | Lyrics, only if Lyrics is on | The song's name, artist, album and length |
 
 No names, emails, files, clipboard, calendar or anything you type ever leave your Mac.
@@ -153,11 +153,12 @@ everything else keeps working.
 that tool's own settings file (like `~/.claude/settings.json`) so it can ask you in the notch.
 Requests stay on your Mac. Switch it off and the hook is removed.
 
-**AI Agent Usage** is off until you switch it on. It shows how much of your Codex limits you've
-used, and how many tokens your latest Antigravity session took. It asks the Codex app on your Mac,
-which checks with OpenAI using your own Codex sign-in, and reads Antigravity's session files in
-`~/.gemini`. Dynamic Ledge never sees or stores
-your passwords, tokens or API keys, and sends nothing itself.
+**AI Agent Usage** is off until you switch it on. It shows how much of your Codex and Antigravity
+limits you've used. It asks the Codex app on your Mac, which checks with OpenAI using your own
+Codex sign-in. For Antigravity it reads its files in `~/.gemini` and asks the Antigravity app
+running on your Mac, using the local key Antigravity hands its own background service; that
+request never leaves your Mac. Dynamic Ledge never stores your passwords, tokens or API keys,
+and sends nothing online itself.
 
 **Music and Stats** are read from macOS on your Mac. Nothing is sent anywhere.
 

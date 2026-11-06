@@ -3,7 +3,8 @@ import Foundation
 import os
 
 /// Counts how many Macs use the app: once a day it sends TelemetryDeck one anonymous signal with
-/// the app and macOS versions, and one more the first time a new version runs. The Mac is a random ID made on first launch and hashed before it
+/// the app and macOS versions and the Mac's model (like "Mac14,2"), and one more the first time a
+/// new version runs. The Mac is a random ID made on first launch and hashed before it
 /// leaves; nothing about you, your files or what you do in the app is sent.
 @MainActor
 public final class UsageReporter {
@@ -130,6 +131,7 @@ public final class UsageReporter {
             "TelemetryDeck.Device.systemMajorVersion": "\(os.majorVersion)",
             "TelemetryDeck.Device.systemMajorMinorVersion": "\(os.majorVersion).\(os.minorVersion)",
             "TelemetryDeck.Device.architecture": architecture,
+            "TelemetryDeck.Device.modelName": modelName,
             "TelemetryDeck.RunContext.isDebug": "\(isDebug)",
         ]
         let signals: [[String: Any]] = types.map { type in
@@ -164,6 +166,15 @@ public final class UsageReporter {
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    /// The model identifier, like "Mac14,2" (a MacBook Air): a kind of Mac, not this one.
+    nonisolated static var modelName: String {
+        var size = 0
+        guard sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 1 else { return "unknown" }
+        var bytes = [UInt8](repeating: 0, count: size)
+        guard sysctlbyname("hw.model", &bytes, &size, nil, 0) == 0 else { return "unknown" }
+        return String(decoding: bytes.prefix { $0 != 0 }, as: UTF8.self)
     }
 
     private nonisolated static var architecture: String {

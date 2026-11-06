@@ -142,6 +142,7 @@ struct UsageReporterTests {
         #expect((signal["clientUser"] as? String)?.count == 64)
         let payload = try #require(signal["payload"] as? [String: String])
         #expect(payload["TelemetryDeck.Device.platform"] == "macOS")
+        #expect(payload["TelemetryDeck.Device.modelName"]?.hasPrefix("Mac") == true, "the kind of Mac, like Mac14,2")
         #expect(signal["isTestMode"] as? Bool == true, "test builds don't count")
     }
 

@@ -11,8 +11,8 @@ last one.
 - **Pill for other screens.** Pick **Pill** in Settings › Appearance and external displays (and
   Macs without a notch) show a floating pill just below the top edge, like the Dynamic Island,
   instead of a notch. A MacBook's own notch always stays a notch.
-- **AI Agent Usage.** See how much of Claude Code's, Codex's and Antigravity's limits you've used
-  and when they reset, in Home or its own panel. It's off until you turn it on in Settings ›
+- **AI Agent Usage.** See how much of Codex's limits you've used and when they reset, and how
+  many tokens your latest Antigravity session took, in Home or its own panel. It's off until you turn it on in Settings ›
   General › Coding Assistants. Everything is read on this Mac; nothing is sent anywhere and no API
   keys are needed.
 - **Choose where sound plays.** A button in the open music view switches between your Mac's
@@ -41,6 +41,8 @@ last one.
   and which version it came from, so I can see how many people update. Nothing else is sent.
 
 ### Fixed
+- With nothing going on, the notch stays exactly the size of your Mac's notch at every size, even
+  with Show when idle on or Settings › Appearance open. It no longer pokes out at the sides.
 - Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.
 - Zip, Merge PDF and Convert to work for files in places that can't be written, like a mounted disk image: the result goes to Downloads.
 - Clicking Zip or Merge PDF twice no longer makes two copies.

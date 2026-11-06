@@ -79,6 +79,8 @@ public enum IslandMetrics {
     /// Concave shoulders where the shape meets the top edge, like the real notch.
     public static let compactFlare: CGFloat = 6
     public static let expandedFlare: CGFloat = 10
+    /// The bottom corners of a MacBook's notch, for the shape at rest on it.
+    public static let restingNotchRadius: CGFloat = 9
     /// Allow and Deny's column beside a coding-assistant request, and the gap before it.
     public static let agentButtonWidth: CGFloat = 92
     public static let agentButtonColumn: CGFloat = agentButtonWidth + 14

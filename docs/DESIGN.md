@@ -29,6 +29,7 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Element | Size | Corners |
 |---|---|---|
 | Hidden | inside the real notch, fully transparent | — |
+| Idle (Show when idle, or the Appearance page open) | exactly the real notch at every size and thickness; on a screen without a notch, notch + 24 wide | bottom 9 on a real notch |
 | Hover on the notch | notch + 20 wide, + 3 tall | shoulders 5, bottom 11 |
 | Compact | notch + 2 × ear, height = max(thickness, notch height) | shoulders 6, bottom min(0.42 × h, 14) |
 | Ear width | `round(h × 1.15) + (width − 180) / 2`, at least 80 % of that slot | — |

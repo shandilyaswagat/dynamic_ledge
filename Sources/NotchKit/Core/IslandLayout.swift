@@ -412,6 +412,13 @@ public struct LayoutEngine: Equatable, Sendable {
                 layout.bottomRadius = 9
                 layout.pillOpacity = 0
             }
+        case .idle where !isVirtualNotch:
+            // With nothing going on, a real notch stays exactly the notch, whatever the size and
+            // thickness settings: nothing shows around the camera.
+            layout.pill = notch
+            layout.flare = 0
+            layout.bottomRadius = IslandMetrics.restingNotchRadius
+            layout.content = layout.pill
         case .idle:
             layout.pill = shape(body: notch.width + 24, height: height, flare: IslandMetrics.compactFlare)
             layout.shadow = 0.2

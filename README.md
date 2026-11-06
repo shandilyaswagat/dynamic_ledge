@@ -153,9 +153,10 @@ everything else keeps working.
 that tool's own settings file (like `~/.claude/settings.json`) so it can ask you in the notch.
 Requests stay on your Mac. Switch it off and the hook is removed.
 
-**AI Agent Usage** is off until you switch it on. It shows how much of your Codex and Antigravity
-limits you've used. It asks the Codex app on your Mac, which checks with OpenAI using your own
-Codex sign-in, and reads Antigravity's files in `~/.gemini`. Dynamic Ledge never sees or stores
+**AI Agent Usage** is off until you switch it on. It shows how much of your Codex limits you've
+used, and how many tokens your latest Antigravity session took. It asks the Codex app on your Mac,
+which checks with OpenAI using your own Codex sign-in, and reads Antigravity's session files in
+`~/.gemini`. Dynamic Ledge never sees or stores
 your passwords, tokens or API keys, and sends nothing itself.
 
 **Music and Stats** are read from macOS on your Mac. Nothing is sent anywhere.

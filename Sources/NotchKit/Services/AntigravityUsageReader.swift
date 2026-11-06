@@ -3,30 +3,10 @@ import os
 
 /// Reads the local Google Antigravity session and token metrics from `~/.gemini`, without transmitting credentials.
 public enum AntigravityUsageReader {
+    /// Only Antigravity's own session files are read. Its limits would mean using the private
+    /// token of its background service, so they aren't shown.
     public static func read() async -> AIProviderUsage {
-        // Always read transcripts for model info, even when quota service is available.
-        let transcriptInfo = await Task.detached(priority: .utility) { scanTranscripts() }.value
-        if var quota = await AntigravityQuotaReader.read() {
-            // Enrich quota result with model names discovered from transcripts.
-            if quota.model == nil, let model = transcriptInfo.modelName {
-                quota = AIProviderUsage(
-                    provider: quota.provider,
-                    status: quota.status,
-                    accountName: quota.accountName ?? transcriptInfo.accountEmail,
-                    plan: quota.plan,
-                    model: model,
-                    windows: quota.windows,
-                    tokens: quota.tokens,
-                    costEstimate: quota.costEstimate,
-                    lastUpdated: quota.lastUpdated,
-                    attribution: quota.attribution
-                )
-            }
-            return quota
-        }
-        return await Task.detached(priority: .utility) {
-            readSync(transcriptInfo: transcriptInfo)
-        }.value
+        await Task.detached(priority: .utility) { readSync() }.value
     }
 
     /// Intermediate result from scanning transcript files.

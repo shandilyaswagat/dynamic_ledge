@@ -26,6 +26,11 @@ public final class Updater {
     /// True while relaunching would cut something off (a request waiting for Allow, a timer, a
     /// call). An automatic install then waits for a later check.
     @ObservationIgnored public var isBusy: () -> Bool = { false }
+    /// An install is starting; true when the updater started it by itself.
+    @ObservationIgnored public var onInstallStarting: ((_ automatically: Bool) -> Void)?
+    /// An install failed: at which step ("download", which includes checking the signature, or
+    /// "install") and what kind of error, like "URLError". Nothing else about it.
+    @ObservationIgnored public var onInstallFailed: ((_ step: String, _ error: String) -> Void)?
     /// Called once per new version found by an automatic check.
     @ObservationIgnored public var onAvailable: ((ReleaseInfo) -> Void)?
 
@@ -99,7 +104,7 @@ public final class Updater {
         if let release = availableRelease,
            Self.shouldInstallAutomatically(enabled: installsAutomatically, userInitiated: false,
                                            canInstall: canInstallInPlace(release), isBusy: isBusy()) {
-            install(release)
+            install(release, automatically: true)
             return
         }
         let last = defaults.object(forKey: Key.lastCheck) as? Date ?? .distantPast
@@ -131,7 +136,7 @@ public final class Updater {
                     }
                     if Self.shouldInstallAutomatically(enabled: self.installsAutomatically, userInitiated: userInitiated,
                                                        canInstall: self.canInstallInPlace(release), isBusy: self.isBusy()) {
-                        self.install(release)
+                        self.install(release, automatically: true)
                     }
                 } else {
                     self.state = .upToDate
@@ -149,15 +154,17 @@ public final class Updater {
 
     /// Downloads, verifies and installs the release, then relaunches. Opens the release page
     /// instead when the app can't replace itself (read-only location, or run from a disk image).
-    public func install(_ release: ReleaseInfo) {
+    public func install(_ release: ReleaseInfo, automatically: Bool = false) {
         let destination = Bundle.main.bundleURL
         guard canInstallInPlace(release) else {
             NSWorkspace.shared.open(release.page)
             return
         }
         state = .installing
+        onInstallStarting?(automatically)
         Task { [weak self] in
             guard let self else { return }
+            var step = "download"
             do {
                 guard let publicKey = Bundle.main.object(forInfoDictionaryKey: "DNUpdatePublicKey") as? String,
                       let identifier = Bundle.main.bundleIdentifier,
@@ -165,9 +172,11 @@ public final class Updater {
                     throw UpdateError.unreadable
                 }
                 let staged = try await Self.download(release, publicKey: publicKey, bundleIdentifier: identifier)
+                step = "install"
                 try Self.relaunch(replacing: destination, with: staged)
             } catch {
                 self.log.error("Update failed: \(error.localizedDescription, privacy: .public)")
+                self.onInstallFailed?(step, String(describing: type(of: error)))
                 self.state = .failed(String(localized: "The update couldn't be installed. You can download it from GitHub instead."))
             }
         }

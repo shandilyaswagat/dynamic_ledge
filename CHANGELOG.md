@@ -39,7 +39,9 @@ last one.
   Calm for no bounce at all, or Standard as before.
 - **Update count.** The anonymous daily count also says once when a Mac moves to a new version,
   and which version it came from, so I can see how many people update. It now also includes the
-  kind of Mac (its model code, like "Mac14,2"). Nothing else is sent.
+  kind of Mac (its model code, like "Mac14,2"), whether an update was installed automatically or
+  clicked, which step failed if an update didn't install, and, once, if the app didn't quit
+  properly last time. No crash logs or anything else is sent.
 
 ### Fixed
 - With nothing going on, the notch stays exactly the size of your Mac's notch at every size, even

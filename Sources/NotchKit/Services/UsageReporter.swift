@@ -4,7 +4,8 @@ import os
 
 /// Counts how many Macs use the app: once a day it sends TelemetryDeck one anonymous signal with
 /// the app and macOS versions and the Mac's model (like "Mac14,2"), and one more the first time a
-/// new version runs. The Mac is a random ID made on first launch and hashed before it
+/// new version runs. A failed update and a quit that wasn't clean (a crash) are each sent once
+/// too, with only the version and what kind of failure it was. The Mac is a random ID made on first launch and hashed before it
 /// leaves; nothing about you, your files or what you do in the app is sent.
 @MainActor
 public final class UsageReporter {
@@ -46,6 +47,12 @@ public final class UsageReporter {
             defaults.set(UUID().uuidString, forKey: Key.userID)
             defaults.set(isNewInstall, forKey: Key.pendingInstall)
         }
+        // Still marked running: the last run ended without quitting (a crash, or a force quit).
+        if defaults.bool(forKey: Key.running) {
+            record("App.crashed", ["crashedVersion": defaults.string(forKey: Key.runningVersion) ?? "unknown"])
+        }
+        defaults.set(true, forKey: Key.running)
+        defaults.set(info["CFBundleShortVersionString"] as? String ?? "0", forKey: Key.runningVersion)
         let timer = Timer(timeInterval: 3600, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.sendIfDue() }
         }
@@ -59,10 +66,38 @@ public final class UsageReporter {
         }
     }
 
+    /// Called on quit (and when usage sharing is turned off), so the next launch knows it ended cleanly.
     public func stop() {
         timer?.invalidate()
         timer = nil
+        defaults.set(false, forKey: Key.running)
     }
+
+    /// Keeps a one-off signal for the next send, and sends it soon if counting has started. Only
+    /// the last few are kept, so nothing piles up while offline.
+    public func record(_ type: String, _ payload: [String: String] = [:]) {
+        guard !appID.isEmpty else { return }
+        var queued = defaults.array(forKey: Key.queued) as? [[String: String]] ?? []
+        queued.append(payload.merging(["type": type]) { _, new in new })
+        defaults.set(Array(queued.suffix(Self.maximumQueued)), forKey: Key.queued)
+        sendIfDue()
+    }
+
+    /// The updater is about to install, by itself or because it was clicked; the next version's
+    /// App.updated says which.
+    public func noteUpdateStarting(automatically: Bool) {
+        defaults.set(automatically ? "automatic" : "clicked", forKey: Key.updateTrigger)
+    }
+
+    /// The update didn't install: says at which step and what kind of error, and forgets how it
+    /// started so a later update isn't credited to it.
+    public func noteUpdateFailed(step: String, error: String) {
+        let trigger = defaults.string(forKey: Key.updateTrigger) ?? "clicked"
+        defaults.removeObject(forKey: Key.updateTrigger)
+        record("App.updateFailed", ["failedStep": step, "errorKind": error, "updateTrigger": trigger])
+    }
+
+    static let maximumQueued = 10
 
     private func sendIfDue() {
         guard timer != nil else { return }
@@ -80,17 +115,27 @@ public final class UsageReporter {
         // A Mac counted before versions were remembered (up to 1.4.3) has updated since, from a
         // version we don't know.
         let previousVersion = defaults.string(forKey: Key.lastVersion) ?? (isNewInstall ? version : "unknown")
-        var types: [String] = []
+        var signals: [Signal] = []
         if defaults.string(forKey: Key.lastDay) != day {
-            if isNewInstall { types.append("App.installed") }
-            types.append("App.active")
+            if isNewInstall { signals.append(Signal(type: "App.installed")) }
+            signals.append(Signal(type: "App.active"))
         }
-        if previousVersion != version { types.append("App.updated") }
-        guard !types.isEmpty else { return false }
+        if previousVersion != version {
+            // Installed by our updater (automatically or clicked), or some other way (a new
+            // download, Homebrew).
+            let trigger = defaults.string(forKey: Key.updateTrigger) ?? "other"
+            signals.append(Signal(type: "App.updated", payload: ["previousVersion": previousVersion, "updateTrigger": trigger]))
+        }
+        let queued = defaults.array(forKey: Key.queued) as? [[String: String]] ?? []
+        for entry in queued {
+            guard let type = entry["type"] else { continue }
+            signals.append(Signal(type: type, payload: entry.filter { $0.key != "type" }))
+        }
+        guard !signals.isEmpty else { return false }
         isSending = true
         defer { isSending = false }
-        guard let request = Self.request(types: types, appID: appID, userID: userID, sessionID: sessionID,
-                                         info: info, previousVersion: previousVersion) else { return false }
+        guard let request = Self.request(signals: signals, appID: appID, userID: userID, sessionID: sessionID,
+                                         info: info) else { return false }
         guard await send(request) else {
             log.notice("Usage signal not sent; trying again later")
             return false
@@ -98,15 +143,25 @@ public final class UsageReporter {
         defaults.set(day, forKey: Key.lastDay)
         defaults.set(version, forKey: Key.lastVersion)
         defaults.set(false, forKey: Key.pendingInstall)
+        defaults.removeObject(forKey: Key.updateTrigger)
+        // Anything recorded while this was sending waits for the next one.
+        let remaining = defaults.array(forKey: Key.queued) as? [[String: String]] ?? []
+        defaults.set(Array(remaining.dropFirst(min(queued.count, remaining.count))), forKey: Key.queued)
         return true
     }
 
     // MARK: Request
 
+    struct Signal: Equatable {
+        var type: String
+        /// Added to the shared payload, like App.updated's previous version.
+        var payload: [String: String] = [:]
+    }
+
     /// One POST with a signal per type. Same payload keys as TelemetryDeck's own Swift SDK, so its
-    /// standard version and OS charts work. `App.updated` also carries the version it came from.
-    nonisolated static func request(types: [String], appID: String, userID: String, sessionID: String,
-                                    info: [String: Any], previousVersion: String? = nil) -> URLRequest? {
+    /// standard version and OS charts work.
+    nonisolated static func request(signals: [Signal], appID: String, userID: String, sessionID: String,
+                                    info: [String: Any]) -> URLRequest? {
         let version = info["CFBundleShortVersionString"] as? String ?? "0"
         let build = info["CFBundleVersion"] as? String ?? "0"
         let os = ProcessInfo.processInfo.operatingSystemVersion
@@ -134,9 +189,9 @@ public final class UsageReporter {
             "TelemetryDeck.Device.modelName": modelName,
             "TelemetryDeck.RunContext.isDebug": "\(isDebug)",
         ]
-        let signals: [[String: Any]] = types.map { type in
-            var payload = payload
-            if type == "App.updated", let previousVersion { payload["previousVersion"] = previousVersion }
+        let signals: [[String: Any]] = signals.map { signal in
+            let payload = payload.merging(signal.payload) { shared, _ in shared }
+            let type = signal.type
             return [
                 "appID": appID,
                 "clientUser": hashed(userID),
@@ -197,5 +252,9 @@ public final class UsageReporter {
         static let lastDay = "usage.lastDay"
         static let pendingInstall = "usage.pendingInstall"
         static let lastVersion = "usage.lastVersion"
+        static let queued = "usage.queued"
+        static let running = "usage.running"
+        static let runningVersion = "usage.runningVersion"
+        static let updateTrigger = "usage.updateTrigger"
     }
 }

@@ -101,6 +101,64 @@ struct UsageReporterTests {
         #expect(active?["previousVersion"] == nil, "only the update says where it came from")
     }
 
+    @Test func aCrashIsSentOnceOnTheNextLaunch() async {
+        let server = Server()
+        let defaults = UserDefaults(suiteName: "usage-\(UUID().uuidString)")!
+        defaults.set("1.5.0", forKey: UsageReporter.Key.lastVersion)
+        let (first, _) = make(defaults: defaults, server: server)
+        first.start(isNewInstall: false)
+        // No stop(): the app ended without quitting.
+        let (second, _) = make(defaults: defaults, server: server)
+        second.start(isNewInstall: false)
+        second.stop()
+        await second.sendIfDue(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let types = server.signals(0).map { $0["type"] as? String }
+        #expect(types == ["App.active", "App.crashed"])
+        let payload = server.signals(0).last?["payload"] as? [String: String]
+        #expect(payload?["crashedVersion"] == "1.5.0")
+
+        // Quitting properly isn't a crash.
+        let (third, _) = make(defaults: defaults, server: server)
+        third.start(isNewInstall: false)
+        third.stop()
+        #expect(await !third.sendIfDue(now: Date(timeIntervalSince1970: 1_800_000_100)), "nothing new to send")
+    }
+
+    @Test func updatesSayHowTheyStartedAndFailuresWhere() async {
+        let server = Server()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let (old, defaults) = make(version: "1.5.0", server: server)
+        defaults.set("1.5.0", forKey: UsageReporter.Key.lastVersion)
+        old.start(isNewInstall: false)
+        old.stop()
+        await old.sendIfDue(now: now)
+
+        old.noteUpdateStarting(automatically: false)
+        old.noteUpdateFailed(step: "download", error: "URLError")
+        await old.sendIfDue(now: now.addingTimeInterval(60))
+        #expect(server.signals(1).map { $0["type"] as? String } == ["App.updateFailed"])
+        let failure = server.signals(1).first?["payload"] as? [String: String]
+        #expect(failure?["failedStep"] == "download")
+        #expect(failure?["errorKind"] == "URLError")
+        #expect(failure?["updateTrigger"] == "clicked")
+
+        old.noteUpdateStarting(automatically: true)
+        let (updated, _) = make(version: "1.5.1", defaults: defaults, server: server)
+        updated.start(isNewInstall: false)
+        updated.stop()
+        await updated.sendIfDue(now: now.addingTimeInterval(120))
+        let update = server.signals(2).first?["payload"] as? [String: String]
+        #expect(server.signals(2).map { $0["type"] as? String } == ["App.updated"])
+        #expect(update?["updateTrigger"] == "automatic")
+        #expect(update?["previousVersion"] == "1.5.0")
+    }
+
+    @Test func onlyTheLastFewEventsWait() {
+        let (reporter, defaults) = make(server: Server())
+        for _ in 0..<25 { reporter.record("App.crashed") }
+        #expect((defaults.array(forKey: UsageReporter.Key.queued) ?? []).count == UsageReporter.maximumQueued)
+    }
+
     @Test func failedSendIsRetried() async {
         let server = Server()
         server.accepts = false

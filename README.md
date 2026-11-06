@@ -123,7 +123,7 @@ All the code is here, so anyone can check.
 | What | Why | What's sent |
 |---|---|---|
 | GitHub | Checking for updates, once a day | Nothing about you |
-| [TelemetryDeck](https://telemetrydeck.com) | Counting how many Macs use and update the app, once a day | A random ID (hashed, not tied to you), the app version (and the one before, after an update), macOS version and the kind of Mac (its model code, like "Mac14,2") |
+| [TelemetryDeck](https://telemetrydeck.com) | Counting how many Macs use and update the app, once a day, and spotting broken updates and crashes | A random ID (hashed, not tied to you), the app version (and the one before, after an update), macOS version and the kind of Mac (its model code, like "Mac14,2"). If an update fails, which step failed; if the app didn't quit properly last time, that version. No crash logs |
 | [lrclib.net](https://lrclib.net) | Lyrics, only if Lyrics is on | The song's name, artist, album and length |
 
 No names, emails, files, clipboard, calendar or anything you type ever leave your Mac.

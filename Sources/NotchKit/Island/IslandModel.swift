@@ -163,6 +163,14 @@ public final class IslandModel {
         calendar.onGranted = { [weak self] in self?.showTab(.calendar) }
         reminders.onGranted = { [weak self] in self?.showTab(.reminders) }
         updater.onAvailable = { [weak self] release in self?.receive(.updateAvailable(version: release.version.description)) }
+        updater.onInstallStarting = { [weak self] automatically in
+            guard let self, self.settings.sharesUsage else { return }
+            self.usage.noteUpdateStarting(automatically: automatically)
+        }
+        updater.onInstallFailed = { [weak self] step, error in
+            guard let self, self.settings.sharesUsage else { return }
+            self.usage.noteUpdateFailed(step: step, error: error)
+        }
         updater.isBusy = { [weak self] in
             guard let self else { return false }
             return !self.agents.pending.isEmpty || self.timer.isActive || self.stopwatch.isActive || self.calls.session != nil

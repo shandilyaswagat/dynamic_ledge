@@ -92,6 +92,17 @@ whose app binary, assistant hook settings, or running app process has already be
 Approval requests retain complete review arguments separately from their short description.
 Long requests make the panel taller, never wider, up to eight lines; the rest scrolls.
 
+## Requests answered in the assistant's window
+
+Claude Code shows its own prompt while our hook waits, and keeps the hook waiting when the
+prompt is answered there. So while a Claude Code request waits, `AgentTranscriptWatch` reads the
+new lines of that session's transcript (the `transcript_path` in the request) every half second,
+on this Mac only. It first finds the newest call of the same tool with the same input that has
+no result yet (earlier runs of the same command already have theirs), then closes the request
+when that call's result appears. Nothing from the transcript is kept or sent. The hook also
+gives up if the assistant stops waiting for it (its parent process goes away). Questions and plans
+(`AskUserQuestion`, `ExitPlanMode`) have their own choices, so they never reach the notch.
+
 ## Finished notices
 
 Claude Code, Codex and Cursor also get a "stop" hook (`--finished`). It sends the app only the

@@ -148,14 +148,20 @@ public struct AgentRequest: Equatable, Sendable, Identifiable {
         (visibleReviewDetail, reviewLineLengths) = Self.review(detail)
     }
 
+    /// Tools whose prompt is a question or a plan with its own options, not Allow or Deny.
+    static let answeredInAssistant: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
+
     /// Reads what a tool's hook was given. Nil when it isn't something to ask about.
     public init?(hookInput data: Data, kind: AgentKind, id: UUID = UUID()) {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         let parsed: (tool: String, input: [String: Any], cwd: String)?
         switch kind {
         case .claude, .codex:
-            // Claude Code's and Codex's PermissionRequest share a format.
-            if object["hook_event_name"] as? String == "PermissionRequest", let tool = object["tool_name"] as? String, !tool.isEmpty {
+            // Claude Code's and Codex's PermissionRequest share a format. Questions and plans
+            // have their own choices, which Allow and Deny can't give, so they stay in the
+            // assistant's window.
+            if object["hook_event_name"] as? String == "PermissionRequest", let tool = object["tool_name"] as? String, !tool.isEmpty,
+               !Self.answeredInAssistant.contains(tool) {
                 parsed = (tool, object["tool_input"] as? [String: Any] ?? [:], object["cwd"] as? String ?? "")
             } else {
                 parsed = nil

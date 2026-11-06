@@ -44,6 +44,9 @@ last one.
   properly last time. No crash logs or anything else is sent.
 
 ### Fixed
+- An approval answered in Claude Code's own window now leaves the notch straight away, instead
+  of staying there until it timed out. Claude's questions and plans, which have their own choices,
+  stay in Claude Code instead of showing Allow and Deny in the notch.
 - With nothing going on, the notch stays exactly the size of your Mac's notch at every size, even
   with Show when idle on or Settings › Appearance open. It no longer pokes out at the sides.
 - Approvals from the notch keep working right after an update, without restarting Dynamic Ledge.

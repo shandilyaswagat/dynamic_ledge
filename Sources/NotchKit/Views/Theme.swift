@@ -190,6 +190,15 @@ extension AnyTransition {
 
     /// What sits beside the camera: it fades as soon as the shape starts opening, and comes back
     /// once a closing shape is nearly compact again.
+    /// The second activity's symbol: in once its bubble has slid clear of the shape, and out
+    /// before the bubble slides back in.
+    static var bubbleContent: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.7)).animation(.easeOut(duration: 0.2).delay(0.12)),
+            removal: .opacity.combined(with: .scale(scale: 0.7)).animation(.easeIn(duration: 0.1))
+        )
+    }
+
     static var islandCompactContent: AnyTransition {
         .asymmetric(
             insertion: .modifier(

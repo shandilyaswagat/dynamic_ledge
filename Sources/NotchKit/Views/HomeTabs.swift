@@ -48,6 +48,9 @@ struct NookContainer<Content: View>: View {
                         DoneButton { model.isEditingShortcuts = false }
                             .accessibilityLabel(Text("Done editing shortcuts"))
                     } else {
+                        if let current = tab.liveActivity {
+                            ActivitySwitcher(model: model, current: current)
+                        }
                         UpdatePill(model: model)
                         LauncherButton(model: model, isOpen: tab == .launcher)
                         SettingsButton(model: model)
@@ -201,6 +204,57 @@ private struct UpdatePill: View {
             }
         }
         .animation(.spring(duration: 0.35, bounce: 0.3), value: updater.state)
+    }
+}
+
+/// In an opened live activity, the other live activities as small round buttons, so a click
+/// switches to one of them. Not shown in Home, whose live section already has them.
+struct ActivitySwitcher: View {
+    let model: IslandModel
+    /// The activity that's open, left out.
+    let current: ActivityKind
+    @Environment(\.notchScale) private var s
+
+    /// More would crowd the buttons beside them.
+    static let maximum = 3
+
+    var body: some View {
+        let others = Self.others(model.activeActivities, preferred: model.preferredPrimary, current: current)
+        HStack(spacing: 4 * s) {
+            ForEach(others, id: \.self) { kind in
+                ActivitySwitchButton(model: model, kind: kind)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(duration: 0.3, bounce: 0.2), value: others)
+    }
+
+    /// The live activities other than the open one, in the notch's order.
+    static func others(_ active: Set<ActivityKind>, preferred: ActivityKind?, current: ActivityKind) -> [ActivityKind] {
+        Array(PresentationResolver.ordered(active, preferred: preferred).filter { $0 != current }.prefix(maximum))
+    }
+}
+
+private struct ActivitySwitchButton: View {
+    let model: IslandModel
+    let kind: ActivityKind
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let diameter = (24 * s).rounded()
+        Button {
+            model.expand(.activity(kind))
+        } label: {
+            MinimalView(model: model, kind: kind, diameter: diameter)
+                .background(Circle().fill(Color.white.opacity(isHovering ? 0.14 : 0.07)))
+                .clipShape(Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .onHover { isHovering = $0 }
+        .help(Text("Switch to \(kind.title)"))
+        .accessibilityLabel(Text("Switch to \(kind.title)"))
     }
 }
 

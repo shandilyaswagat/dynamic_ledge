@@ -99,10 +99,12 @@ struct NotchLayoutTests {
         let result = layout(.compact(primary: .timer, secondary: .nowPlaying))
         #expect(result.bubble.minX > result.pill.maxX)
         #expect(result.bubble.width == result.bubble.height)
-        #expect(result.bubble.maxY <= result.pill.maxY)
+        #expect(result.bubble.height == result.pill.height && result.bubble.minY == result.pill.minY,
+                "as tall as the shape and hanging from the same edge, like the Dynamic Island's")
         let single = layout(.compact(primary: .timer, secondary: nil))
         #expect(single.bubble.width == 0, "absent bubble is tucked away")
         #expect(single.pill.contains(CGPoint(x: single.bubble.midX, y: single.bubble.midY)))
+        #expect(single.bubble.height == single.pill.height, "slides out of the side at full height")
     }
 
     @Test func hoverGrowsDownwardOnly() {

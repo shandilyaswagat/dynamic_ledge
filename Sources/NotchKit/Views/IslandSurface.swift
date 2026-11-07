@@ -40,10 +40,8 @@ struct IslandSurface: View, Animatable {
                 .offset(x: layout.pill.minX, y: layout.pill.minY)
                 .opacity(opacity > 0.001 ? 1 : 0)
             if hasBubble {
-                Ellipse()
+                layout.bubblePath
                     .fill(Color.black)
-                    .frame(width: layout.bubble.width, height: layout.bubble.height)
-                    .offset(x: layout.bubble.minX, y: layout.bubble.minY)
             }
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
@@ -68,7 +66,7 @@ struct IslandSurface: View, Animatable {
             guard blur > 0.2 else {
                 context.fill(main, with: mainShading)
                 if hasBubble {
-                    context.fill(Path(ellipseIn: layout.bubble), with: black)
+                    context.fill(layout.bubblePath, with: black)
                 }
                 return
             }
@@ -84,12 +82,15 @@ struct IslandSurface: View, Animatable {
                 goo.drawLayer { layer in
                     layer.fill(main, with: mainShading)
                     if hasBubble {
-                        layer.fill(Path(ellipseIn: layout.bubble), with: black)
+                        layer.fill(layout.bubblePath, with: black)
                     }
                 }
             }
             // The blur softens edges that touch the screen top; a crisp copy keeps them sharp.
             context.fill(main, with: mainShading)
+            if hasBubble {
+                context.fill(layout.bubblePath, with: black)
+            }
         }
     }
 }

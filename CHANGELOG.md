@@ -8,6 +8,10 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Stats and AI usage in Home.** While they're on, they join Home's live section with calls and
+  music. Two share the section, half each, and clicking one opens it.
+- **Switch between live activities.** With more than one going on, an opened activity shows the
+  others as small circles beside the camera. Click one to go to it.
 - **Close when answered in Claude Code.** A switch in Settings › General › Coding Assistants
   for the check that closes a request in the notch once it's answered in Claude Code's own
   window. It's on unless you switch it off; off, nothing is read from Claude Code's sessions.
@@ -70,6 +74,10 @@ last one.
   have rounder, smoother corners. Glass now moves the same way and no longer stutters as it
   starts to open, closing draws the content back into the notch instead of blinking it out,
   and Springy bounces without wobbling.
+- **Two activities at once.** The second one's bubble is as tall as the notch and hangs from
+  the top edge with the same rounded corners (a circle beside the floating pill), and it slides
+  out of the notch's side like the Dynamic Island's instead of popping out of its middle.
+  Hovering it now opens that activity; before, it opened the first one.
 - **Slimmer music.** While music plays, the artwork and bars sit closer to the camera, and the
   open player has the Dynamic Island's proportions.
 - Coding-assistant requests show Allow and Deny as white and grey buttons stacked on the right,

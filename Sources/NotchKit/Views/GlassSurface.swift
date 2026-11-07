@@ -45,9 +45,8 @@ struct GlassSurface: View, Animatable {
                 }
             }
             if hasBubble {
-                Circle()
+                layout.bubblePath
                     .fill(Color.black)
-                    .placed(in: layout.bubble)
             }
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)

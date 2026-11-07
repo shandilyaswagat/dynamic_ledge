@@ -1,8 +1,8 @@
 import SwiftUI
 
 // Home in the standard layout: up to three sections side by side, split by hairlines.
-// - Live: a call or the mic, and music. One fills the section as a card; two share it, one
-//   above the other. Clicking a card (not its buttons) opens that activity's full view.
+// - Live: a call or the mic, music, Stats and AI usage, two at most. One fills the section as
+//   a card; two share it, one above the other. Clicking a card (not its buttons) opens that activity's full view.
 // - Calendar: the next event.
 // - Timer: presets, or, while a timer or the stopwatch runs, that clock above the presets.
 // - Shortcuts: shares the Timer section when there isn't a section left for it.
@@ -18,7 +18,7 @@ enum HomeSection: Hashable, Identifiable {
     case aiUsage
 
     enum LiveItem: Hashable {
-        case call, music, timer, stopwatch
+        case call, music, timer, stopwatch, stats, aiUsage
 
         var activity: ActivityKind {
             switch self {
@@ -26,9 +26,14 @@ enum HomeSection: Hashable, Identifiable {
             case .music: .nowPlaying
             case .timer: .timer
             case .stopwatch: .stopwatch
+            case .stats: .stats
+            case .aiUsage: .aiUsage
             }
         }
     }
+
+    /// Cards that share the live section, like two apps playing.
+    static let maximumLive = 2
 
     static let maximum = 3
 
@@ -47,7 +52,13 @@ enum HomeSection: Hashable, Identifiable {
         let active = model.activeActivities
         var live: [LiveItem] = []
         if active.contains(.call) { live.append(.call) }
-        if model.homeHasMedia { live.append(.music) }
+        // Paused music can linger in Home; anything live comes before it.
+        let musicIsLive = active.contains(.nowPlaying)
+        if model.homeHasMedia, musicIsLive { live.append(.music) }
+        if active.contains(.stats) { live.append(.stats) }
+        if active.contains(.aiUsage) { live.append(.aiUsage) }
+        if model.homeHasMedia, !musicIsLive { live.append(.music) }
+        live = Array(live.prefix(maximumLive))
         var clocks: [LiveItem] = []
         if active.contains(.timer) { clocks.append(.timer) }
         if active.contains(.stopwatch) { clocks.append(.stopwatch) }
@@ -63,7 +74,7 @@ enum HomeSection: Hashable, Identifiable {
             if timer { sections.append(.timer(running: clocks)) }
             if shortcuts { sections.append(.shortcuts) }
         }
-        if model.settings.aiUsageLive, model.settings.aiUsageShowHomeWidget, !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty, sections.count < maximum {
+        if model.settings.aiUsageLive, model.settings.aiUsageShowHomeWidget, !live.contains(.aiUsage), !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty, sections.count < maximum {
             sections.append(.aiUsage)
         }
         return Array(sections.prefix(maximum))
@@ -199,6 +210,8 @@ private struct LiveCard: View {
             case .music: LiveMusic(service: model.nowPlaying, lyrics: model.showsLyrics ? model.lyrics.current : nil, compact: compact)
             case .timer: LiveTimer(model: model)
             case .stopwatch: LiveStopwatch(model: model)
+            case .stats: LiveStats(stats: model.stats, compact: compact)
+            case .aiUsage: LiveAIUsage(model: model, compact: compact)
             }
         }
         .padding(.horizontal, (compact ? 8 : 10) * s)
@@ -228,6 +241,122 @@ private struct LiveCard: View {
     /// Paused music can stay on Home after its own view has gone.
     private var opensFullView: Bool {
         model.activeActivities.contains(item.activity)
+    }
+}
+
+/// Memory and CPU, as in the notch. Compact is one row.
+private struct LiveStats: View {
+    let stats: StatsService
+    let compact: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let snapshot = stats.snapshot
+        let memory = snapshot.memoryTotal > 0 ? snapshot.memory : nil
+        let cpu = stats.hasReading ? snapshot.cpu : nil
+        let values = HStack(spacing: (compact ? 10 : 16) * s) {
+            LiveReading(caption: "MEM", share: memory, level: snapshot.memoryPressure, size: compact ? 15 : 22)
+            LiveReading(caption: "CPU", share: cpu, level: nil, size: compact ? 15 : 22)
+        }
+        if compact {
+            HStack(spacing: 8 * s) {
+                LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: NotchColor.green, title: "Stats")
+                Spacer(minLength: 4 * s)
+                values
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: NotchColor.green, title: "Stats")
+                Spacer(minLength: 6 * s)
+                values
+            }
+        }
+    }
+}
+
+/// The lowest AI agent limit left and when the first one resets. Compact is one row.
+private struct LiveAIUsage: View {
+    let model: IslandModel
+    let compact: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let windows = model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).flatMap(\.windows)
+        let remaining = windows.compactMap(\.remainingPercent).min()
+        let tint = remaining.map { $0 > 25 ? NotchColor.green : NotchColor.yellow } ?? NotchColor.secondaryText
+        let value = Text(remaining.map { "\(Int($0.rounded()))%" } ?? "–")
+            .font(.system(size: (compact ? 15 : 22) * s, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(tint)
+        if compact {
+            HStack(spacing: 8 * s) {
+                LiveCardTitle(symbol: "sparkles", tint: NotchColor.orange, title: "AI usage")
+                Spacer(minLength: 4 * s)
+                HStack(alignment: .firstTextBaseline, spacing: 3 * s) {
+                    value
+                    Text("left").font(.system(size: 10 * s, weight: .medium)).foregroundStyle(NotchColor.secondaryText)
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                LiveCardTitle(symbol: "sparkles", tint: NotchColor.orange, title: "AI Agent Usage")
+                Spacer(minLength: 6 * s)
+                HStack(alignment: .firstTextBaseline, spacing: 4 * s) {
+                    value
+                    Text("left").font(.system(size: 11 * s, weight: .medium)).foregroundStyle(NotchColor.secondaryText)
+                }
+                if let reset = windows.compactMap(\.resetsAt).filter({ $0 > Date() }).min() {
+                    Text("Resets \(reset, style: .relative)")
+                        .font(.system(size: 10 * s, weight: .medium))
+                        .foregroundStyle(NotchColor.secondaryText)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+}
+
+/// A live card's symbol and name.
+private struct LiveCardTitle: View {
+    let symbol: String
+    let tint: Color
+    let title: LocalizedStringKey
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        HStack(spacing: 6 * s) {
+            Image(systemName: symbol)
+                .font(.system(size: 11 * s, weight: .semibold))
+                .foregroundStyle(tint)
+            Text(title)
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+        }
+    }
+}
+
+/// A caption over a percentage, coloured by how busy it is.
+private struct LiveReading: View {
+    let caption: LocalizedStringKey
+    let share: Double?
+    /// Colour override (memory follows pressure, not percentage).
+    let level: StatsMath.Level?
+    let size: CGFloat
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(caption)
+                .font(.system(size: 8 * s, weight: .bold))
+                .kerning(0.3)
+                .foregroundStyle(NotchColor.secondaryText)
+            Text(share.map(StatsMath.percent) ?? "–")
+                .font(.system(size: size * s, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(share.map { (level ?? StatsMath.level($0)).tint } ?? NotchColor.secondaryText)
+        }
+        .lineLimit(1)
     }
 }
 

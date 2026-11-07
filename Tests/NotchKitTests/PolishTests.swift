@@ -231,6 +231,18 @@ struct StatsModelTests {
         #expect(model.presentation == .nook(.stats))
     }
 
+    @Test func pausesBehindAnotherOpenView() {
+        let model = makeModel()
+        model.settings.statsEnabled = true
+        model.open(.stats)
+        model.open(.stats)
+        #expect(model.stats.isRunning)
+        model.showTab(.clipboard)
+        #expect(!model.stats.isRunning, "its readout is hidden while Clipboard is open")
+        model.collapse()
+        #expect(model.stats.isRunning)
+    }
+
     @Test func theTileIsASwitch() {
         let model = makeModel()
         #expect(!model.isLive(.stats))
@@ -282,6 +294,61 @@ struct AIUsageNotchTests {
         model.cancelTimer()
         model.settings.statsEnabled = true
         #expect(model.presentation == .compact(primary: .stats, secondary: .aiUsage), "shares only with Stats")
+    }
+
+    @Test func hoveringTheBubbleOpensItsOwnActivity() async throws {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.settings.statsEnabled = true
+        model.settings.notchOpenMode = .hover
+        model.settings.hoverDelay = 0.1
+        #expect(model.presentation == .compact(primary: .stats, secondary: .aiUsage))
+        let layout = model.layout
+        // Over the shape first, then onto the bubble before the delay runs out.
+        _ = model.pointerMoved(to: CGPoint(x: layout.pill.midX, y: layout.pill.midY))
+        _ = model.pointerMoved(to: CGPoint(x: layout.bubble.midX, y: layout.bubble.midY))
+        for _ in 0..<60 where model.presentation != .nook(.aiUsage) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(model.presentation == .nook(.aiUsage))
+    }
+
+    @Test func clickingTheBubbleOpensItsOwnActivity() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.settings.statsEnabled = true
+        model.tapBubble()
+        #expect(model.presentation == .nook(.aiUsage))
+        model.expand(.activity(.stats))
+        #expect(model.presentation == .nook(.stats), "Home's live row switches between them")
+    }
+
+    @Test func homeSharesItsLiveSectionBetweenTheTwo() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.settings.statsEnabled = true
+        let sections = HomeSection.sections(for: model)
+        #expect(sections.first == .live([.stats, .aiUsage]), "half each, like two apps playing")
+        #expect(!sections.contains(.aiUsage), "never shown twice")
+        model.showTab(.home)
+        #expect(model.stats.isRunning, "Home's card shows memory and CPU")
+    }
+
+    @Test func theSwitcherOffersOnlyTheOtherActivities() {
+        #expect(ActivitySwitcher.others([.stats, .aiUsage], preferred: nil, current: .stats) == [.aiUsage])
+        #expect(ActivitySwitcher.others([.stats], preferred: nil, current: .stats).isEmpty, "nothing to switch to")
+        #expect(HomeTab.home.liveActivity == nil, "not in Home")
+        #expect(HomeTab.aiUsage.liveActivity == .aiUsage)
+    }
+
+    @Test func theBubbleHitAreaLeavesTheShapeToTheShape() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.settings.statsEnabled = true
+        let layout = model.layout
+        let bubble = model.engine.bubbleHitRect(layout)
+        #expect(bubble.contains(CGPoint(x: layout.bubble.midX, y: layout.bubble.midY)))
+        #expect(!bubble.contains(CGPoint(x: layout.pill.midX, y: layout.pill.midY)))
     }
 
     @Test func clickingItOpensTheUsagePanel() {

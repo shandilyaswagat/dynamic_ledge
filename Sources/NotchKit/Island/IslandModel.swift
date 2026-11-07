@@ -98,6 +98,8 @@ public final class IslandModel {
     @ObservationIgnored private var alertTask: Task<Void, Never>?
     @ObservationIgnored private var collapseTask: Task<Void, Never>?
     @ObservationIgnored private var hoverExpandTask: Task<Void, Never>?
+    /// What the pending hover opens, so moving from the shape onto the bubble switches it.
+    @ObservationIgnored private var hoverExpandTarget: ExpandTarget?
     /// On a display without a notch, shows the notch once the pointer has rested on its spot.
     @ObservationIgnored private var revealTask: Task<Void, Never>?
     /// Auto-collapse only starts once the pointer has been inside the expanded pill, so opening
@@ -506,6 +508,7 @@ public final class IslandModel {
         let current = presentation
         let engine = engine
         let inside: Bool
+        var onBubble = false
         if current.isHidden {
             // The usual state: no layout to work out, just the notch's spot.
             inside = point.map(engine.notchHoverRect.contains) ?? false
@@ -514,6 +517,9 @@ public final class IslandModel {
             inside = point.map { point in
                 engine.interactiveRects(for: current, layout: resting).contains { $0.contains(point) }
             } ?? false
+            if inside, let point, case .compact(_, .some) = current {
+                onBubble = engine.bubbleHitRect(resting).contains(point)
+            }
         }
 
         // A display without a notch has nothing to see until the pointer rests on the notch's
@@ -541,16 +547,15 @@ public final class IslandModel {
             }
         }
 
-        if settings.notchOpenMode == .hover, inside, case .compact(let primary, _) = current {
-            // Like any activity, hovering Stats opens Stats.
-            scheduleHoverExpand(.activity(primary))
+        if settings.notchOpenMode == .hover, inside, case .compact(let primary, let secondary) = current {
+            // Like any activity, hovering Stats opens Stats; hovering the bubble opens its own.
+            scheduleHoverExpand(.activity(onBubble ? secondary ?? primary : primary))
         } else if settings.notchOpenMode == .hover, inside, current == .idle || (current.isHidden && (!waitsForReveal || isHoveringNotch)) {
             // The tucked-away notch, or the resting pill (Show when idle, or while previewing a
             // size in Settings), opens Home.
             scheduleHoverExpand(.home)
         } else if !inside {
-            hoverExpandTask?.cancel()
-            hoverExpandTask = nil
+            cancelHoverExpand()
         }
 
         let takesMouse = inside && (!waitsForReveal || isHoveringNotch)
@@ -631,7 +636,7 @@ public final class IslandModel {
         default: target
         }
         cancelReveal()
-        hoverExpandTask?.cancel()
+        cancelHoverExpand()
         collapseTask?.cancel()
         collapseTask = nil
         pointerEnteredExpanded = isHoveringPill
@@ -682,15 +687,26 @@ public final class IslandModel {
         }
     }
 
+    private func cancelHoverExpand() {
+        hoverExpandTask?.cancel()
+        hoverExpandTask = nil
+        hoverExpandTarget = nil
+    }
+
     private func scheduleHoverExpand(_ target: ExpandTarget) {
-        guard hoverExpandTask == nil else { return }
+        if hoverExpandTask != nil {
+            guard hoverExpandTarget != target else { return }
+            cancelHoverExpand()
+        }
+        hoverExpandTarget = target
         hoverExpandTask = Task { [weak self] in
             let ms = Int(((self?.settings.hoverDelay ?? 0.2) * 1000).rounded())
             try? await Task.sleep(for: .milliseconds(max(50, ms)))
             guard !Task.isCancelled, let self else { return }
             self.hoverExpandTask = nil
+            self.hoverExpandTarget = nil
             switch (target, self.presentation) {
-            case (.activity(let kind), .compact(let primary, _)) where self.isHoveringPill && primary == kind:
+            case (.activity(let kind), .compact(let primary, let secondary)) where self.isHoveringPill && (primary == kind || secondary == kind):
                 self.expand(target)
             case (.home, .hidden) where self.isHoveringNotch, (.home, .idle) where self.isHoveringPill:
                 self.expand(.home)
@@ -1026,8 +1042,8 @@ public final class IslandModel {
         if settings.aiUsageLive { aiUsage.startAutomaticRefreshes() } else { aiUsage.stopAutomaticRefreshes() }
     }
 
-    /// Stats reads the system only while it's showing; music or a timer pushes it aside, and
-    /// then there's nothing to update. Disk and network are read only while the panel (or the
+    /// Stats reads the system only while it's showing; music, a timer or another open view
+    /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
     /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
         guard settings.statsEnabled else {
@@ -1036,7 +1052,9 @@ public final class IslandModel {
         }
         let detailed = expandTarget == .nook(.stats) || (expandTarget == .home && settings.appearance.nookLayout == .elongated)
         stats.detailed = detailed
-        if detailed || activeActivities.contains(.stats) {
+        // Behind an open view the readout isn't showing, so there's nothing to update. Home
+        // shows it in its live section.
+        if detailed || (activeActivities.contains(.stats) && (expandTarget == nil || expandTarget == .home)) {
             stats.start()
         } else {
             stats.pause()

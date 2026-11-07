@@ -36,11 +36,15 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Music ear | slimmer, like the Dynamic Island: max(round(h × 1.03), ear − 14), never wider than the ear (33 at the usual settings, so 245 wide on a 179 pt notch) | — |
 | Alert | notch + 2 × max(ear, 128), compact height + 6 | shoulders 6, bottom min(0.42 × h, 16) |
 | Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14. Open music is 1.79 × its height wide (the Dynamic Island player's 321 × 179) | shoulders 10, continuous bottom 46 (approvals and other open alerts 30) |
-| Minimal bubble | circle, compact height − 6, 4 pt right of the shape, vertically centred on the strip | — |
-| Hover lift | 5 % wider and taller (at least +3 each side and +2 at the bottom); the top never moves, and the second activity's bubble moves out with the edge | — |
+| Minimal bubble | as tall as the compact shape and square, with the shape's own corners: a flat top on the edge and the notch's bottom radius in Notch style, a circle 6 pt right of the pill in Pill style; 4 pt right of the shoulder's tip. It slides out of (and back into) the shape's right side at full height, and its symbol fades in 0.12 s later | — |
+| Activity switcher | in an opened live activity (expanded views, and the Stats and AI usage panels), the other live activities, up to 3 in priority order, as 24 pt circles with their minimal view, 4 pt apart, in the strip right of the camera. Never in Home, whose live section already shows them | — |
+| Hover lift | 5 % wider and taller (at least +3 each side and +2 at the bottom); the top never moves, and the second activity's bubble moves out with the edge and grows to the same height | — |
 
 Expanded content heights: Now Playing 140 · Timer 72 · Call 72 · Home 84 (144 with media) ·
 Drop 100 · Timer done 72. The strip beside the camera stays empty in expanded views.
+
+Hovering the second activity's bubble (or the gap before it) opens that activity, the same way
+hovering the shape opens the first one.
 
 ## Displays without a notch
 
@@ -74,6 +78,7 @@ resizes it.
 | Tabs | in the strip left of the camera; the selected tab shows its name, others an icon |
 | Tabs | Home, Tray and Clipboard left of the camera; Notes, Mirror and Settings right of it. Each side gets exactly half the room; if the selected tab's name doesn't fit, every tab on that side shows just its icon |
 | Home body | media card (210 wide) on the left; calendar, timers and shortcuts as 30 pt rows on the right |
+| Live section | the leftmost section, 196 wide: a call or the mic, playing music, Stats and AI usage, then paused music, two at most. One fills it as a card; two share it as one-row cards, one above the other, and clicking one opens it |
 | Tray body | one scrolling row of 52 pt icons with names, clear button on the right |
 | Mirror body | 16:9 camera preview on the left, message and button on the right |
 | Clipboard body | one scrolling row of 150 pt text cards (4 lines, app and age below), clear button on the right |
@@ -242,7 +247,8 @@ While it's on, the compact notch shows an orange sparkles symbol on the left and
 limit left on the right ("LEFT" over the percentage, green above 25 %, yellow at or below),
 like Stats' two readings. Like Stats it shows only when nothing else is on, and shares the notch
 only with Stats, which comes first. Clicking it opens the panel. The launcher tile is a switch
-in orange; turned off, the checks stop and the readout and Home widget go away.
+in orange; turned off, the checks stop and the readout and Home widget go away. While it's
+showing in the notch it's a card in Home's live section instead of a widget.
 
 ## Calendar readability
 

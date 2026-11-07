@@ -62,6 +62,13 @@ public struct IslandLayout: Equatable, Sendable {
         self.restingPill = pill
     }
 
+    /// The bubble's outline: the main shape's corners on a shape as tall as it, so a flat top
+    /// with the notch's rounded bottom when it hangs from the edge, and a circle beside the
+    /// floating pill.
+    public var bubblePath: Path {
+        IslandPath.path(in: bubble, topRadius: topRadius, bottomRadius: bottomRadius, flare: 0)
+    }
+
     /// The values SwiftUI interpolates during a spring.
     public var animatableData: AnimatableVector {
         get {
@@ -281,11 +288,12 @@ public struct LayoutEngine: Equatable, Sendable {
         notch.height + IslandMetrics.notchContentGap + content + (IslandMetrics.notchBottomPadding * scale).rounded()
     }
 
-    private var bubbleDiameter: CGFloat {
-        max(((compactHeight - 6) * scale).rounded(), 16)
-    }
+    /// As tall as the compact shape, like the Dynamic Island's minimal view beside the island.
+    private var bubbleDiameter: CGFloat { compactHeight }
 
+    /// From the tip of the shape's shoulder in the notch; between the two in the floating pill.
     private let bubbleGap: CGFloat = 4
+    private let floatingBubbleGap: CGFloat = 6
 
     private var widestContent: CGFloat {
         max(
@@ -394,17 +402,23 @@ public struct LayoutEngine: Equatable, Sendable {
                 layout.topRadius = layout.pill.height / 2
                 layout.bottomRadius = layout.pill.height / 2
             }
-            // The second activity's bubble moves out with the edge, so the gap stays.
+            // The second activity's bubble moves out with the edge, so the gap stays, and lifts
+            // with it, so the two stay the same height.
             if layout.bubble != .zero {
-                layout.bubble = layout.bubble.offsetBy(dx: growth.width, dy: 0)
+                layout.bubble = CGRect(
+                    x: layout.bubble.minX + growth.width,
+                    y: layout.bubble.minY,
+                    width: layout.bubble.width + growth.height,
+                    height: layout.bubble.height + growth.height
+                )
             }
         }
 
         if layout.bubble == .zero {
-            // Tucked into the right end of the shape, so it oozes out from there when it appears.
-            let inset = layout.flare + bubbleDiameter / 2
-            let midY = layout.pill.minY + min(layout.pill.height, compactHeight) / 2
-            layout.bubble = CGRect(x: layout.pill.maxX - inset, y: midY, width: 0, height: 0)
+            // A sliver at the shape's right side, as tall as it will be, so it slides out of the
+            // side when it appears and back into it when it goes, like the Dynamic Island's.
+            let height = min(layout.pill.height, bubbleDiameter)
+            layout.bubble = CGRect(x: layout.pill.maxX - layout.flare - 1, y: layout.pill.minY, width: 0, height: height)
         }
         return layout
     }
@@ -469,7 +483,8 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.cameraGap = cameraGap
             if secondary != nil {
                 let diameter = bubbleDiameter
-                layout.bubble = CGRect(x: layout.pill.maxX + bubbleGap, y: (height - diameter) / 2, width: diameter, height: diameter)
+                // Hangs from the top edge beside the shape, with the same corners.
+                layout.bubble = CGRect(x: layout.pill.maxX + bubbleGap, y: layout.pill.minY, width: diameter, height: diameter)
             }
         case .alert(let alert) where !alert.usesExpandedLayout:
             let size = alertBodySize(for: alert)
@@ -519,7 +534,9 @@ public struct LayoutEngine: Equatable, Sendable {
         layout.pill = layout.pill.insetBy(dx: layout.flare, dy: 0).offsetBy(dx: 0, dy: top)
         layout.flare = 0
         layout.content = layout.content.offsetBy(dx: 0, dy: top)
-        if layout.bubble != .zero { layout.bubble = layout.bubble.offsetBy(dx: 0, dy: top) }
+        if layout.bubble != .zero {
+            layout.bubble.origin = CGPoint(x: layout.pill.maxX + floatingBubbleGap, y: layout.pill.minY)
+        }
         let isOpen = layout.pill.height > alertBodySize.height + 1
         let radius = isOpen ? (IslandMetrics.pillExpandedRadius * scale).rounded() : layout.pill.height / 2
         layout.topRadius = radius
@@ -544,6 +561,14 @@ public struct LayoutEngine: Equatable, Sendable {
         let slop = IslandMetrics.hitSlop
         let notch = notchInWindow
         return CGRect(x: notch.minX - 10 - slop, y: 0, width: notch.width + 20 + 2 * slop, height: topOffset + notch.maxY + 3 + slop)
+    }
+
+    /// Where the pointer counts as on the second activity's bubble: the bubble and the gap
+    /// beside it, so the shape's edge belongs to the shape and the gap to the bubble.
+    public func bubbleHitRect(_ layout: IslandLayout) -> CGRect {
+        let slop = IslandMetrics.hitSlop
+        let gapStart = min(layout.bubble.minX, layout.pill.maxX)
+        return CGRect(x: gapStart, y: layout.bubble.minY - slop, width: layout.bubble.maxX + slop - gapStart, height: layout.bubble.height + 2 * slop)
     }
 
     /// Areas that should receive the mouse, in window coordinates.

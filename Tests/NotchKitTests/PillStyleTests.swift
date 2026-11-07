@@ -12,6 +12,15 @@ struct PillStyleTests {
         return appearance
     }
 
+    @Test func theSecondActivityIsACircleAsTallAsThePill() {
+        let engine = LayoutEngine(screen: external, appearance: pill)
+        let layout = engine.layout(for: .compact(primary: .timer, secondary: .nowPlaying), homeHasMedia: true, hovering: false)
+        #expect(layout.bubble.width == layout.bubble.height && layout.bubble.height == layout.pill.height)
+        #expect(layout.bubble.minY == layout.pill.minY)
+        #expect(layout.bubble.minX - layout.pill.maxX == 6)
+        #expect(layout.topRadius == layout.pill.height / 2 && layout.bottomRadius == layout.pill.height / 2, "same round ends, so the bubble is a circle")
+    }
+
     @Test func notchIsTheDefault() {
         #expect(NotchAppearance.standard.externalStyle == .notch)
         #expect(!LayoutEngine(screen: external, appearance: .standard).isPill)

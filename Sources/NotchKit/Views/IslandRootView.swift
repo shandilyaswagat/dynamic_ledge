@@ -139,6 +139,16 @@ struct IslandContentLayer: View {
                     .transition(.opacity)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            // The other live activities, right of the camera, to switch to.
+            if case .expanded(let kind) = presentation {
+                ActivitySwitcher(model: model, current: kind)
+                    .environment(\.notchScale, layout.contentScale)
+                    .padding(.trailing, layout.flare + 14 * layout.contentScale)
+                    .frame(height: max(layout.content.minY - layout.pill.minY, 1))
+                    .transition(.opacity)
+            }
+        }
         .frame(width: max(layout.pill.width, 1), height: max(layout.pill.height, 1), alignment: .topLeading)
         .clipShape(pillShape)
         .overlay {
@@ -164,17 +174,22 @@ struct IslandContentLayer: View {
         return false
     }
 
+    /// The same outline the surface draws for the bubble.
+    private var bubbleShape: IslandShape {
+        IslandShape(topRadius: layout.topRadius, bottomRadius: layout.bottomRadius, flare: 0)
+    }
+
     private var bubble: some View {
         ZStack {
             if case .compact(_, let secondary?) = presentation {
                 MinimalView(model: model, kind: secondary, diameter: layout.bubble.height)
                     .id(secondary)
-                    .transition(.opacity.combined(with: .scale(scale: 0.6)))
+                    .transition(.bubbleContent)
             }
         }
         .frame(width: max(layout.bubble.width, 1), height: max(layout.bubble.height, 1))
-        .clipShape(Circle())
-        .contentShape(Circle())
+        .clipShape(bubbleShape)
+        .contentShape(bubbleShape)
         .onTapGesture { model.tapBubble() }
         // When tucked away the bubble is a point inside the shape; it must not steal clicks.
         .allowsHitTesting(hasBubble)

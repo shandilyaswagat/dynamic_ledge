@@ -15,6 +15,19 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
     /// Stats, any other activity replaces it.
     case aiUsage
 
+    /// Its name, for help tags and VoiceOver.
+    public var title: String {
+        switch self {
+        case .call: String(localized: "Call")
+        case .timer: String(localized: "Timer")
+        case .stopwatch: String(localized: "Stopwatch")
+        case .nowPlaying: String(localized: "Now Playing")
+        case .download: String(localized: "Downloads")
+        case .stats: String(localized: "Stats")
+        case .aiUsage: String(localized: "AI Agent Usage")
+        }
+    }
+
     /// Lower comes first.
     public var priority: Int {
         switch self {
@@ -146,6 +159,15 @@ public enum HomeTab: String, CaseIterable, Sendable, Codable, Hashable {
     case aiUsage
     /// The grid of everything the notch can do. Its Edit button picks the shortcuts beside Home.
     case launcher
+
+    /// The live activity this panel is the opened view of.
+    public var liveActivity: ActivityKind? {
+        switch self {
+        case .stats: .stats
+        case .aiUsage: .aiUsage
+        default: nil
+        }
+    }
 
     /// Shown in the tab bar beside the camera.
     public var isTab: Bool {

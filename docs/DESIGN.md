@@ -238,6 +238,12 @@ The AI Agent Usage panel has 220 pt for its refresh controls and scrollable prov
 plus the standard 10 pt top inset. Only selected providers with a connection appear. When none
 are connected, the panel explains how to configure them in Settings.
 
+While it's on, the compact notch shows an orange sparkles symbol on the left and the lowest
+limit left on the right ("LEFT" over the percentage, green above 25 %, yellow at or below),
+like Stats' two readings. Like Stats it shows only when nothing else is on, and shares the notch
+only with Stats, which comes first. Clicking it opens the panel. The launcher tile is a switch
+in orange; turned off, the checks stop and the readout and Home widget go away.
+
 ## Calendar readability
 
 The month panel has a 180 pt body, a 210 pt-wide month grid with 12 pt date labels

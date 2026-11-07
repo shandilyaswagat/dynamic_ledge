@@ -705,7 +705,16 @@ private struct AIUsageSettingsSection: View {
             }
 
             Section {
+                Toggle(isOn: $settings.aiUsageInNotch) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Show in the notch")
+                        Text("The lowest limit left shows beside the camera when nothing else is on. Off stops the checks. The AI Agent Usage tile turns this on and off too.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Toggle("Show in Home", isOn: $settings.aiUsageShowHomeWidget)
+                    .disabled(!settings.aiUsageInNotch)
                 Button("Refresh Now") { aiUsage.refreshAll(userInitiated: true) }
                     .disabled(aiUsage.isRefreshing)
             }

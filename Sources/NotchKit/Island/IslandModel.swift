@@ -210,7 +210,7 @@ public final class IslandModel {
         clipboard.readsTextInImages = settings.clipboardReadsImages
         if settings.clipboardEnabled { clipboard.start() }
         syncMusicBars()
-        if settings.aiUsageEnabled { aiUsage.startAutomaticRefreshes() }
+        syncAIUsageRefreshes()
         if settings.downloadsEnabled {
             downloads.start()
             downloadProgress.start()
@@ -320,8 +320,11 @@ public final class IslandModel {
         if settings.timerEnabled, stopwatch.isActive { active.insert(.stopwatch) }
         if settings.nowPlayingEnabled, nowPlaying.isActivityVisible { active.insert(.nowPlaying) }
         if settings.downloadsEnabled, !downloadProgress.items.isEmpty { active.insert(.download) }
-        // Stats fills the notch only when nothing else is happening.
-        if settings.statsEnabled, active.isEmpty { active.insert(.stats) }
+        // Stats and AI usage fill the notch only when nothing else is happening.
+        if active.isEmpty {
+            if settings.statsEnabled { active.insert(.stats) }
+            if settings.aiUsageLive { active.insert(.aiUsage) }
+        }
         return active
     }
 
@@ -444,7 +447,7 @@ public final class IslandModel {
         case .stopwatch: stopwatch.isActive
         case .keepAwake: keepAwake.isOn
         case .stats: settings.statsEnabled
-        case .aiUsage: !aiUsage.visibleUsages(selected: settings.selectedAIProviders).isEmpty
+        case .aiUsage: settings.aiUsageLive
         default: false
         }
     }
@@ -483,10 +486,10 @@ public final class IslandModel {
             syncStatsSampling()
             Haptics.perform(enabled: settings.hapticsEnabled)
         case .aiUsage:
-            showTab(.aiUsage)
-            if aiUsage.visibleUsages(selected: settings.selectedAIProviders).isEmpty && !settings.selectedAIProviders.isEmpty {
-                aiUsage.refreshAll(userInitiated: false)
-            }
+            // A switch like Stats: the limit left beside the camera, and the checks behind it.
+            settings.aiUsageInNotch.toggle()
+            syncAIUsageRefreshes()
+            Haptics.perform(enabled: settings.hapticsEnabled)
         }
     }
 
@@ -621,8 +624,12 @@ public final class IslandModel {
     }
 
     public func expand(_ target: ExpandTarget) {
-        // Stats opens as a panel in the nook, with the grid and Home a click away.
-        let target = target == .activity(.stats) ? .nook(.stats) : target
+        // Stats and AI usage open as panels in the nook, with the grid and Home a click away.
+        let target: ExpandTarget = switch target {
+        case .activity(.stats): .nook(.stats)
+        case .activity(.aiUsage): .nook(.aiUsage)
+        default: target
+        }
         cancelReveal()
         hoverExpandTask?.cancel()
         collapseTask?.cancel()
@@ -1014,6 +1021,11 @@ public final class IslandModel {
         }
     }
 
+    /// AI usage is checked only while it's on in Settings and its tile is switched on.
+    private func syncAIUsageRefreshes() {
+        if settings.aiUsageLive { aiUsage.startAutomaticRefreshes() } else { aiUsage.stopAutomaticRefreshes() }
+    }
+
     /// Stats reads the system only while it's showing; music or a timer pushes it aside, and
     /// then there's nothing to update. Disk and network are read only while the panel (or the
     /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
@@ -1118,6 +1130,7 @@ public final class IslandModel {
             _ = settings.installsUpdatesAutomatically
             _ = settings.sharesUsage
             _ = settings.aiUsageEnabled
+            _ = settings.aiUsageInNotch
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -1159,12 +1172,8 @@ public final class IslandModel {
                 } else {
                     self.clipboard.stop()
                 }
-                if self.settings.aiUsageEnabled {
-                    self.aiUsage.startAutomaticRefreshes()
-                } else {
-                    self.aiUsage.stopAutomaticRefreshes()
-                    if case .nook(.aiUsage) = self.expandTarget { self.collapse() }
-                }
+                self.syncAIUsageRefreshes()
+                if !self.settings.aiUsageLive, case .nook(.aiUsage) = self.expandTarget { self.collapse() }
                 self.observeSettings()
             }
         }

@@ -80,7 +80,7 @@ struct ElongatedHomeBody: View {
         if model.settings.timerEnabled { widgets.append(.timer) }
         widgets.append(.todos)
         if model.settings.statsEnabled { widgets.append(.stats) }
-        if model.settings.aiUsageEnabled && model.settings.aiUsageShowHomeWidget && !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty { widgets.append(.aiUsage) }
+        if model.settings.aiUsageLive && model.settings.aiUsageShowHomeWidget && !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty { widgets.append(.aiUsage) }
         return widgets
     }
 

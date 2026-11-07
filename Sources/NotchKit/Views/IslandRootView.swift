@@ -277,6 +277,9 @@ struct NotchContent: View {
         case .expanded(.stats):
             // Stats opens in the nook; this only covers the moment before that switch.
             StatsPanelBody(model: model)
+        case .expanded(.aiUsage):
+            // Opens in the nook too.
+            AIUsagePanelBody(model: model)
         case .nook(let tab):
             NookContainer(model: model, tab: tab, cameraGap: cameraGap, stripHeight: stripHeight) {
                 switch tab {
@@ -377,6 +380,7 @@ private struct ActivityHeader: View {
         case .call: model.calls.session?.isCall == false ? "Microphone" : "Call"
         case .download: "Downloading"
         case .stats: "Stats"
+        case .aiUsage: "AI Agent Usage"
         }
     }
 }

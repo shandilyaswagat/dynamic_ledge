@@ -63,7 +63,7 @@ enum HomeSection: Hashable, Identifiable {
             if timer { sections.append(.timer(running: clocks)) }
             if shortcuts { sections.append(.shortcuts) }
         }
-        if model.settings.aiUsageEnabled, model.settings.aiUsageShowHomeWidget, !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty, sections.count < maximum {
+        if model.settings.aiUsageLive, model.settings.aiUsageShowHomeWidget, !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty, sections.count < maximum {
             sections.append(.aiUsage)
         }
         return Array(sections.prefix(maximum))

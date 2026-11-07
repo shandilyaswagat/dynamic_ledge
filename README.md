@@ -154,7 +154,8 @@ that tool's own settings file (like `~/.claude/settings.json`) so it can ask you
 Requests stay on your Mac. Switch it off and the hook is removed.
 
 **AI Agent Usage** is off until you switch it on. It shows how much of your Codex and Antigravity
-limits you've used. It asks the Codex app on your Mac, which checks with OpenAI using your own
+limits you've used, with the lowest limit left beside the camera when nothing else is on. Its
+launcher tile switches that and the checks off and on, like Stats. It asks the Codex app on your Mac, which checks with OpenAI using your own
 Codex sign-in. For Antigravity it reads its files in `~/.gemini` and asks the Antigravity app
 running on your Mac, using the local key Antigravity hands its own background service; that
 request never leaves your Mac. Dynamic Ledge never stores your passwords, tokens or API keys,

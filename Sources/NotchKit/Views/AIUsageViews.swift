@@ -505,3 +505,27 @@ public struct AIUsageElongatedWidget: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Compact Value
+
+/// The lowest limit left across the ticked assistants, beside the camera.
+struct AIUsageCompactValue: View {
+    /// 0…100, or nil before the first check.
+    let remaining: Double?
+    let fontSize: CGFloat
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text("LEFT")
+                .font(.system(size: max(7, fontSize * 0.55), weight: .bold))
+                .kerning(0.3)
+                .foregroundStyle(NotchColor.secondaryText)
+            Text(remaining.map { "\(Int($0.rounded()))%" } ?? "–")
+                .font(.system(size: fontSize * 0.9, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(remaining.map { $0 > 25 ? NotchColor.green : NotchColor.yellow } ?? NotchColor.secondaryText)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+}

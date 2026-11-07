@@ -243,6 +243,55 @@ struct StatsModelTests {
     }
 }
 
+@MainActor
+@Suite("AI usage in the notch")
+struct AIUsageNotchTests {
+    private func makeModel() -> IslandModel {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        // Nothing on this Mac is read in tests.
+        defaults.set(false, forKey: "aiUsage.codexEnabled")
+        defaults.set(false, forKey: "aiUsage.antigravityEnabled")
+        let model = IslandModel(settings: SettingsStore(defaults: defaults), tray: TrayStore(folder: nil), notes: NotesStore(defaults: defaults))
+        model.screen = .sample
+        return model
+    }
+
+    @Test func showsOnceTurnedOnInSettings() {
+        let model = makeModel()
+        #expect(!model.isLive(.aiUsage) && model.presentation == .hidden(peek: false))
+        model.settings.aiUsageEnabled = true
+        #expect(model.isLive(.aiUsage))
+        #expect(model.presentation == .compact(primary: .aiUsage, secondary: nil))
+    }
+
+    @Test func theTileIsASwitch() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.open(.aiUsage)
+        #expect(!model.isLive(.aiUsage) && model.activeActivities.isEmpty)
+        #expect(model.launcherItems.contains(.aiUsage), "the tile stays, to turn it back on")
+        model.open(.aiUsage)
+        #expect(model.isLive(.aiUsage) && model.activeActivities == [.aiUsage])
+    }
+
+    @Test func anythingElseReplacesIt() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.startTimer(60)
+        #expect(model.presentation == .compact(primary: .timer, secondary: nil))
+        model.cancelTimer()
+        model.settings.statsEnabled = true
+        #expect(model.presentation == .compact(primary: .stats, secondary: .aiUsage), "shares only with Stats")
+    }
+
+    @Test func clickingItOpensTheUsagePanel() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.tapPill()
+        #expect(model.presentation == .nook(.aiUsage))
+    }
+}
+
 @Suite("Elongated layout")
 struct ElongatedLayoutTests {
     private func engine(_ layout: NookLayout, screen: ScreenMetrics = .sample) -> LayoutEngine {

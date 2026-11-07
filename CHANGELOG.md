@@ -19,7 +19,9 @@ last one.
   instead of a notch. A MacBook's own notch always stays a notch.
 - **AI Agent Usage.** See how much of Codex's and Antigravity's limits you've used and when they
   reset, in Home or its own panel. It's off until you turn it on in Settings ›
-  General › Coding Assistants. Everything is read on this Mac; nothing is sent anywhere and no API
+  General › Coding Assistants. While it's on, the lowest limit left shows beside the camera when
+  nothing else is playing or running; click it for the details. Its launcher tile turns it off
+  and on again, like Stats, and off it stops checking. Everything is read on this Mac; nothing is sent anywhere and no API
   keys are needed.
 - **Choose where sound plays.** A button in the open music view switches between your Mac's
   speakers, AirPods and other headphones, and displays with speakers.

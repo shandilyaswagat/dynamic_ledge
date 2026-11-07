@@ -60,6 +60,11 @@ struct CompactView: View {
             }
         case .download:
             DownloadCompactIcon(fontSize: scale.fontSize)
+        case .aiUsage:
+            Image(systemName: "sparkles")
+                .font(.system(size: scale.fontSize, weight: .semibold))
+                .foregroundStyle(NotchColor.orange)
+                .accessibilityLabel(Text("AI Agent Usage"))
         case .stats:
             StatsCompactValue(caption: "MEM", share: model.stats.snapshot.memoryTotal > 0 ? model.stats.snapshot.memory : nil, level: model.stats.snapshot.memoryPressure, fontSize: scale.fontSize)
         }
@@ -105,6 +110,8 @@ struct CompactView: View {
             }
         case .download:
             DownloadCompactValue(summary: model.downloadProgress.summary, fontSize: scale.fontSize)
+        case .aiUsage:
+            AIUsageCompactValue(remaining: model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).flatMap(\.windows).compactMap(\.remainingPercent).min(), fontSize: scale.fontSize)
         case .stats:
             StatsCompactValue(caption: "CPU", share: model.stats.hasReading ? model.stats.snapshot.cpu : nil, fontSize: scale.fontSize, alignment: .trailing)
         }
@@ -144,6 +151,10 @@ struct MinimalView: View {
                 Image(systemName: "gauge.with.dots.needle.33percent")
                     .font(.system(size: diameter * 0.4, weight: .semibold))
                     .foregroundStyle(NotchColor.green)
+            case .aiUsage:
+                Image(systemName: "sparkles")
+                    .font(.system(size: diameter * 0.4, weight: .semibold))
+                    .foregroundStyle(NotchColor.orange)
             }
         }
         .frame(width: diameter, height: diameter)

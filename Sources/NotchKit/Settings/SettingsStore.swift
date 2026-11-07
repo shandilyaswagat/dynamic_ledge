@@ -147,6 +147,11 @@ public final class SettingsStore {
     public var sharesUsage: Bool { didSet { defaults.set(sharesUsage, forKey: Key.sharesUsage) } }
     /// Show Codex's and Antigravity's usage limits, read on this Mac. Off until turned on.
     public var aiUsageEnabled: Bool { didSet { defaults.set(aiUsageEnabled, forKey: Key.aiUsageEnabled) } }
+    /// The launcher tile's switch: while on, usage is checked and the lowest limit left shows
+    /// beside the camera when nothing else is on. Off stops the checks; the tile stays.
+    public var aiUsageInNotch: Bool { didSet { defaults.set(aiUsageInNotch, forKey: Key.aiUsageInNotch) } }
+    /// AI Agent Usage is on in Settings and its tile is switched on.
+    public var aiUsageLive: Bool { aiUsageEnabled && aiUsageInNotch }
     public var aiUsageShowHomeWidget: Bool { didSet { defaults.set(aiUsageShowHomeWidget, forKey: Key.aiUsageShowHomeWidget) } }
     public var aiUsageCodexEnabled: Bool { didSet { defaults.set(aiUsageCodexEnabled, forKey: Key.aiUsageCodexEnabled) } }
     public var aiUsageAntigravityEnabled: Bool { didSet { defaults.set(aiUsageAntigravityEnabled, forKey: Key.aiUsageAntigravityEnabled) } }
@@ -277,6 +282,7 @@ public final class SettingsStore {
             defaults.removeObject(forKey: key)
         }
         aiUsageShowHomeWidget = defaults.object(forKey: Key.aiUsageShowHomeWidget) as? Bool ?? true
+        aiUsageInNotch = defaults.object(forKey: Key.aiUsageInNotch) as? Bool ?? true
         aiUsageCodexEnabled = defaults.object(forKey: Key.aiUsageCodexEnabled) as? Bool ?? true
         aiUsageAntigravityEnabled = defaults.object(forKey: Key.aiUsageAntigravityEnabled) as? Bool ?? true
         let focus = defaults.object(forKey: Key.focusMinutes) as? Int ?? 25
@@ -410,6 +416,7 @@ public final class SettingsStore {
         static let agentWatchesTranscript = "agents.watchesTranscript"
         static let aiUsageEnabled = "aiUsage.enabled"
         static let aiUsageShowHomeWidget = "aiUsage.showHomeWidget"
+        static let aiUsageInNotch = "aiUsage.inNotch"
         static let aiUsageCodexEnabled = "aiUsage.codexEnabled"
         static let aiUsageAntigravityEnabled = "aiUsage.antigravityEnabled"
         static let focusMinutes = "timer.focusMinutes"

@@ -8,9 +8,12 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
     case nowPlaying
     /// Files downloading into Downloads, with how far along they are.
     case download
-    /// Memory and CPU, when Stats is on and nothing else is happening. Never shares the notch:
-    /// any other activity replaces it.
+    /// Memory and CPU, when Stats is on and nothing else is happening. Shares the notch only
+    /// with AI usage: any other activity replaces it.
     case stats
+    /// The lowest AI agent limit left, when its tile is on and nothing else is happening. Like
+    /// Stats, any other activity replaces it.
+    case aiUsage
 
     /// Lower comes first.
     public var priority: Int {
@@ -21,6 +24,7 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
         case .nowPlaying: 3
         case .download: 4
         case .stats: 5
+        case .aiUsage: 6
         }
     }
 }

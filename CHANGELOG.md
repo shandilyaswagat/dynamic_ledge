@@ -7,6 +7,17 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- Choose what Home shows. In Settings › Home & Widgets, switch each item (music and calls,
+  calendar, timer, shortcuts, AI usage, mirror, notes, to-dos, stats) on or off and put them in
+  your order. Both the standard and the elongated layout follow it. Home stays as it was until you
+  change something, and "Reset Home to the default" puts it back.
+- Your own tiles on Home: a button that opens one of the app's features (Clipboard, Files,
+  Notes, Mirror, Keep Awake and the rest), an app, a website or a folder, or runs a Shortcut, with
+  a name and an icon. An app's tile shows that app's own icon, and a feature that is on shows it.
+  Up to six; with more than three they show as icons, with the name on hover. A website tile has
+  a Paste button for the link you copied, which also fills in the site's name.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added

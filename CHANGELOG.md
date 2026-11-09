@@ -7,6 +7,11 @@ last one.
 
 ## [Unreleased]
 
+### Fixed
+- Copy, paste, cut, select all and undo (Command-C, V, X, A, Z) now work in the notch's Notes, the
+  Clipboard search and the to-do field. The app has no menu bar of its own, so macOS had no Edit
+  menu to send them to; it now has one that is never shown.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added

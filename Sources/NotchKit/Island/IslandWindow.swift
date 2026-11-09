@@ -24,8 +24,22 @@ final class IslandPanel: NSPanel {
     /// True while a view in the panel needs typing (Notes).
     var acceptsKeyboard = false
 
+    /// True while the panel is key only so its glass looks like glass (see the Glass theme), not
+    /// because anything in it wants typing. Any key pressed then belongs to the app you are in.
+    var keyIsForLooksOnly = false
+    /// Called with the first key pressed while `keyIsForLooksOnly`, instead of delivering it here.
+    var onStrayKey: ((NSEvent) -> Void)?
+
     override var canBecomeKey: Bool { acceptsKeyboard }
     override var canBecomeMain: Bool { false }
+
+    override func sendEvent(_ event: NSEvent) {
+        if keyIsForLooksOnly, event.type == .keyDown || event.type == .keyUp || event.type == .flagsChanged {
+            onStrayKey?(event)
+            return
+        }
+        super.sendEvent(event)
+    }
 
     // The panel sits over the menu bar on purpose.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {

@@ -25,14 +25,24 @@ struct GlassSurface: View, Animatable {
         let amount = glassAmount
         ZStack(alignment: .topLeading) {
             if prepared || amount > 0.001 {
-                glass
-                    .opacity(opacity > 0.001 ? amount : 0)
+                // Fully open, the glass is drawn as it is: an opacity wrapper, even at 1, would
+                // make it draw as a flat copy and lose the bending at its edges.
+                if amount >= 0.999, opacity > 0.001 {
+                    glass
+                } else {
+                    glass.opacity(opacity > 0.001 ? amount : 0)
+                }
             }
             if opacity > 0.001 {
                 if amount > 0.001 {
                     ZStack(alignment: .topLeading) {
-                        smoke
-                        rim
+                        if Self.usesLiquidGlass {
+                            tintShade
+                            shoulderShade
+                        } else {
+                            smoke
+                            rim
+                        }
                     }
                     .opacity(opacity * amount)
                 }
@@ -72,17 +82,69 @@ struct GlassSurface: View, Animatable {
     /// Where the fade starts, as a share of the height: the last stretch is the frosted lip.
     private static let fadeStart = 0.62
 
+    /// Whether this Mac has Apple's Liquid Glass (macOS 26 and later). There the panel is real
+    /// glass all over; before that it is smoked glass over a blur with the camera kept black.
+    private static var usesLiquidGlass: Bool {
+        if #available(macOS 26.0, *) { true } else { false }
+    }
+
+    /// How dark the glass is laid over. Never none: the glass brightens what is behind it, so at
+    /// Clear it went milky grey. Fully tinted is enough to read white text over a bright window.
+    /// The system's own `tint` only colours the glass and does not darken it, so this is a
+    /// separate layer on top.
+    private var glassTintOpacity: Double { 0.42 + 0.16 * tint }
+    /// How much of the regular glass (blurry) is laid over the clear glass (sharp): 0 is all clear,
+    /// 1 is all regular.
+    private static let glassSoftness: Double = 0.45
     @ViewBuilder
     private var glass: some View {
         if #available(macOS 26.0, *) {
-            // Liquid Glass: frosts and brightens what's behind, and bends it at the edges.
-            Color.clear
-                .glassEffect(.regular, in: pillShape)
-                .placed(in: layout.pill)
+            // Liquid Glass: the clear style keeps the background sharp and bends it at the edges;
+            // a fraction of the regular style over it softens that, so text under the panel
+            // blurs a little instead of fighting the panel's own, or smearing away. All drawn by
+            // the system.
+            ZStack {
+                Color.clear.glassEffect(.clear, in: pillShape)
+                Color.clear
+                    .glassEffect(.regular, in: pillShape)
+                    .opacity(Self.glassSoftness)
+            }
+            .placed(in: layout.pill)
         } else {
             FrostedGlass(shape: pillShape)
                 .placed(in: layout.pill)
         }
+    }
+
+    /// The curved shoulders at the top corners are glass too, but glass bends what is behind it
+    /// along its outline, and along those concave curves it smears the menu bar's text into odd
+    /// mirrored fragments. A soft dark fade in the two corners keeps that from showing, and reads
+    /// as the notch's own shoulders.
+    @ViewBuilder
+    private var shoulderShade: some View {
+        if layout.flare > 0.5 {
+            let reach = layout.flare + 30
+            ZStack(alignment: .top) {
+                HStack(spacing: 0) {
+                    RadialGradient(colors: [.black, .black.opacity(0)], center: .topLeading, startRadius: 0, endRadius: reach)
+                        .frame(width: reach, height: reach)
+                    Spacer(minLength: 0)
+                    RadialGradient(colors: [.black, .black.opacity(0)], center: .topTrailing, startRadius: 0, endRadius: reach)
+                        .frame(width: reach, height: reach)
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .frame(width: max(layout.pill.width, 1), height: max(layout.pill.height, 1), alignment: .top)
+            .clipShape(pillShape)
+            .placed(in: layout.pill)
+        }
+    }
+
+    /// The tint slider: an even dark layer over the glass.
+    private var tintShade: some View {
+        Color.black.opacity(glassTintOpacity)
+            .clipShape(pillShape)
+            .placed(in: layout.pill)
     }
 
     /// Black over the camera and through the body, then an eased fade to the bottom shade, with

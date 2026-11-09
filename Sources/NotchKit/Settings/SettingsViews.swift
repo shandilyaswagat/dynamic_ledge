@@ -374,7 +374,7 @@ struct AppearanceSettingsView: View {
                 Text("Theme")
             } footer: {
                 Text(settings.appearance.theme == .glass
-                    ? "Frosted glass that blurs what’s behind it, with softer, springier motion. The part around the camera stays black. More tint is easier to read over bright windows."
+                    ? "Glass that softens what’s behind it, with softer, springier motion. More tint is easier to read over bright windows."
                     : "The notch itself grows to show what’s happening. Pitch black removes the shadow and outline so the extension is indistinguishable from the notch. On a screen without a notch, it appears in the same spot at the top.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

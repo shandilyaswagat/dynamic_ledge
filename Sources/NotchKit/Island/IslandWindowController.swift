@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -68,6 +69,10 @@ public final class IslandWindowController {
         watchDragActivation()
         observeEnvironment()
         observeLayout()
+        panel.onStrayKey = { [weak self] event in
+            nonisolated(unsafe) let event = event
+            MainActor.assumeIsolated { self?.handleStrayKey(event) }
+        }
         observeKeyboard()
         panel.orderFrontRegardless()
         #if DEBUG
@@ -195,14 +200,74 @@ public final class IslandWindowController {
     /// when they close.
     /// The panel never activates the app, so the app you were in stays in front.
     private func observeKeyboard() {
+        applyKeyboardState()
+        withObservationTracking {
+            _ = isActive && model.presentation == .notes
+            _ = model.isSearchingClipboard
+            _ = model.presentation == .home && model.settings.appearance.nookLayout == .elongated
+            _ = model.settings.appearance.theme
+            _ = model.presentation
+            _ = model.isHoveringPill
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.observeKeyboard() }
+        }
+    }
+
+    private func applyKeyboardState() {
         let wantsKeyboard = isActive && (model.presentation == .notes
             || (model.presentation == .clipboard && model.isSearchingClipboard))
         // The elongated Home has Notes and To-dos inline: the panel may take the keyboard, but
         // only once you click into one of them, so the app you were in keeps it until then.
         let mayType = isActive && model.presentation == .home && model.settings.appearance.nookLayout == .elongated
+        // Liquid Glass only bends what is behind it, and goes clear instead of frosted, while its
+        // window is the key window. So the open panel takes key the moment it opens (still without
+        // activating the app) and keeps it until it closes. Waiting for the pointer to be seen on
+        // it left the glass dark and frosted until the mouse next moved. The first key pressed in
+        // the meantime hands key straight back to the app you are in.
+        let glassIsOpen: Bool
+        switch model.presentation {
+        case .expanded, .nook: glassIsOpen = isActive && model.settings.appearance.theme == .glass
+        default: glassIsOpen = false
+        }
+        // Key was handed back at a key press: it comes back when the pointer returns to the panel.
+        if glassKeyReleased, model.isHoveringPill, !glassWasHovered { glassKeyReleased = false }
+        glassWasHovered = model.isHoveringPill
+        let wantsGlass = glassIsOpen && !glassKeyReleased
+        if !wantsGlass {
+            glassKeyWanted = false
+            glassKeyRetry?.cancel()
+            glassKeyRetry = nil
+        }
+        if wantsGlass {
+            glassKeyHold?.cancel()
+            glassKeyHold = nil
+        }
+        // Closing: the shape is still shrinking, so key is kept a moment longer. Letting go at
+        // once would turn the glass frosted for the last of the animation.
+        if !wantsGlass, !wantsKeyboard, panel.keyIsForLooksOnly || glassKeyHold != nil, !glassKeyReleased {
+            if glassKeyHold == nil {
+                glassKeyHold = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(700))
+                    guard !Task.isCancelled, let self else { return }
+                    self.glassKeyHold = nil
+                    self.panel.keyIsForLooksOnly = false
+                    self.applyKeyboardState()
+                }
+            }
+            return
+        }
+        if !glassIsOpen { glassKeyReleased = false }
+        panel.keyIsForLooksOnly = wantsGlass && !wantsKeyboard && !mayType
         if wantsKeyboard {
             panel.acceptsKeyboard = true
             panel.makeKey()
+        } else if wantsGlass {
+            panel.acceptsKeyboard = true
+            glassKeyWanted = true
+            if !panel.isKeyWindow {
+                panel.makeKey()
+                if !panel.isKeyWindow { retryGlassKey() }
+            }
         } else if mayType {
             panel.acceptsKeyboard = true
         } else {
@@ -211,13 +276,62 @@ public final class IslandWindowController {
             }
             panel.acceptsKeyboard = false
         }
-        withObservationTracking {
-            _ = isActive && model.presentation == .notes
-            _ = model.isSearchingClipboard
-            _ = model.presentation == .home && model.settings.appearance.nookLayout == .elongated
-        } onChange: { [weak self] in
-            Task { @MainActor [weak self] in self?.observeKeyboard() }
+    }
+
+    /// Set once a key was pressed meanwhile: the panel keeps out of the way until it closes.
+    private var glassKeyReleased = false
+    private var glassWasHovered = false
+    /// The open Glass panel should be the key window (see `applyKeyboardState`).
+    private var glassKeyWanted = false
+    private var glassKeyRetry: Task<Void, Never>?
+
+    /// macOS can refuse to make the panel key right as it opens, depending on which app was just
+    /// used, and a click on the panel then fixes it. So ask again a few times, a moment apart.
+    private func retryGlassKey() {
+        guard glassKeyRetry == nil else { return }
+        glassKeyRetry = Task { @MainActor [weak self] in
+            for delay in [60, 120, 250, 500, 1000] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                guard !Task.isCancelled, let self, self.glassKeyWanted else { break }
+                if self.panel.isKeyWindow { break }
+                self.panel.makeKey()
+            }
+            self?.glassKeyRetry = nil
         }
+    }
+
+    /// The pointer moved over the open Glass panel while it isn't key: ask once more, instead of
+    /// waiting for a click.
+    private func healGlassKey() {
+        guard glassKeyWanted, !panel.isKeyWindow, panel.acceptsKeyboard else { return }
+        panel.makeKey()
+    }
+    /// Keeps key for a moment while the panel closes.
+    private var glassKeyHold: Task<Void, Never>?
+
+    /// A key was pressed while the panel is key only for its looks. It was meant for the app you
+    /// are in. Where macOS lets this app pass keys on (Accessibility), every key goes there and
+    /// the panel stays key, so the glass stays clear. Otherwise a modifier on its own (Command,
+    /// Shift) is ignored, and any other key hands key back to the app you are in.
+    private func handleStrayKey(_ event: NSEvent) {
+        if AXIsProcessTrusted() {
+            forward(event)
+            return
+        }
+        if event.type == .flagsChanged { return }
+        glassKeyReleased = true
+        glassKeyHold?.cancel()
+        glassKeyHold = nil
+        panel.keyIsForLooksOnly = false
+        if panel.isKeyWindow { panel.resignKey() }
+        panel.acceptsKeyboard = false
+    }
+
+    private func forward(_ event: NSEvent) {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              pid != ProcessInfo.processInfo.processIdentifier,
+              let key = event.cgEvent else { return }
+        key.postToPid(pid)
     }
 
     private func observeEnvironment() {
@@ -284,6 +398,7 @@ public final class IslandWindowController {
     }
 
     private func pointerChanged() {
+        healGlassKey()
         followPointerIfNeeded()
         // Another screen is in use: this window just mirrors it, unless the pointer arrives here.
         guard isActive || activateIfPointerHere() else {

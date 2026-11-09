@@ -2,8 +2,8 @@ import Foundation
 import Observation
 import os
 
-/// Reads coding assistants' usage from what they keep on this Mac. Nothing is sent anywhere, and
-/// no API keys are asked for or stored.
+/// Reads coding assistants' usage through what they run on this Mac. This app sends nothing
+/// itself (Codex checks with OpenAI using its own sign-in), and no API keys are asked for or stored.
 @MainActor
 @Observable
 public final class AIUsageService {
@@ -80,8 +80,10 @@ public final class AIUsageService {
         Task {
             let codexEnabled = defaults.object(forKey: "aiUsage.codexEnabled") as? Bool ?? true
             let antigravityEnabled = defaults.object(forKey: "aiUsage.antigravityEnabled") as? Bool ?? true
-            let codexUsage = codexEnabled ? await fetchCodexUsage() : AIProviderUsage.unconfigured(for: .codex, message: "Codex tracking is off.")
-            let antigravityUsage = antigravityEnabled ? await fetchAntigravityUsage() : AIProviderUsage.unconfigured(for: .antigravity, message: "Antigravity tracking is off.")
+            // Both at once: Codex can take a few seconds to answer.
+            async let codex = codexEnabled ? fetchCodexUsage() : AIProviderUsage.unconfigured(for: .codex, message: "Codex tracking is off.")
+            async let antigravity = antigravityEnabled ? fetchAntigravityUsage() : AIProviderUsage.unconfigured(for: .antigravity, message: "Antigravity tracking is off.")
+            let (codexUsage, antigravityUsage) = await (codex, antigravity)
 
             self.usages[.codex] = codexUsage
             self.usages[.antigravity] = antigravityUsage

@@ -4,15 +4,15 @@ import os
 /// Reads the local Google Antigravity session and token metrics from `~/.gemini`, without transmitting credentials.
 public enum AntigravityUsageReader {
     public static func read() async -> AIProviderUsage {
-        // Always read transcripts for model info, even when quota service is available.
-        let transcriptInfo = await Task.detached(priority: .utility) { scanTranscripts() }.value
         if var quota = await AntigravityQuotaReader.read() {
-            // Enrich quota result with model names discovered from transcripts.
-            if quota.model == nil, let model = transcriptInfo.modelName {
+            // The quota service doesn't name the model; the transcripts are read only for that.
+            guard quota.model == nil else { return quota }
+            let transcriptInfo = await Task.detached(priority: .utility) { scanTranscripts() }.value
+            if let model = transcriptInfo.modelName {
                 quota = AIProviderUsage(
                     provider: quota.provider,
                     status: quota.status,
-                    accountName: quota.accountName ?? transcriptInfo.accountEmail,
+                    accountName: quota.accountName,
                     plan: quota.plan,
                     model: model,
                     windows: quota.windows,
@@ -24,15 +24,12 @@ public enum AntigravityUsageReader {
             }
             return quota
         }
-        return await Task.detached(priority: .utility) {
-            readSync(transcriptInfo: transcriptInfo)
-        }.value
+        return await Task.detached(priority: .utility) { readSync() }.value
     }
 
     /// Intermediate result from scanning transcript files.
     private struct TranscriptInfo: Sendable {
         var observedModels: Set<String> = []
-        var accountEmail: String?
         var latestSessionInput: Int = 0
         var latestSessionOutput: Int = 0
         var latestSessionCache: Int = 0
@@ -187,7 +184,7 @@ public enum AntigravityUsageReader {
         }
     }
 
-    private static func readSync(transcriptInfo: TranscriptInfo? = nil) -> AIProviderUsage {
+    private static func readSync() -> AIProviderUsage {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let geminiDir = home.appendingPathComponent(".gemini")
         let antigravityDir = geminiDir.appendingPathComponent("antigravity")
@@ -203,7 +200,7 @@ public enum AntigravityUsageReader {
             )
         }
 
-        let info = transcriptInfo ?? scanTranscripts()
+        let info = scanTranscripts()
 
         let sessionTotal = info.latestSessionInput + info.latestSessionOutput
 
@@ -223,7 +220,6 @@ public enum AntigravityUsageReader {
         return AIProviderUsage(
             provider: .antigravity,
             status: .active,
-            accountName: info.accountEmail,
             plan: "Google Antigravity",
             model: info.modelName,
             windows: windows,

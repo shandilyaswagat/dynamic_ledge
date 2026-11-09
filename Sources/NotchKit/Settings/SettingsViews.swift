@@ -687,7 +687,7 @@ private struct AIUsageSettingsSection: View {
         } header: {
             Text("AI Agent Usage")
         } footer: {
-            Text("Off until you turn it on. Everything is read on this Mac and nothing is sent anywhere. No API keys are needed. Claude Code isn't listed: it keeps your limits only on Anthropic's servers, which would mean using your Claude sign-in.")
+            Text("Off until you turn it on. Codex checks your limits with OpenAI using its own sign-in; Antigravity's are read on this Mac. Dynamic Ledge sends nothing itself and needs no API keys. Claude Code isn't listed: it keeps your limits only on Anthropic's servers, which would mean using your Claude sign-in.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

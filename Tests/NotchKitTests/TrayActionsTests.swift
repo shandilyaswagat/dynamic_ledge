@@ -33,7 +33,7 @@ struct TrayActionsTests {
         let note = dir.appendingPathComponent("Report.txt")
         try Data("hello".utf8).write(to: note)
         let zip = try TrayActions.zip([note])
-        #expect(zip.lastPathComponent == "Report.zip")
+        #expect(zip.lastPathComponent == "Report.txt.zip")
         #expect(FileManager.default.fileExists(atPath: note.path), "the original stays")
     }
 

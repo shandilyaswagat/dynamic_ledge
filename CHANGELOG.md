@@ -25,8 +25,9 @@ last one.
   reset, in Home or its own panel. It's off until you turn it on in Settings ›
   General › Coding Assistants. While it's on, the lowest limit left shows beside the camera when
   nothing else is playing or running; click it for the details. Its launcher tile turns it off
-  and on again, like Stats, and off it stops checking. Everything is read on this Mac; nothing is sent anywhere and no API
-  keys are needed.
+  and on again, like Stats, and off it stops checking. Codex checks your limits with OpenAI using
+  its own sign-in; Antigravity's are read on this Mac. Dynamic Ledge sends nothing itself and
+  needs no API keys.
 - **Choose where sound plays.** A button in the open music view switches between your Mac's
   speakers, AirPods and other headphones, and displays with speakers.
 - **Convert images in the Tray.** Right-click an image and pick **Convert to** for a PNG, JPEG,

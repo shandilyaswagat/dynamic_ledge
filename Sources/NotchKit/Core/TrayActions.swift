@@ -15,14 +15,14 @@ public enum TrayActions {
         url.isFileURL && (url.pathExtension.lowercased() == "pdf" || FileConverter.isConvertible(url: url))
     }
 
-    /// Compresses the files into one archive, like Finder's Compress: one item keeps its name
-    /// ("Report.zip"), several go into "Archive.zip".
+    /// Compresses the files into one archive, like Finder's Compress: one item keeps its full name
+    /// ("Report.pdf.zip"), several go into "Archive.zip".
     public static func zip(_ urls: [URL], fileManager: FileManager = .default) throws -> URL {
         let files = urls.filter { $0.isFileURL && fileManager.fileExists(atPath: $0.path) }
         guard let first = files.first else { throw Failure.nothingToUse }
         let folder = outputFolder(for: first, fileManager: fileManager)
         if files.count == 1 {
-            let target = unique(in: folder, name: first.deletingPathExtension().lastPathComponent, extension: "zip", fileManager: fileManager)
+            let target = unique(in: folder, name: first.lastPathComponent, extension: "zip", fileManager: fileManager)
             try ditto([first.path, target.path])
             return target
         }

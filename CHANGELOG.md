@@ -7,6 +7,8 @@ last one.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-09
+
 ### Added
 - **Stats and AI usage in Home.** While they're on, they join Home's live section with calls and
   music. Two share the section, half each, and clicking one opens it.
@@ -432,6 +434,7 @@ install right from Settings, and each one is checked before it's installed.
 - Optional floating pill style.
 - Menu bar icon, Settings window, open at login.
 
+[1.5.0]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.5.0
 [1.4.3]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.3
 [1.4.2]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.2
 [1.4.1]: https://github.com/shandilyaswagat/dynamic_ledge/releases/tag/v1.4.1

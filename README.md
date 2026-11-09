@@ -178,11 +178,17 @@ music from** › **Only these apps**, and tick only your music app.
 **Why is the file called DynamicNotch.dmg?** The app was called Dynamic Notch until 1.4.0. The
 file kept the old name so older versions can still update.
 
-## What's new in 1.4.3
+## What's new in 1.5.0
 
-- Files dragged from the **Tray** into Finder keep their names, and drop into WhatsApp, Mail and
-  other apps
-- Right-click a Tray file and choose **Copy** to paste it anywhere
+- **AI Agent Usage** shows how much of your Codex and Antigravity limits are left
+- **"Done" alerts** when Claude Code, Codex or Cursor finishes, and approvals answered in Claude
+  Code leave the notch straight away
+- The **Tray** can zip files, merge PDFs and images into one PDF, and convert images
+- **Text from images**: copy a screenshot and paste its text
+- **Live music bars** that move with what's playing, and a button to choose where sound plays
+- A floating **Pill** for external displays, and smoother, Dynamic Island-style motion
+- Two live activities at once, both in Home, with a quick switch between them
+- **Settings** looks like System Settings, and updates can install automatically
 
 Everything else is in the [changelog](CHANGELOG.md).
 

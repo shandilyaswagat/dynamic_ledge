@@ -95,7 +95,7 @@ struct GlassSurface: View, Animatable {
     /// Clear it went milky grey. Fully tinted is enough to read white text over a bright window.
     /// The system's own `tint` only colours the glass and does not darken it, so this is a
     /// separate layer on top.
-    private var glassTintOpacity: Double { layout.glassBar ? 0.10 + 0.20 * tint : 0.42 + 0.16 * tint }
+    private var glassTintOpacity: Double { layout.glassBar ? 0.22 + 0.50 * tint : 0.42 + 0.16 * tint }
     /// How much of the regular glass (blurry) is laid over the clear glass (sharp): 0 is all clear,
     /// 1 is all regular.
     private static let glassSoftness: Double = 0.45

@@ -328,6 +328,30 @@ struct NewFeatureLayoutTests {
         #expect(!queue.pending.contains { $0.kind == .level })
     }
 
+    @Test func brightnessKeysAreRecognised() {
+        // As the system sends them: the key code in the high half of data1, 0xA for a press and
+        // 0xB for a release. Brightness up is code 2, down is 3.
+        #expect(LevelMonitor.isBrightnessKeyDown(subtype: 8, data1: (2 << 16) | (0xA << 8)))
+        #expect(LevelMonitor.isBrightnessKeyDown(subtype: 8, data1: (3 << 16) | (0xA << 8)))
+        #expect(LevelMonitor.isBrightnessKeyDown(subtype: 8, data1: (2 << 16) | (0xA << 8) | 1), "a held key repeats")
+        #expect(!LevelMonitor.isBrightnessKeyDown(subtype: 8, data1: (2 << 16) | (0xB << 8)), "a release")
+        #expect(!LevelMonitor.isBrightnessKeyDown(subtype: 8, data1: (0 << 16) | (0xA << 8)), "volume up is not brightness")
+        #expect(!LevelMonitor.isBrightnessKeyDown(subtype: 7, data1: (2 << 16) | (0xA << 8)), "other event types")
+    }
+
+    @Test func onlyAChangeRightAfterAKeyIsShown() {
+        let key = Date()
+        #expect(LevelMonitor.isKeyDriven(now: key.addingTimeInterval(0.003), lastKey: key), "the display answers in milliseconds")
+        #expect(LevelMonitor.isKeyDriven(now: key.addingTimeInterval(0.25), lastKey: key))
+        #expect(!LevelMonitor.isKeyDriven(now: key.addingTimeInterval(2), lastKey: key), "automatic brightness presses no key")
+        #expect(!LevelMonitor.isKeyDriven(now: key, lastKey: key.addingTimeInterval(1)), "a key that hasn't happened yet")
+        #expect(!LevelMonitor.isKeyDriven(now: key, lastKey: .distantPast))
+    }
+
+    @Test func theLevelIndicatorGoesAwayAsFastAsApples() {
+        #expect(IslandAlert.level(.brightness, value: 0.5, muted: false).displayDuration <= 1.0)
+    }
+
     @Test func brightnessHeuristic() {
         #expect(LevelMonitor.isUserBrightnessChange(from: 0.5, to: 0.5625))
         #expect(!LevelMonitor.isUserBrightnessChange(from: 0.5, to: 0.51))

@@ -3,7 +3,9 @@ import AudioToolbox
 import CoreAudio
 
 /// Reports volume and brightness changes so the notch can show them. Event-driven: Core Audio
-/// listeners for volume, a DisplayServices callback for the built-in display's brightness.
+/// listeners for volume, a DisplayServices callback for the built-in display's brightness, and
+/// the brightness keys themselves, so that only a change you made with the keys is shown (as with
+/// Apple's own indicator) and not one the display made on its own with automatic brightness.
 @MainActor
 public final class LevelMonitor {
     public var onChange: ((IslandAlert.LevelKind, Double, Bool) -> Void)?
@@ -15,9 +17,18 @@ public final class LevelMonitor {
     private var lastBrightness: Double?
     private var brightnessRegistered = false
     private var isRunning = false
+    private var keyMonitors: [Any] = []
+    /// When a brightness key was last pressed, and whether the display answered it yet.
+    private var lastBrightnessKey = Date.distantPast
+    private var keyAnswered = true
+    private var getBrightness: GetBrightness?
+    private var brightnessDisplay: CGDirectDisplayID?
 
     /// Brightness keys move about 6 %; automatic brightness drifts in much smaller steps.
     nonisolated static let brightnessStep = 0.03
+    /// A brightness change this soon after a brightness key was pressed was made with the key.
+    /// The display answers within a few milliseconds; this leaves room for a busy Mac.
+    nonisolated static let keyWindow: TimeInterval = 0.3
 
     public init() {}
 
@@ -29,6 +40,7 @@ public final class LevelMonitor {
         }
         attachToOutput()
         registerBrightness()
+        installKeyMonitors()
     }
 
     public func stop() {
@@ -37,6 +49,66 @@ public final class LevelMonitor {
         deviceListener = nil
         volumeListeners.forEach { $0.remove() }
         volumeListeners.removeAll()
+        keyMonitors.forEach(NSEvent.removeMonitor)
+        keyMonitors.removeAll()
+    }
+
+    // MARK: Brightness keys
+
+    /// The brightness keys are "system defined" events (subtype 8) carrying a key code in the
+    /// high half of data1 (2 up, 3 down) and, in bits 8 to 15, 0xA for a press and 0xB for a
+    /// release. Pure, so it can be tested.
+    nonisolated static func isBrightnessKeyDown(subtype: Int16, data1: Int) -> Bool {
+        guard subtype == 8 else { return false }
+        let code = (data1 & 0xFFFF0000) >> 16
+        let state = (data1 & 0xFF00) >> 8
+        return (code == 2 || code == 3) && state == 0xA
+    }
+
+    /// Whether a brightness change at `now` was made with the keys, given when one was last pressed.
+    nonisolated static func isKeyDriven(now: Date, lastKey: Date) -> Bool {
+        let elapsed = now.timeIntervalSince(lastKey)
+        return elapsed >= 0 && elapsed <= keyWindow
+    }
+
+    private func installKeyMonitors() {
+        guard keyMonitors.isEmpty else { return }
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard Self.isBrightnessKeyDown(subtype: event.subtype.rawValue, data1: event.data1) else { return }
+            MainActor.assumeIsolated { self?.brightnessKeyPressed() }
+        }
+        // Global when another app is in front; local when this app is (the notch's own windows).
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: .systemDefined, handler: handler) {
+            keyMonitors.append(global)
+        }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: .systemDefined, handler: { event in
+            handler(event)
+            return event
+        }) {
+            keyMonitors.append(local)
+        }
+    }
+
+    private func brightnessKeyPressed(at now: Date = Date()) {
+        guard isRunning else { return }
+        lastBrightnessKey = now
+        keyAnswered = false
+        // Normally the display answers within milliseconds and `brightnessChanged` shows it. At
+        // the ends (already darkest or brightest) it doesn't change at all; Apple's indicator
+        // still shows there, so show the level as it is.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))
+            guard let self, self.isRunning, !self.keyAnswered, let value = self.currentBrightness() else { return }
+            self.keyAnswered = true
+            self.lastBrightness = value
+            self.onChange?(.brightness, value, false)
+        }
+    }
+
+    private func currentBrightness() -> Double? {
+        guard let get = getBrightness, let display = brightnessDisplay else { return nil }
+        var value: Float = 0
+        return get(display, &value) == 0 ? Double(value) : nil
     }
 
     // MARK: Volume
@@ -93,6 +165,8 @@ public final class LevelMonitor {
               let display = Self.builtInDisplay
         else { return }
         let get = unsafeBitCast(getSymbol, to: GetBrightness.self)
+        getBrightness = get
+        brightnessDisplay = display
         var value: Float = 0
         if get(display, &value) == 0 {
             lastBrightness = Double(value)
@@ -107,28 +181,28 @@ public final class LevelMonitor {
     /// The monitor that receives brightness callbacks; there is one per app.
     fileprivate static weak var current: LevelMonitor?
 
-    /// Brightness at the start of the current burst of callbacks. A key press may arrive as a
-    /// short animated burst, so the change is measured across the burst, not per callback.
-    private var burstAnchor: Double?
-    private var lastCallback = Date.distantPast
-
     func brightnessChanged(to value: Double, at now: Date = Date()) {
         guard isRunning else { return }
-        if now.timeIntervalSince(lastCallback) > 0.5 {
-            burstAnchor = lastBrightness
-        }
-        lastCallback = now
+        let previous = lastBrightness
         lastBrightness = value
-        guard let anchor = burstAnchor, LevelMonitor.isUserBrightnessChange(from: anchor, to: value) else { return }
+        guard !keyMonitors.isEmpty else {
+            // No key events to go by: judge by the size of the step.
+            if let previous, LevelMonitor.isUserBrightnessChange(from: previous, to: value) {
+                onChange?(.brightness, value, false)
+            }
+            return
+        }
+        // Automatic brightness never presses a key, so it is never shown.
+        guard LevelMonitor.isKeyDriven(now: now, lastKey: lastBrightnessKey) else { return }
+        keyAnswered = true
         onChange?(.brightness, value, false)
     }
 
-    /// Key presses jump; automatic brightness creeps.
+    /// Key presses jump; automatic brightness creeps. Only used when the keys can't be seen.
     nonisolated static func isUserBrightnessChange(from old: Double, to new: Double) -> Bool {
         abs(new - old) >= brightnessStep || (new <= 0.001 && old > 0.001) || (new >= 0.999 && old < 0.999)
     }
 }
-
 
 /// DisplayServices calls this when the built-in display's brightness changes. A plain global
 /// function, so nothing about the caller's actor or thread is assumed.

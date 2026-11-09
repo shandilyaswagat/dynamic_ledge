@@ -7,6 +7,11 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- In Settings › Appearance › Look, with the Glass theme, the volume and brightness bar can be glass
+  too. Pick **Glass** under Volume & brightness bar; **Black** keeps it as it was. It stays black
+  unless you change it, and only that bar changes.
+
 ### Changed
 - On macOS 26 and later the Glass theme is real Liquid Glass: see-through and picking up the
   colours behind it, all the way up to the top edge, with soft dark fades in the two top corners

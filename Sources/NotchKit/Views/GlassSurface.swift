@@ -71,6 +71,8 @@ struct GlassSurface: View, Animatable {
     /// 0 while the shape is about notch-sized (closed, an activity, a short alert), rising to 1 as
     /// it opens, so the glass grows in with the opening instead of switching on.
     private var glassAmount: Double {
+        // The volume and brightness bar is notch-sized, but when chosen it is glass anyway.
+        if layout.glassBar { return 1 }
         let closed = max(layout.notchBand, 32) + 14
         return min(max((layout.pill.height - closed) / 44, 0), 1)
     }

@@ -367,6 +367,13 @@ struct AppearanceSettingsView: View {
                             Text("Tinted").font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    if #available(macOS 26.0, *) {
+                        Picker("Volume & brightness bar", selection: $settings.appearance.glassLevelBar) {
+                            Text("Black").tag(false)
+                            Text("Glass").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                    }
                 } else {
                     Toggle("Pitch black", isOn: $settings.appearance.pitchBlack)
                 }

@@ -30,6 +30,8 @@ public struct IslandLayout: Equatable, Sendable {
     /// springs open or closed, or lifts under the pointer, content stretches from this size to
     /// the shape's current one, so it bounces with it. Not animated.
     public var restingPill: CGRect
+    /// The volume or brightness bar, shown as glass (Glass theme, when chosen). Not animated.
+    public var glassBar: Bool = false
 
     public init(
         canvasSize: CGSize,
@@ -379,6 +381,9 @@ public struct LayoutEngine: Equatable, Sendable {
         var layout = notchLayout(for: presentation, home: home)
         layout.contentScale = scale
         layout.notchBand = isVirtualNotch ? 0 : notch.maxY
+        if case .alert(.level) = presentation, appearance.theme == .glass, appearance.glassLevelBar {
+            layout.glassBar = true
+        }
 
         if appearance.pitchBlack || appearance.theme == .glass {
             // Glass draws its own edge.

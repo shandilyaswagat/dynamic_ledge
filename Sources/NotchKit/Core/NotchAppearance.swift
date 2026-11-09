@@ -74,6 +74,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
     /// Glass only: 0 is clear, 1 fully tinted (darkest, easiest to read over busy windows).
     public var glassTint: Double
     public var externalStyle: ExternalDisplayStyle
+    /// Glass only: show the volume and brightness bar as glass too. Off keeps it black, as before.
+    public var glassLevelBar: Bool
 
     public init(
         width: Double,
@@ -83,7 +85,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
         nookLayout: NookLayout = .standard,
         theme: NotchTheme = .black,
         glassTint: Double = NotchAppearance.defaultGlassTint,
-        externalStyle: ExternalDisplayStyle = .notch
+        externalStyle: ExternalDisplayStyle = .notch,
+        glassLevelBar: Bool = false
     ) {
         self.width = width
         self.height = height
@@ -93,6 +96,7 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
         self.theme = theme
         self.glassTint = glassTint
         self.externalStyle = externalStyle
+        self.glassLevelBar = glassLevelBar
     }
 
     public static let standard = NotchAppearance(
@@ -117,7 +121,8 @@ public struct NotchAppearance: Equatable, Sendable, Codable {
             nookLayout: nookLayout,
             theme: theme,
             glassTint: Self.clamp(glassTint, to: Self.glassTintRange, fallback: Self.defaultGlassTint),
-            externalStyle: externalStyle
+            externalStyle: externalStyle,
+            glassLevelBar: glassLevelBar
         )
     }
 

@@ -202,6 +202,19 @@ struct TrayTests {
         #expect(!target.contains(CGPoint(x: 400, y: 200)))
     }
 
+    @Test func aMovedWindowOpensTheTrayOnlyAtTheNotch() {
+        let activation = CGRect(x: 60, y: 0, width: 280, height: 160)
+        let notch = CGRect(x: 100, y: 0, width: 200, height: 32)
+        // Closed: near the notch isn't enough, the pointer has to touch it.
+        #expect(!DocumentDragPolicy.isOverTarget(CGPoint(x: 80, y: 20), isOpen: false, activation: activation, pill: notch))
+        #expect(!DocumentDragPolicy.isOverTarget(CGPoint(x: 200, y: 60), isOpen: false, activation: activation, pill: notch))
+        #expect(DocumentDragPolicy.isOverTarget(CGPoint(x: 200, y: 34), isOpen: false, activation: activation, pill: notch))
+        #expect(DocumentDragPolicy.isOverTarget(CGPoint(x: 150, y: 10), isOpen: false, activation: activation, pill: notch))
+        // Open: the whole drop view keeps it open.
+        #expect(DocumentDragPolicy.isOverTarget(CGPoint(x: 80, y: 120), isOpen: true, activation: activation, pill: notch))
+        #expect(!DocumentDragPolicy.isOverTarget(CGPoint(x: 400, y: 120), isOpen: true, activation: activation, pill: notch))
+    }
+
     @Test func windowMovementAndDestinationPolicy() {
         #expect(!DocumentDragPolicy.hasMoved(from: .zero, to: CGPoint(x: 2, y: 0)))
         #expect(DocumentDragPolicy.hasMoved(from: .zero, to: CGPoint(x: 10, y: 0)))

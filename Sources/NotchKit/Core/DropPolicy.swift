@@ -5,6 +5,16 @@ enum DocumentDragPolicy {
         activation.union(pill)
     }
 
+    /// How far outside the notch the pointer may be and still count as touching it.
+    static let touchMargin: CGFloat = 4
+
+    /// A moved window opens the Tray only once the pointer touches the notch, so windows dragged
+    /// near the top of the screen don't set it off. Once open, the whole drop view keeps it open.
+    static func isOverTarget(_ point: CGPoint, isOpen: Bool, activation: CGRect, pill: CGRect) -> Bool {
+        isOpen ? dropRegion(activation: activation, pill: pill).contains(point)
+            : pill.insetBy(dx: -touchMargin, dy: -touchMargin).contains(point)
+    }
+
     static func hasMoved(from origin: CGPoint, to current: CGPoint) -> Bool {
         hypot(current.x - origin.x, current.y - origin.y) > 3
     }

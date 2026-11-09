@@ -431,8 +431,10 @@ public final class IslandWindowController {
                 } == true
                 let moved = self.documentWindowDrag.hasMoved || (missingAccess && pointerMoved)
                 self.model.isDocumentWindowDrag = moved
-                self.model.fileDragChanged(isDragging: moved, at: self.windowPoint())
-                let destination: IslandModel.DropZone? = moved && self.documentDropRegion.contains(self.windowPoint()) ? .tray : nil
+                let point = self.windowPoint()
+                let overTarget = moved && self.isOverDocumentTarget(point)
+                self.model.fileDragChanged(isDragging: moved, at: overTarget ? point : nil)
+                let destination: IslandModel.DropZone? = overTarget ? .tray : nil
                 self.model.setTargeted(destination, destination != nil)
                 self.pointerChanged()
             }
@@ -444,13 +446,15 @@ public final class IslandWindowController {
         !panel.ignoresMouseEvents && panel.frame.contains(NSEvent.mouseLocation)
     }
 
-    private var documentDropRegion: CGRect {
-        DocumentDragPolicy.dropRegion(activation: model.engine.dropZone, pill: model.layout.pill)
+    /// Touching the notch opens the Tray for a moved window; once it's open, anywhere on it counts.
+    private func isOverDocumentTarget(_ point: CGPoint) -> Bool {
+        DocumentDragPolicy.isOverTarget(point, isOpen: model.isFileDragNear,
+                                        activation: model.engine.dropZone, pill: model.layout.pill)
     }
 
     private func finishDocumentDrag() {
         guard documentDragTask != nil else { return }
-        let overTarget = documentDropRegion.contains(windowPoint())
+        let overTarget = isOverDocumentTarget(windowPoint())
         let missingAccess = !DocumentWindowDrag.hasAccess && overTarget
             && documentGestureStart.map { DocumentDragPolicy.hasMoved(from: $0, to: NSEvent.mouseLocation) } == true
         let shouldStore = documentWindowDrag.hasMoved && overTarget

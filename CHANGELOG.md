@@ -7,6 +7,10 @@ last one.
 
 ## [Unreleased]
 
+### Fixed
+- Dragging a window near the top of the screen no longer opens the Tray. It opens only once the
+  pointer touches the notch, then stays open while you're over it.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added

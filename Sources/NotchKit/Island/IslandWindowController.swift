@@ -227,6 +227,8 @@ public final class IslandWindowController {
         let glassIsOpen: Bool
         switch model.presentation {
         case .expanded, .nook: glassIsOpen = isActive && model.settings.appearance.theme == .glass
+        // The volume and brightness bar, when it is glass, is real glass only while key too.
+        case .alert(.level): glassIsOpen = isActive && model.settings.appearance.theme == .glass && model.settings.appearance.glassLevelBar
         default: glassIsOpen = false
         }
         // Key was handed back at a key press: it comes back when the pointer returns to the panel.

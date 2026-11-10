@@ -425,20 +425,7 @@ public final class IslandModel {
 
     /// Tiles in the launcher grid: everything that's switched on.
     public var launcherItems: [LauncherItem] {
-        LauncherItem.allCases.filter { item in
-            switch item {
-            case .nowPlaying: settings.nowPlayingEnabled
-            case .timer, .stopwatch: settings.timerEnabled
-            case .calendar: settings.calendarEnabled
-            case .reminders: settings.remindersEnabled
-            case .clipboard: settings.clipboardEnabled
-            case .files: settings.trayEnabled
-            case .scratchpad: settings.notesEnabled
-            case .mirror: settings.mirrorEnabled
-            case .keepAwake, .stats: true
-            case .aiUsage: settings.aiUsageEnabled
-            }
-        }
+        LauncherItem.allCases.filter(settings.isFeatureEnabled)
     }
 
     /// Whether a tile's thing is on right now (music playing, a timer running, kept awake).

@@ -179,6 +179,22 @@ public final class SettingsStore {
             }
         }
     }
+    /// Which Home items are shown and in what order, once the user has changed it. Until then
+    /// Home builds itself the way it always has (`homeCustomized` is false).
+    public private(set) var homeLayout: HomeLayoutSelection {
+        didSet {
+            if let data = homeLayout.data { defaults.set(data, forKey: Key.homeLayout) }
+            homeCustomized = true
+        }
+    }
+    /// The user has chosen what Home shows. Tiles count too.
+    public private(set) var homeCustomized: Bool
+    /// The user's own Home tiles, in order.
+    public private(set) var homeTiles: [HomeTile] {
+        didSet {
+            if let data = HomeTile.encode(homeTiles) { defaults.set(data, forKey: Key.homeTiles) }
+        }
+    }
     /// Show volume and brightness changes in the notch.
     public var levelsEnabled: Bool { didSet { defaults.set(levelsEnabled, forKey: Key.levels) } }
 
@@ -298,6 +314,14 @@ public final class SettingsStore {
             featureShortcuts = Self.defaultFeatureShortcuts
         }
         levelsEnabled = defaults.object(forKey: Key.levels) as? Bool ?? true
+        if let data = defaults.data(forKey: Key.homeLayout), let saved = HomeLayoutSelection(data: data) {
+            homeLayout = saved
+            homeCustomized = true
+        } else {
+            homeLayout = .standard
+            homeCustomized = false
+        }
+        homeTiles = defaults.data(forKey: Key.homeTiles).flatMap(HomeTile.decode) ?? []
         let linger = defaults.object(forKey: Key.linger) as? Double ?? 30
         pausedMediaLinger = Self.lingerChoices.contains(linger) ? linger : 30
     }
@@ -312,6 +336,65 @@ public final class SettingsStore {
         guard favoriteShortcuts.count < Self.maximumFavoriteShortcuts else { return false }
         favoriteShortcuts.append(name)
         return true
+    }
+
+    /// Whether the launcher's feature is switched on (Keep Awake and Stats always are).
+    public func isFeatureEnabled(_ item: LauncherItem) -> Bool {
+        switch item {
+        case .nowPlaying: nowPlayingEnabled
+        case .timer, .stopwatch: timerEnabled
+        case .calendar: calendarEnabled
+        case .reminders: remindersEnabled
+        case .clipboard: clipboardEnabled
+        case .files: trayEnabled
+        case .scratchpad: notesEnabled
+        case .mirror: mirrorEnabled
+        case .keepAwake, .stats: true
+        case .aiUsage: aiUsageEnabled
+        }
+    }
+
+    // MARK: Home contents
+
+    /// What Home shows now: the user's choice, or the arrangement it has before they make one.
+    public var effectiveHomeLayout: HomeLayoutSelection {
+        homeCustomized ? homeLayout : .builtIn(elongated: appearance.nookLayout == .elongated)
+    }
+
+    /// Changes what Home shows, starting from what it shows now.
+    public func updateHomeLayout(_ change: (inout HomeLayoutSelection) -> Void) {
+        var layout = effectiveHomeLayout
+        change(&layout)
+        homeLayout = layout
+    }
+
+    /// Back to Home as it was before it was changed, tiles included.
+    public func resetHome() {
+        homeLayout = .standard
+        homeTiles = []
+        defaults.removeObject(forKey: Key.homeLayout)
+        defaults.removeObject(forKey: Key.homeTiles)
+        homeCustomized = false
+    }
+
+    /// Adds a tile, or replaces the one with the same id. Returns false when the tile is not
+    /// complete, or the list is full.
+    @discardableResult
+    public func saveHomeTile(_ tile: HomeTile) -> Bool {
+        guard tile.isComplete else { return false }
+        if let index = homeTiles.firstIndex(where: { $0.id == tile.id }) {
+            homeTiles[index] = tile
+        } else {
+            guard homeTiles.count < HomeTile.maximum else { return false }
+            homeTiles.append(tile)
+        }
+        // Tiles only show once Home is the user's own, so make it that, from what they see now.
+        if !homeCustomized { updateHomeLayout { _ in } }
+        return true
+    }
+
+    public func removeHomeTile(_ id: UUID) {
+        homeTiles.removeAll { $0.id == id }
     }
 
     /// Adds a shortcut beside Home, after the others. Home itself is always there.
@@ -425,6 +508,8 @@ public final class SettingsStore {
         static let shortcuts = "home.shortcuts"
         static let favoriteShortcuts = "home.favoriteShortcuts"
         static let featureShortcuts = "home.featureShortcuts"
+        static let homeLayout = "home.layout"
+        static let homeTiles = "home.tiles"
         static let levels = "alert.levels"
     }
 }

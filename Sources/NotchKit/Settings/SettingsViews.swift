@@ -858,9 +858,13 @@ struct HomeSettingsView: View {
     @Bindable var settings: SettingsStore
     let calendar: CalendarService
     let shortcuts: ShortcutsService
+    @State private var editingTile: HomeTile?
 
     var body: some View {
         Form {
+            HomeContentsSection(settings: settings)
+            HomeTilesSettingsSection(settings: settings, editingTile: $editingTile)
+
             Section {
                 IconToggle(title: "File Tray", detail: "Files you drop on the notch, or saved document windows. Up to 30; clears when the app quits, except pinned ones", symbol: "tray.full.fill", color: .cyan, isOn: $settings.trayEnabled)
                 if settings.trayEnabled {
@@ -938,6 +942,9 @@ struct HomeSettingsView: View {
         }
         .formStyle(.grouped)
         .onAppear { shortcuts.reload() }
+        .sheet(item: $editingTile) { tile in
+            HomeTileEditor(settings: settings, shortcuts: shortcuts, tile: tile) { editingTile = nil }
+        }
     }
 }
 
@@ -980,6 +987,350 @@ struct ShortcutsSettingsView: View {
         }
         .formStyle(.grouped)
         .onAppear { shortcuts.reload() }
+    }
+}
+
+// MARK: Home contents (shown in Appearance, beside the Home layout)
+
+private extension HomeItem {
+    var title: LocalizedStringKey {
+        switch self {
+        case .live: "Music and calls"
+        case .calendar: "Calendar"
+        case .timer: "Timer"
+        case .shortcuts: "Shortcuts"
+        case .aiUsage: "AI usage"
+        case .tiles: "Your tiles"
+        case .mirror: "Mirror"
+        case .notes: "Notes"
+        case .todos: "To-dos"
+        case .stats: "Stats"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .live: "music.note"
+        case .calendar: "calendar"
+        case .timer: "timer"
+        case .shortcuts: "bolt.fill"
+        case .aiUsage: "sparkles"
+        case .tiles: "square.grid.2x2.fill"
+        case .mirror: "person.crop.square.fill"
+        case .notes: "note.text"
+        case .todos: "checklist"
+        case .stats: "gauge.with.dots.needle.33percent"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .live: .pink
+        case .calendar: .red
+        case .timer: .orange
+        case .shortcuts: .blue
+        case .aiUsage: .teal
+        case .tiles: .indigo
+        case .mirror: .purple
+        case .notes: .yellow
+        case .todos: .blue
+        case .stats: .green
+        }
+    }
+}
+
+/// What Home shows, and in what order: switch each item on or off and move it up or down.
+private struct HomeContentsSection: View {
+    @Bindable var settings: SettingsStore
+
+    var body: some View {
+        let entries = settings.effectiveHomeLayout.entries
+        Section {
+            ForEach(Array(entries.enumerated()), id: \.element.item) { index, entry in
+                HStack(spacing: 10) {
+                    SettingsIcon(symbol: entry.item.symbol, color: entry.item.color)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(entry.item.title)
+                        if !entry.item.inStandardLayout {
+                            Text("Elongated layout only")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        settings.updateHomeLayout { _ = $0.move(entry.item, by: -1) }
+                    } label: {
+                        Image(systemName: "chevron.up")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(index == 0)
+                    .help("Move up")
+                    .accessibilityLabel(Text("Move up"))
+                    Button {
+                        settings.updateHomeLayout { _ = $0.move(entry.item, by: 1) }
+                    } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(index == entries.count - 1)
+                    .help("Move down")
+                    .accessibilityLabel(Text("Move down"))
+                    Toggle("", isOn: Binding(
+                        get: { entry.isVisible },
+                        set: { visible in settings.updateHomeLayout { $0.setVisible(entry.item, visible) } }
+                    ))
+                    .labelsHidden()
+                    .accessibilityLabel(entry.item.title)
+                }
+            }
+            .onMove { source, destination in
+                settings.updateHomeLayout { $0.move(fromOffsets: source, toOffset: destination) }
+            }
+            if settings.homeCustomized {
+                Button("Reset Home to the default") { settings.resetHome() }
+            }
+        } header: {
+            Text("On Home")
+        } footer: {
+            Text("Choose what Home shows and drag or use the arrows to put it in your order. An item also needs its own feature switched on below. The standard layout fits three sections side by side; the elongated layout shows them all in a row you scroll.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The tiles you made: add, change and remove.
+private struct HomeTilesSettingsSection: View {
+    @Bindable var settings: SettingsStore
+    @Binding var editingTile: HomeTile?
+
+    var body: some View {
+        Section {
+            ForEach(settings.homeTiles) { tile in
+                HStack(spacing: 10) {
+                    if tile.kind == .app, AppIconCache.icon(forApp: tile.target) != nil {
+                        HomeTileGlyph(tile: tile, size: 20)
+                    } else {
+                        SettingsIcon(symbol: tile.symbol, color: .indigo)
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(tile.title)
+                        Text(tile.summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer()
+                    Button {
+                        editingTile = tile
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Edit")
+                    .accessibilityLabel(Text("Edit \(tile.title)"))
+                    Button {
+                        settings.removeHomeTile(tile.id)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove")
+                    .accessibilityLabel(Text("Remove \(tile.title)"))
+                }
+            }
+            Button("Add a tile…") {
+                editingTile = HomeTile(title: "", symbol: HomeTile.symbols[0], kind: .feature, target: "")
+            }
+            .disabled(settings.homeTiles.count >= HomeTile.maximum)
+        } header: {
+            Text("Your tiles")
+        } footer: {
+            Text("A tile is a button on Home that opens an app, a website or a folder, or runs a Shortcut. Up to \(HomeTile.maximum).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private extension HomeTile.Kind {
+    var title: LocalizedStringKey {
+        switch self {
+        case .feature: "Feature"
+        case .app: "App"
+        case .website: "Website"
+        case .folder: "Folder"
+        case .shortcut: "Shortcut"
+        }
+    }
+}
+
+/// Make or change one tile.
+private struct HomeTileEditor: View {
+    @Bindable var settings: SettingsStore
+    let shortcuts: ShortcutsService
+    @State var tile: HomeTile
+    let close: () -> Void
+
+    init(settings: SettingsStore, shortcuts: ShortcutsService, tile: HomeTile, close: @escaping () -> Void) {
+        self.settings = settings
+        self.shortcuts = shortcuts
+        _tile = State(initialValue: tile)
+        self.close = close
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(settings.homeTiles.contains { $0.id == tile.id } ? "Change tile" : "New tile")
+                .font(.headline)
+            Form {
+                TextField("Name", text: $tile.title)
+                Picker("Opens", selection: $tile.kind) {
+                    ForEach(HomeTile.Kind.allCases) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+                targetField
+                if tile.kind != .app {
+                    LabeledContent("Icon") {
+                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(30), spacing: 6), count: 8), alignment: .leading, spacing: 6) {
+                        ForEach(HomeTile.symbols, id: \.self) { symbol in
+                            Button {
+                                tile.symbol = symbol
+                            } label: {
+                                Image(systemName: symbol)
+                                    .frame(width: 28, height: 28)
+                                    .background(RoundedRectangle(cornerRadius: 6).fill(tile.symbol == symbol ? Color.accentColor.opacity(0.3) : Color.clear))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Text(symbol))
+                        }
+                    }
+                    }
+                }
+            }
+            .formStyle(.columns)
+            HStack {
+                Spacer()
+                Button("Cancel", action: close)
+                    .keyboardShortcut(.cancelAction)
+                Button("Save") {
+                    if settings.saveHomeTile(cleaned) { close() }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!cleaned.isComplete)
+            }
+        }
+        .padding(20)
+        .frame(width: 520)
+        .onAppear { shortcuts.reload() }
+    }
+
+    /// With the name left blank, a tile takes the name of what it opens.
+    private var cleaned: HomeTile {
+        var result = tile
+        result.title = result.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        result.target = result.target.trimmingCharacters(in: .whitespacesAndNewlines)
+        if result.title.isEmpty, !result.target.isEmpty {
+            switch result.kind {
+            case .feature: result.title = result.featureItem?.title ?? result.target
+            case .app, .folder: result.title = URL(fileURLWithPath: result.target).deletingPathExtension().lastPathComponent
+            case .website: result.title = result.webURL?.host ?? result.target
+            case .shortcut: result.title = result.target
+            }
+        }
+        return result
+    }
+
+    @ViewBuilder
+    private var targetField: some View {
+        switch tile.kind {
+        case .feature:
+            Picker("Feature", selection: Binding(
+                get: { tile.target },
+                set: { raw in
+                    // A blank name, or the last feature's, follows the pick.
+                    let previous = LauncherItem(rawValue: tile.target)
+                    tile.target = raw
+                    guard let item = LauncherItem(rawValue: raw) else { return }
+                    if tile.title.isEmpty || tile.title == previous?.title { tile.title = item.title }
+                    if tile.symbol == previous?.symbolName || tile.symbol == HomeTile.symbols[0] { tile.symbol = item.symbolName }
+                }
+            )) {
+                Text("None chosen").tag("")
+                ForEach(LauncherItem.allCases.filter(settings.isFeatureEnabled)) { item in
+                    Label(item.title, systemImage: item.symbolName).tag(item.rawValue)
+                }
+            }
+        case .app:
+            LabeledContent("App") {
+                HStack {
+                    if AppIconCache.icon(forApp: tile.target) != nil {
+                        HomeTileGlyph(tile: tile, size: 20)
+                    }
+                    Text(tile.target.isEmpty ? "None chosen" : URL(fileURLWithPath: tile.target).deletingPathExtension().lastPathComponent)
+                        .foregroundStyle(tile.target.isEmpty ? .secondary : .primary)
+                    Spacer()
+                    Button("Choose…") { choose(apps: true) }
+                }
+            }
+        case .folder:
+            LabeledContent("Folder") {
+                HStack {
+                    Text(tile.target.isEmpty ? "None chosen" : tile.target)
+                        .foregroundStyle(tile.target.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Choose…") { choose(apps: false) }
+                }
+            }
+        case .website:
+            HStack {
+                TextField("Address", text: $tile.target, prompt: Text("example.com"))
+                Button("Paste") { pasteAddress() }
+                    .help("Paste the link you copied")
+            }
+        case .shortcut:
+            if shortcuts.available.isEmpty {
+                TextField("Shortcut name", text: $tile.target)
+            } else {
+                Picker("Shortcut", selection: $tile.target) {
+                    Text("None chosen").tag("")
+                    ForEach(shortcuts.available, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Takes the link from the clipboard, and, if the tile has no name yet, the site's name.
+    private func pasteAddress() {
+        guard let text = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else { return }
+        tile.target = text
+        if tile.title.isEmpty, let host = tile.webURL?.host {
+            tile.title = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        }
+    }
+
+    private func choose(apps: Bool) {
+        let panel = NSOpenPanel()
+        if apps {
+            panel.allowedContentTypes = [.application]
+            panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        } else {
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+        }
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        tile.target = url.path
     }
 }
 

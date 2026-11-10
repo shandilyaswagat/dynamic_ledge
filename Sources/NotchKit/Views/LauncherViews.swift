@@ -93,7 +93,7 @@ private struct PageDots: View {
 }
 
 /// One feature: its icon, its name, and its shortcut in small grey type underneath.
-private struct LauncherTile: View {
+struct LauncherTile: View {
     let model: IslandModel
     let item: LauncherItem
     var isEditing: Bool = false

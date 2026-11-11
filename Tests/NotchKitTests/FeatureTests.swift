@@ -348,6 +348,14 @@ struct NewFeatureLayoutTests {
         #expect(!LevelMonitor.isKeyDriven(now: key, lastKey: .distantPast))
     }
 
+    @Test func theLevelIsShownWithoutAChangeOnlyAtTheEnds() {
+        #expect(LevelMonitor.isAtEnd(0))
+        #expect(LevelMonitor.isAtEnd(1))
+        #expect(LevelMonitor.isAtEnd(0.9995))
+        #expect(!LevelMonitor.isAtEnd(0.5), "a key aimed at another display leaves this one alone")
+        #expect(!LevelMonitor.isAtEnd(0.01))
+    }
+
     @Test func theLevelIndicatorGoesAwayAsFastAsApples() {
         #expect(IslandAlert.level(.brightness, value: 0.5, muted: false).displayDuration <= 1.0)
     }

@@ -18,6 +18,9 @@ public final class LevelMonitor {
     private var brightnessRegistered = false
     private var isRunning = false
     private var keyMonitors: [Any] = []
+    /// Whether brightness keys are seen while another app is in front. Without it a key press in
+    /// another app would never be noticed, so the older size check is used instead.
+    private var seesKeysInOtherApps = false
     /// When a brightness key was last pressed, and whether the display answered it yet.
     private var lastBrightnessKey = Date.distantPast
     private var keyAnswered = true
@@ -51,6 +54,7 @@ public final class LevelMonitor {
         volumeListeners.removeAll()
         keyMonitors.forEach(NSEvent.removeMonitor)
         keyMonitors.removeAll()
+        seesKeysInOtherApps = false
     }
 
     // MARK: Brightness keys
@@ -65,6 +69,12 @@ public final class LevelMonitor {
         return (code == 2 || code == 3) && state == 0xA
     }
 
+    /// Whether the display is at its darkest or brightest, where a key press changes nothing. Only
+    /// there is the level shown without a change: the keys may be adjusting another display.
+    nonisolated static func isAtEnd(_ value: Double) -> Bool {
+        value <= 0.001 || value >= 0.999
+    }
+
     /// Whether a brightness change at `now` was made with the keys, given when one was last pressed.
     nonisolated static func isKeyDriven(now: Date, lastKey: Date) -> Bool {
         let elapsed = now.timeIntervalSince(lastKey)
@@ -75,11 +85,18 @@ public final class LevelMonitor {
         guard keyMonitors.isEmpty else { return }
         let handler: (NSEvent) -> Void = { [weak self] event in
             guard Self.isBrightnessKeyDown(subtype: event.subtype.rawValue, data1: event.data1) else { return }
-            MainActor.assumeIsolated { self?.brightnessKeyPressed() }
+            // Event monitors run on the main thread. Hop explicitly anyway, so a delivery on any
+            // other thread could never trap.
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.brightnessKeyPressed() }
+            } else {
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.brightnessKeyPressed() } }
+            }
         }
         // Global when another app is in front; local when this app is (the notch's own windows).
         if let global = NSEvent.addGlobalMonitorForEvents(matching: .systemDefined, handler: handler) {
             keyMonitors.append(global)
+            seesKeysInOtherApps = true
         }
         if let local = NSEvent.addLocalMonitorForEvents(matching: .systemDefined, handler: { event in
             handler(event)
@@ -98,7 +115,8 @@ public final class LevelMonitor {
         // still shows there, so show the level as it is.
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(120))
-            guard let self, self.isRunning, !self.keyAnswered, let value = self.currentBrightness() else { return }
+            guard let self, self.isRunning, !self.keyAnswered, let value = self.currentBrightness(),
+                  Self.isAtEnd(value) else { return }
             self.keyAnswered = true
             self.lastBrightness = value
             self.onChange?(.brightness, value, false)
@@ -185,7 +203,7 @@ public final class LevelMonitor {
         guard isRunning else { return }
         let previous = lastBrightness
         lastBrightness = value
-        guard !keyMonitors.isEmpty else {
+        guard seesKeysInOtherApps else {
             // No key events to go by: judge by the size of the step.
             if let previous, LevelMonitor.isUserBrightnessChange(from: previous, to: value) {
                 onChange?(.brightness, value, false)

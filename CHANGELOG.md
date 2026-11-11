@@ -7,6 +7,12 @@ last one.
 
 ## [Unreleased]
 
+### Fixed
+- The brightness indicator in the notch now shows only when you change brightness with the keys,
+  as Apple's own does, and no longer when automatic brightness adjusts it. It also went away too
+  late; it now stays for one second instead of 1.6. Before, a key pressed right after the opposite
+  one could be missed.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added

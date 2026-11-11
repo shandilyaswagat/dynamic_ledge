@@ -110,7 +110,7 @@ public enum IslandAlert: Equatable, Sendable {
         case .headphones: 3
         case .timerFinished: 600
         case .welcome: 4
-        case .level: 1.6
+        case .level: 1.0
         case .upcomingEvent: 8
         case .shortcut: 2.5
         case .download: 5

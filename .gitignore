@@ -8,3 +8,6 @@ DerivedData/
 
 # Editor settings
 .idea/
+
+# Local working notes
+AGENTS.md

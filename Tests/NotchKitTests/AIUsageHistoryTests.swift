@@ -6,22 +6,51 @@ import Testing
 struct AIUsageHistoryTests {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    @Test func cumulativeReportsAreCountedOnceAndSplitByDay() throws {
+    private func event(_ date: Date, _ input: Int, _ output: Int, _ cached: Int, last: [Int]? = nil) throws -> Data {
+        var info: [String: Any] = ["total_token_usage": ["input_tokens": input, "output_tokens": output, "cached_input_tokens": cached]]
+        if let last { info["last_token_usage"] = ["input_tokens": last[0], "output_tokens": last[1], "cached_input_tokens": last[2]] }
+        return try JSONSerialization.data(withJSONObject: ["type": "event_msg", "timestamp": ISO8601DateFormatter().string(from: date),
+            "payload": ["type": "token_count", "info": info]])
+    }
+
+    private var utc: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let today = calendar.startOfDay(for: now)
-        var parser = CodexTokenHistoryReader.Parser(cutoff: today.addingTimeInterval(-86400), now: now, calendar: calendar)
-        func event(_ date: Date, _ input: Int, _ output: Int, _ cached: Int) throws -> Data {
-            try JSONSerialization.data(withJSONObject: ["type": "event_msg", "timestamp": ISO8601DateFormatter().string(from: date),
-                "payload": ["type": "token_count", "info": ["total_token_usage": ["input_tokens": input, "output_tokens": output, "cached_input_tokens": cached]]]])
-        }
+        return calendar
+    }
+
+    @Test func cumulativeReportsAreCountedOnceAndSplitByDay() throws {
+        let today = utc.startOfDay(for: now)
+        var parser = CodexTokenHistoryReader.Parser()
         parser.consume(try event(today.addingTimeInterval(-100), 100, 10, 20))
         parser.consume(try event(today.addingTimeInterval(100), 160, 30, 30))
         parser.consume(try event(today.addingTimeInterval(101), 160, 30, 30))
-        #expect(parser.days[today]?.total == 80)
-        #expect(parser.days[today]?.cached == 10)
-        #expect(parser.days[today.addingTimeInterval(-86400)]?.total == 110)
+        let days = CodexTokenHistoryReader.days(from: parser.events, cutoff: today.addingTimeInterval(-86400), now: now, calendar: utc)
+        #expect(days.first { $0.day == today }?.total == 80)
+        #expect(days.first { $0.day == today }?.cached == 10)
+        #expect(days.first { $0.day == today.addingTimeInterval(-86400) }?.total == 110)
         #expect(!parser.isPartial)
+    }
+
+    @Test func aForkedSessionDoesNotCountItsParentAgain() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let current = Date()
+        let start = current.addingTimeInterval(-600)
+        let first = try event(start, 100, 10, 0, last: [100, 10, 0])
+        let second = try event(start.addingTimeInterval(60), 250, 30, 50, last: [150, 20, 50])
+        // The fork copies the parent's reports, then its own first request starts from the parent's totals.
+        let forked = try event(start.addingTimeInterval(120), 300, 35, 50, last: [50, 5, 0])
+        func lines(_ events: [Data]) -> Data { events.reduce(into: Data()) { $0 += $1 + Data("\n".utf8) } }
+        try lines([first, second]).write(to: root.appendingPathComponent("parent.jsonl"))
+        try lines([first, second, forked]).write(to: root.appendingPathComponent("fork.jsonl"))
+        let result = CodexTokenHistoryReader.scan(root: root, now: current, calendar: utc)
+        #expect(result.days.reduce(0) { $0 + $1.total } == 335)
+        #expect(result.days.reduce(0) { $0 + $1.cached } == 50)
+        #expect(!result.isPartial)
+        // Unchanged files are read from memory next time, with the same totals.
+        #expect(CodexTokenHistoryReader.scan(root: root, now: current, calendar: utc).days.reduce(0) { $0 + $1.total } == 335)
     }
 
     @Test func cacheIsNotChargedTwiceAndMissingRatesStayUnknown() {

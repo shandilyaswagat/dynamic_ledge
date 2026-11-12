@@ -154,12 +154,18 @@ that tool's own settings file (like `~/.claude/settings.json`) so it can ask you
 Requests stay on your Mac. Switch it off and the hook is removed.
 
 **AI Agent Usage** is off until you switch it on. It shows how much of your Codex and Antigravity
-limits you've used, with the lowest limit left beside the camera when nothing else is on. Its
+limits you've used, with the lowest limit left beside the camera when nothing else is on, or
+beside music and video. Its
 launcher tile switches that and the checks off and on, like Stats. It asks the Codex app on your Mac, which checks with OpenAI using your own
 Codex sign-in. For Antigravity it reads its files in `~/.gemini` and asks the Antigravity app
 running on your Mac, using the local key Antigravity hands its own background service; that
 request never leaves your Mac. Dynamic Ledge never stores your passwords, tokens or API keys,
 and sends nothing online itself.
+
+**AI usage history** is off until you turn it on in Settings › General › Coding Assistants. It
+keeps seven days of limit readings on your Mac and reads the token counts in Codex's own session
+logs (`~/.codex/sessions`), never your prompts or code. Turning it off erases the readings. Cost
+estimates use rates you type in; they're not your bill.
 
 **Music and Stats** are read from macOS on your Mac. Nothing is sent anywhere.
 
@@ -198,15 +204,3 @@ Free software, © 2026 Swagat Shandilya and Pritam Biswas. Use it, share it and 
 [GNU GPL, version 3](LICENSE) or any later version. If you share a changed version, it has to stay
 free with its source code available.
 
-### AI usage history
-
-Settings › General › Coding Assistants › Keep usage history is off by default. When enabled,
-Dynamic Ledge records seven days of allowance samples and reads usage events in local Codex
-session logs (`$CODEX_HOME/sessions`, or `~/.codex/sessions`). The History view shows local daily
-input plus output tokens; cached input is included once. Remote work is not included. Scans
-are bounded and incomplete results are labelled. Optional blended USD rates produce estimates,
-not subscription charges. Antigravity shows its available quota and latest local session count;
-its daily token history and cost are not inferred. Turning history off erases recorded samples.
-
-AI usage remains accessible while music or video plays: click its secondary bubble, use the
-activity switcher in the player, or open its card on Home.

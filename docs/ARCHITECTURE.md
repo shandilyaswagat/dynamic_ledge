@@ -117,7 +117,9 @@ Antigravity have no stop hook.
 4096 samples). History is opt-in and clearing/disabling it invalidates pending refresh results.
 `CodexTokenHistoryReader` scans only session JSONL files, skipping symlinks, off the main actor.
 Each refresh visits at most 20,000 entries, reads 200 files and 64 MiB; partial results are marked.
-Cumulative token counters are differenced per file, then grouped by event date; repeated counters
-are not summed. Only daily counts survive parsing, in memory. No credentials, prompts or responses
+Files that haven't changed since the last refresh aren't read again: their token events are kept in
+memory. Each request counts its own `last_token_usage` (or the change in the running totals), and
+repeated totals are skipped. An event copied into another file, as forked and resumed sessions do,
+is counted once, matched by its time and running totals. Only token counts survive parsing. No credentials, prompts or responses
 are persisted. `AICostRates` applies user-entered blended rates and subtracts cached input from
 ordinary input before pricing it. It never equates a quota percentage with a token count.

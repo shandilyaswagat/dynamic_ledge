@@ -24,6 +24,8 @@ public final class AIUsageService {
         }
     }
     @ObservationIgnored private var generation = 0
+    /// Bumped when history is cleared, so a check already running doesn't record into it again.
+    @ObservationIgnored private var historyGeneration = 0
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var timer: Timer?
@@ -99,6 +101,7 @@ public final class AIUsageService {
         lastError = nil
 
         let refreshGeneration = generation
+        let refreshHistoryGeneration = historyGeneration
         Task {
             let codexEnabled = defaults.object(forKey: "aiUsage.codexEnabled") as? Bool ?? true
             let antigravityEnabled = defaults.object(forKey: "aiUsage.antigravityEnabled") as? Bool ?? true
@@ -109,8 +112,8 @@ public final class AIUsageService {
             async let history = shouldReadHistory ? CodexTokenHistoryReader.read() : AITokenHistory()
             let (codexUsage, antigravityUsage, tokens) = await (codex, antigravity, history)
             guard self.generation == refreshGeneration else { return }
-            if self.recordsHistory {
-                self.tokenHistory = tokens
+            if self.recordsHistory, self.historyGeneration == refreshHistoryGeneration {
+                if shouldReadHistory { self.tokenHistory = tokens }
                 self.quotaHistory = AIUsageHistory.recording([codexUsage, antigravityUsage], into: self.quotaHistory, now: Date())
                 self.defaults.set(try? JSONEncoder().encode(self.quotaHistory), forKey: "aiUsage.quotaHistory")
             }
@@ -122,9 +125,19 @@ public final class AIUsageService {
         }
     }
 
+    /// When the panel opens: checks again if nothing is shown yet, history hasn't been read, or
+    /// the last check is over a minute old.
+    func refreshIfOutdated(now: Date = Date()) {
+        let codexEnabled = defaults.object(forKey: "aiUsage.codexEnabled") as? Bool ?? true
+        let needsHistory = recordsHistory && codexEnabled && tokenHistory.checkedAt == nil
+        let isOld = lastRefreshAttempt.map { now.timeIntervalSince($0) >= 60 } ?? true
+        guard !hasData || needsHistory || isOld else { return }
+        refreshAll(userInitiated: false)
+    }
+
     func clearHistory() {
-        generation += 1
-        isRefreshing = false
+        historyGeneration += 1
+        CodexTokenHistoryReader.forgetFiles()
         tokenHistory = AITokenHistory()
         quotaHistory = []
         defaults.removeObject(forKey: "aiUsage.quotaHistory")

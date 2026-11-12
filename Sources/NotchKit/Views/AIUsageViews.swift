@@ -28,11 +28,6 @@ public struct AIUsagePanelBody: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(model.aiUsage.isRefreshing)
-                    Button { model.openSettings(.codingAssistants) } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Usage settings")
                 }
                 ScrollView {
                     if page == "Usage" {
@@ -51,6 +46,7 @@ public struct AIUsagePanelBody: View {
                 .scrollIndicators(.never)
             }
         }
+        .onAppear { model.aiUsage.refreshIfOutdated() }
     }
 
     private func providerCard(_ usage: AIProviderUsage, now: Date) -> some View {

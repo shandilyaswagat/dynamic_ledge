@@ -247,7 +247,7 @@ are connected, the panel explains how to configure them in Settings.
 While it's on, the compact notch shows an orange sparkles symbol on the left and the lowest
 limit left on the right ("LEFT" over the percentage, green above 25 %, yellow at or below),
 like Stats' two readings. It stays available while music or video plays, as a secondary bubble and in the activity switcher.
-Stats still appears only while other activities are idle. Clicking it opens the panel. The launcher tile is a switch
+Any other activity replaces it, and Stats still appears only while nothing else is on. Clicking it opens the panel. The launcher tile is a switch
 in orange; turned off, the checks stop and the readout and Home widget go away. While it's
 showing in the notch it's a card in Home's live section instead of a widget.
 
@@ -260,8 +260,8 @@ and 14 pt dates (18 pt for the selection). Event lists scroll vertically.
 
 ### Usage dashboard
 
-Within the existing 220 pt AI usage body, a segmented Usage / History control sits beside Refresh
-and Settings. Usage uses equal-width cards (minimum 190 scaled points), wrapping on narrow layouts.
+Within the existing 220 pt AI usage body, a segmented Usage / History control sits beside Refresh.
+Usage uses equal-width cards (minimum 190 scaled points), wrapping on narrow layouts.
 Each card separates allowance remaining, token counts with their scope, and estimated cost.
 Unavailable and stale states remain explicit. History scrolls through local Codex daily token bars
 and sampled allowance points. Missing days are not drawn as measured zero. The compact LEFT value

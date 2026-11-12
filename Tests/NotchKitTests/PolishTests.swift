@@ -286,11 +286,11 @@ struct AIUsageNotchTests {
         #expect(model.isLive(.aiUsage) && model.activeActivities == [.aiUsage])
     }
 
-    @Test func staysAvailableAlongsideOtherActivities() {
+    @Test func onlyMusicOrVideoKeepsIt() {
         let model = makeModel()
         model.settings.aiUsageEnabled = true
         model.startTimer(60)
-        #expect(model.presentation == .compact(primary: .timer, secondary: .aiUsage))
+        #expect(model.presentation == .compact(primary: .timer, secondary: nil))
         model.cancelTimer()
         model.settings.statsEnabled = true
         #expect(model.presentation == .compact(primary: .stats, secondary: .aiUsage))

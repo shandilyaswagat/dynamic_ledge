@@ -322,11 +322,9 @@ public final class IslandModel {
         if settings.timerEnabled, stopwatch.isActive { active.insert(.stopwatch) }
         if settings.nowPlayingEnabled, nowPlaying.isActivityVisible { active.insert(.nowPlaying) }
         if settings.downloadsEnabled, !downloadProgress.items.isEmpty { active.insert(.download) }
-        // Stats and AI usage fill the notch only when nothing else is happening.
-        if active.isEmpty {
-            if settings.statsEnabled { active.insert(.stats) }
-            if settings.aiUsageLive { active.insert(.aiUsage) }
-        }
+        // Stats fills idle space. AI usage stays available beside media and in its switcher.
+        if active.isEmpty, settings.statsEnabled { active.insert(.stats) }
+        if settings.aiUsageLive { active.insert(.aiUsage) }
         return active
     }
 

@@ -286,14 +286,28 @@ struct AIUsageNotchTests {
         #expect(model.isLive(.aiUsage) && model.activeActivities == [.aiUsage])
     }
 
-    @Test func anythingElseReplacesIt() {
+    @Test func staysAvailableAlongsideOtherActivities() {
         let model = makeModel()
         model.settings.aiUsageEnabled = true
         model.startTimer(60)
-        #expect(model.presentation == .compact(primary: .timer, secondary: nil))
+        #expect(model.presentation == .compact(primary: .timer, secondary: .aiUsage))
         model.cancelTimer()
         model.settings.statsEnabled = true
-        #expect(model.presentation == .compact(primary: .stats, secondary: .aiUsage), "shares only with Stats")
+        #expect(model.presentation == .compact(primary: .stats, secondary: .aiUsage))
+    }
+
+    @Test func videoKeepsUsageInBubbleHomeAndSwitcher() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.nowPlaying.apply(NowPlayingInfo(title: "Video", duration: 300, isPlaying: true), artworkData: nil)
+        #expect(model.presentation == .compact(primary: .nowPlaying, secondary: .aiUsage))
+        #expect(HomeSection.sections(for: model).first == .live([.music, .aiUsage]))
+        #expect(ActivitySwitcher.others(model.activeActivities, preferred: nil, current: .nowPlaying).contains(.aiUsage))
+        model.tapBubble()
+        #expect(model.presentation == .nook(.aiUsage))
+        #expect(model.nowPlaying.info?.isPlaying == true)
+        model.settings.aiUsageInNotch = false
+        #expect(!model.activeActivities.contains(.aiUsage))
     }
 
     @Test func hoveringTheBubbleOpensItsOwnActivity() async throws {

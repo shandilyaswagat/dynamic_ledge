@@ -133,6 +133,21 @@ struct IslandProportionTests {
         #expect(wide.compactBodyWidth(for: .nowPlaying) > engine.compactBodyWidth(for: .nowPlaying) + 100)
     }
 
+    @Test func narrowAIUsageNotchFitsTheFullPercentage() throws {
+        for size in NotchSize.allCases {
+            for height in [32.0, 38, 52] {
+                let appearance = NotchAppearance(width: NotchAppearance.widthRange.lowerBound, height: height, size: size)
+                let engine = LayoutEngine(screen: macBook, appearance: appearance)
+                let layout = engine.layout(for: .compact(primary: .aiUsage, secondary: nil), homeHasMedia: false, hovering: false)
+                let scale = CompactScale(height: layout.content.height, size: size.scale)
+                let available = (layout.content.width - layout.cameraGap) / 2 - scale.edge - CompactScale.cameraClearance
+                let renderer = ImageRenderer(content: AIUsageCompactValue(remaining: 100, fontSize: scale.fontSize))
+                let badge = try #require(renderer.cgImage)
+                #expect(CGFloat(badge.width) <= available)
+            }
+        }
+    }
+
     @Test func openMusicHasThePlayersProportions() {
         let layout = engine.layout(for: .expanded(.nowPlaying), home: HomeContent(hasMedia: true), hovering: false)
         let aspect = layout.pill.insetBy(dx: layout.flare, dy: 0).width / layout.pill.height

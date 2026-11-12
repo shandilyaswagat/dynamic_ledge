@@ -133,6 +133,23 @@ public enum IslandMetrics {
     public static let pillExpandedRadius: CGFloat = 46
 }
 
+/// Sizes inside the compact shape scale with its thickness and with Small / Medium / Large.
+struct CompactScale {
+    let height: CGFloat
+    var size: CGFloat = 1
+
+    var icon: CGFloat { (height * 0.62 * size).rounded() }
+    var edge: CGFloat { ((height - icon) / 2).rounded(.down) + 2 }
+    var fontSize: CGFloat { min(max(height * 0.4 * size, 10), 18) }
+
+    static let cameraClearance: CGFloat = 4
+
+    /// The ring, the gap and room for the full "100%" readout.
+    var aiUsageEarWidth: CGFloat {
+        (fontSize * 3.8 + 4).rounded(.up) + edge + Self.cameraClearance
+    }
+}
+
 /// Which widgets the Home tab shows.
 public struct HomeContent: Equatable, Sendable {
     public var hasMedia: Bool

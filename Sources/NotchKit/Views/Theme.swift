@@ -135,16 +135,6 @@ enum Motion {
     }
 }
 
-/// Sizes inside the compact shape scale with its thickness and with Small / Medium / Large.
-struct CompactScale {
-    let height: CGFloat
-    var size: CGFloat = 1
-
-    var icon: CGFloat { (height * 0.62 * size).rounded() }
-    var padding: CGFloat { ((height - icon) / 2).rounded(.down) }
-    var fontSize: CGFloat { min(max(height * 0.4 * size, 10), 18) }
-}
-
 private struct NotchScaleKey: EnvironmentKey {
     static let defaultValue: CGFloat = 1
 }

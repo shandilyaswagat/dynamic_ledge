@@ -1,377 +1,207 @@
 import SwiftUI
-
-// MARK: - Panel Body (Nook View)
+import Charts
 
 public struct AIUsagePanelBody: View {
     let model: IslandModel
     @Environment(\.notchScale) private var s
-    @State private var now = Date()
+    @State private var page = "Usage"
 
-    public init(model: IslandModel) {
-        self.model = model
-    }
+    public init(model: IslandModel) { self.model = model }
 
     public var body: some View {
-        let ai = model.aiUsage
-        let visible = ai.visibleUsages(selected: model.settings.selectedAIProviders)
-        VStack(spacing: 8 * s) {
-            // Header bar: last refresh info and manual refresh button
-            HStack {
-                if let last = ai.lastRefreshAttempt {
-                    HStack(spacing: 4 * s) {
-                        Circle()
-                            .fill(!visible.isEmpty ? NotchColor.green : NotchColor.yellow)
-                            .frame(width: 6 * s, height: 6 * s)
-                        Text("Checked \(lastUpdatedText(last))")
-                            .font(.system(size: 11 * s))
-                            .foregroundStyle(NotchColor.secondaryText)
-                    }
-                } else {
-                    Text("AI Agent Usage & Rate Limits")
-                        .font(.system(size: 11 * s, weight: .medium))
-                        .foregroundStyle(NotchColor.secondaryText)
-                }
-
-                Spacer()
-
-                Button {
-                    ai.refreshAll(userInitiated: true)
-                } label: {
-                    HStack(spacing: 4 * s) {
-                        if ai.isRefreshing {
-                            ProgressView()
-                                .controlSize(.small)
-                                .scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 10 * s, weight: .medium))
-                        }
-                        Text(ai.isRefreshing ? "Refreshing…" : "Refresh")
-                            .font(.system(size: 11 * s, weight: .medium))
-                    }
-                    .padding(.horizontal, 8 * s)
-                    .padding(.vertical, 3 * s)
-                    .background(NotchColor.buttonFill, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(ai.isRefreshing)
-            }
-            .padding(.horizontal, 4 * s)
-
-            // Content: Provider cards
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 10 * s) {
-                    if visible.isEmpty {
-                        emptyStateView(ai.isRefreshing ? "Checking connected providers…" : "No connected AI providers to show.")
-                    } else {
-                        ForEach(visible) { usage in
-                            providerCard(for: usage)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 2 * s)
-            }
-            .scrollIndicators(.never)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onAppear {
-            if visible.isEmpty && !ai.isRefreshing && !model.settings.selectedAIProviders.isEmpty {
-                ai.refreshAll(userInitiated: false)
-            }
-        }
-        .task {
-            // Periodic timer to keep countdown strings fresh
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                now = Date()
-            }
-        }
-    }
-
-    private func lastUpdatedText(_ date: Date) -> String {
-        let diff = Int(now.timeIntervalSince(date))
-        if diff < 10 { return "just now" }
-        if diff < 60 { return "\(diff)s ago" }
-        let minutes = diff / 60
-        if minutes < 60 { return "\(minutes)m ago" }
-        return "\(minutes / 60)h ago"
-    }
-
-    @ViewBuilder
-    private func providerCard(for usage: AIProviderUsage) -> some View {
-        VStack(alignment: .leading, spacing: 8 * s) {
-            // Title row
-            HStack(spacing: 8 * s) {
-                Image(systemName: usage.provider.symbolName)
-                    .font(.system(size: 13 * s, weight: .semibold))
-                    .foregroundStyle(usage.provider.brandColor)
-                    .frame(width: 20 * s, height: 20 * s)
-                    .background(usage.provider.brandColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 5 * s))
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(usage.provider.displayName)
-                        .font(.system(size: 12 * s, weight: .semibold))
-                        .foregroundStyle(.white)
-
-                    if let plan = usage.plan {
-                        Text(plan)
-                            .font(.system(size: 10 * s))
-                            .foregroundStyle(NotchColor.secondaryText)
-                    }
-                }
-
-                Spacer()
-
-                statusBadge(for: usage.status)
-            }
-
-            HStack(alignment: .top) {
-                Text("Models")
-                    .font(.system(size: 11 * s, weight: .medium))
-                Spacer()
-                Text(usage.model ?? (usage.windows.isEmpty ? "Not reported" : "Shared quota — not per-model usage"))
-                    .font(.system(size: 11 * s))
-                    .foregroundStyle(NotchColor.secondaryText)
-                    .multilineTextAlignment(.trailing)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .accessibilityElement(children: .combine)
-
-            // Quota / Rate Limit Windows
-            if !usage.windows.isEmpty {
-                VStack(spacing: 6 * s) {
-                    ForEach(usage.windows) { window in
-                        quotaWindowRow(window)
-                    }
-                }
-            } else if case .active = usage.status {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            VStack(spacing: 8 * s) {
                 HStack {
-                    Text("Rate limits / Quota:")
-                        .font(.system(size: 11 * s))
-                        .foregroundStyle(NotchColor.secondaryText)
+                    Picker("Usage view", selection: $page) {
+                        Text("Usage").tag("Usage")
+                        Text("History").tag("History")
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 170 * s)
                     Spacer()
-                    Text("Not available from provider")
-                        .font(.system(size: 11 * s))
-                        .foregroundStyle(NotchColor.secondaryText)
+                    Button {
+                        model.aiUsage.refreshAll(userInitiated: true)
+                    } label: {
+                        Label(model.aiUsage.isRefreshing ? "Checking…" : "Refresh", systemImage: "arrow.clockwise")
+                            .font(.system(size: 11 * s))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.aiUsage.isRefreshing)
+                    Button { model.openSettings(.codingAssistants) } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Usage settings")
                 }
+                ScrollView {
+                    if page == "Usage" {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 190 * s), alignment: .top)], alignment: .leading, spacing: 8 * s) {
+                            ForEach(AIProvider.allCases.filter { model.settings.selectedAIProviders.contains($0) }) { provider in
+                                providerCard(model.aiUsage.usages[provider] ?? .unconfigured(for: provider), now: context.date)
+                            }
+                        }
+                        if model.settings.selectedAIProviders.isEmpty {
+                            message("Choose an assistant in Settings to see its usage.")
+                        }
+                    } else {
+                        history(now: context.date)
+                    }
+                }
+                .scrollIndicators(.never)
             }
+        }
+    }
 
-            // Token Breakdown
-            if let tokens = usage.tokens {
-                tokenBreakdownView(tokens)
-            }
-
-            // Cost or details footer
+    private func providerCard(_ usage: AIProviderUsage, now: Date) -> some View {
+        VStack(alignment: .leading, spacing: 8 * s) {
             HStack {
-                if let cost = usage.costEstimate {
-                    Text("Today's cost: \(cost)")
-                        .font(.system(size: 10 * s, weight: .medium))
-                        .foregroundStyle(NotchColor.green)
+                Image(systemName: usage.provider.symbolName).foregroundStyle(usage.provider.brandColor)
+                Text(usage.provider.shortName).fontWeight(.semibold)
+                Spacer(minLength: 0)
+                if usage.isStale(relativeTo: now), usage.lastUpdated != nil {
+                    Text("Stale").foregroundStyle(NotchColor.yellow)
                 }
-
-                Spacer()
-
-                Text(usage.attribution)
-                    .font(.system(size: 9 * s))
-                    .foregroundStyle(NotchColor.secondaryText.opacity(0.7))
-                    .lineLimit(1)
+            }
+            .font(.system(size: 12 * s))
+            if usage.status.isSuccess {
+                ForEach(usage.windows) { window in
+                    VStack(alignment: .leading, spacing: 3 * s) {
+                        HStack {
+                            Text(window.name).lineLimit(1)
+                            Spacer(minLength: 3)
+                            Text(window.remainingPercent.map { "\(Int($0.rounded()))% left" } ?? "Not reported")
+                                .foregroundStyle(tint(window.remainingPercent))
+                                .monospacedDigit()
+                        }
+                        .font(.system(size: 10 * s))
+                        if let remaining = window.remainingPercent {
+                            ProgressView(value: remaining, total: 100).tint(tint(remaining))
+                                .accessibilityLabel("\(window.name): \(Int(remaining)) percent allowance remaining")
+                        }
+                        if let reset = window.countdownString(from: now) {
+                            Text(reset).font(.system(size: 9 * s)).foregroundStyle(NotchColor.secondaryText)
+                        }
+                    }
+                }
+                if usage.windows.isEmpty { message("Allowance not reported") }
+                Divider().overlay(Color.white.opacity(0.12))
+                if usage.provider == .codex {
+                    let today = model.aiUsage.tokenHistory.days.first { Calendar.current.isDate($0.day, inSameDayAs: now) }
+                    metric("Tokens today · local", value: today.map { AITokenBreakdown.formatCount($0.total) } ?? "Not reported")
+                    metric("Estimated cost · USD", value: today.flatMap { model.aiUsage.costRates.estimate($0) }.map { String(format: "$%.2f", $0) } ?? "Not configured")
+                    Text(model.aiUsage.recordsHistory ? "Custom rates · not your bill" : "Enable history for local tokens")
+                        .font(.system(size: 9 * s)).foregroundStyle(NotchColor.secondaryText)
+                } else {
+                    metric("Tokens · latest local session", value: usage.tokens?.totalTokens.map(AITokenBreakdown.formatCount) ?? "Not reported")
+                    metric("Estimated cost", value: usage.costEstimate ?? "Not reported")
+                }
+                if let date = usage.lastUpdated {
+                    Text("Updated \(date, style: .relative) ago")
+                        .font(.system(size: 9 * s)).foregroundStyle(NotchColor.secondaryText)
+                }
+            } else {
+                Text(usage.status.statusDescription)
+                    .font(.system(size: 11 * s)).foregroundStyle(NotchColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(10 * s)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10 * s))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10 * s)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 10 * s).strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
     }
 
     @ViewBuilder
-    private func quotaWindowRow(_ window: AIUsageWindow) -> some View {
-        VStack(spacing: 3 * s) {
-            HStack {
-                HStack(spacing: 4 * s) {
-                    Text(window.name)
-                        .font(.system(size: 11 * s, weight: .medium))
-                        .foregroundStyle(.white)
-                    if window.isEstimated {
-                        Text("est.")
-                            .font(.system(size: 9 * s))
-                            .foregroundStyle(NotchColor.yellow)
-                            .padding(.horizontal, 3 * s)
-                            .background(NotchColor.yellow.opacity(0.15), in: Capsule())
-                    }
+    private func history(now: Date) -> some View {
+        if !model.aiUsage.recordsHistory {
+            VStack(spacing: 10 * s) {
+                Image(systemName: "chart.bar.xaxis").font(.system(size: 24 * s))
+                message("History is off. Enable it in Settings to keep allowance readings and read local Codex token counts.")
+                Button("Usage settings") { model.openSettings(.codingAssistants) }
+                    .buttonStyle(.bordered)
+            }
+            .padding(12 * s)
+        } else {
+            VStack(alignment: .leading, spacing: 10 * s) {
+                if model.settings.selectedAIProviders.contains(.codex) {
+                    tokenHistory
                 }
-
-                Spacer()
-
-                if let remaining = window.remainingPercent {
-                    Text("\(Int(remaining.rounded()))% left")
-                        .font(.system(size: 11 * s, weight: .semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(quotaTint(forRemaining: remaining))
-                } else if let count = window.usedCount, let limit = window.limitCount {
-                    Text("\(count) / \(limit)")
-                        .font(.system(size: 11 * s))
-                        .monospacedDigit()
-                        .foregroundStyle(NotchColor.secondaryText)
+                let samples = model.aiUsage.quotaHistory.filter {
+                    model.settings.selectedAIProviders.contains($0.provider) && $0.date >= now.addingTimeInterval(-7 * 86400)
+                }
+                Text("Allowance left · recorded samples").font(.system(size: 12 * s, weight: .semibold))
+                if samples.isEmpty {
+                    message("No readings yet. Refresh a connected assistant to start recording.")
                 } else {
-                    Text("Not available")
-                        .font(.system(size: 10 * s))
-                        .foregroundStyle(NotchColor.secondaryText)
-                }
-            }
-
-            // Progress bar
-            if let remaining = window.remainingPercent {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.white.opacity(0.12))
-                        Capsule()
-                            .fill(quotaTint(forRemaining: remaining))
-                            .frame(width: geo.size.width * CGFloat(remaining / 100.0))
+                    Chart(samples) { sample in
+                        PointMark(x: .value("Time", sample.date), y: .value("Left", sample.remaining))
+                            .foregroundStyle(by: .value("Assistant", sample.provider.shortName))
+                            .symbolSize(12)
                     }
+                    .chartYScale(domain: 0...100)
+                    .chartXAxis { AxisMarks(values: .automatic(desiredCount: 3)) }
+                    .frame(height: 90 * s)
+                    .accessibilityLabel("Recorded lowest allowance remaining for each assistant, from zero to one hundred percent")
+                    message("Lowest allowance per assistant at each check. Gaps mean no readings; resets can raise the percentage.")
                 }
-                .frame(height: 4 * s)
             }
+            .padding(4 * s)
+        }
+    }
 
-            // Reset time and countdown
-            if let resetText = window.countdownString(from: now) {
-                HStack {
-                    if let localTime = window.localResetTimeString() {
-                        Text("Resets \(localTime)")
-                            .font(.system(size: 9 * s))
+    private var tokenHistory: some View {
+        let history = model.aiUsage.tokenHistory
+        return VStack(alignment: .leading, spacing: 8 * s) {
+            Text("Codex tokens · last 7 days · local")
+                .font(.system(size: 12 * s, weight: .semibold))
+            if history.days.isEmpty {
+                message("No local token events found. Run a Codex task, then refresh. Cloud sessions are not included.")
+            } else {
+                Chart(history.days) { day in
+                    BarMark(x: .value("Day", day.day, unit: .day), y: .value("Tokens", day.total))
+                        .foregroundStyle(AIProvider.codex.brandColor)
+                }
+                .chartXAxis { AxisMarks(values: .stride(by: .day)) { _ in AxisValueLabel(format: .dateTime.weekday(.narrow)) } }
+                .frame(height: 85 * s)
+                ForEach(history.days.reversed()) { day in
+                    HStack {
+                        Text(day.day, format: .dateTime.month(.abbreviated).day())
+                        Spacer()
+                        Text("\(AITokenBreakdown.formatCount(day.total)) tokens")
+                        Text(model.aiUsage.costRates.estimate(day).map { String(format: "~$%.2f", $0) } ?? "Cost —")
                             .foregroundStyle(NotchColor.secondaryText)
                     }
-                    Spacer()
-                    Text(resetText)
-                        .font(.system(size: 9 * s, weight: .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(NotchColor.secondaryText)
+                    .font(.system(size: 10 * s)).monospacedDigit()
+                    .accessibilityElement(children: .combine)
                 }
+                message("Costs use your blended USD rates, not subscription billing. Cached input is counted once. Missing days have no recorded events.")
             }
-        }
-        .padding(.vertical, 2 * s)
-    }
-
-    @ViewBuilder
-    private func tokenBreakdownView(_ tokens: AITokenBreakdown) -> some View {
-        HStack(spacing: 8 * s) {
-            tokenMetric("Input", count: tokens.promptTokens)
-            tokenMetric("Output", count: tokens.completionTokens)
-            if tokens.cacheReadTokens != nil || tokens.cacheWriteTokens != nil {
-                tokenMetric("Cached", count: (tokens.cacheReadTokens ?? 0) + (tokens.cacheWriteTokens ?? 0))
+            if history.isPartial {
+                Text("Partial history: some files or token events could not be read within the scan limits.")
+                    .font(.system(size: 10 * s)).foregroundStyle(NotchColor.yellow)
             }
-            Spacer()
-            if let total = tokens.totalTokens {
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("Total")
-                        .font(.system(size: 9 * s))
-                        .foregroundStyle(NotchColor.secondaryText)
-                    Text(AITokenBreakdown.formatCount(total))
-                        .font(.system(size: 10 * s, weight: .semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                }
-            }
-        }
-        .padding(.top, 2 * s)
-    }
-
-    private func tokenMetric(_ label: String, count: Int?) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label)
-                .font(.system(size: 9 * s))
-                .foregroundStyle(NotchColor.secondaryText)
-            Text(count.map { AITokenBreakdown.formatCount($0) } ?? "–")
-                .font(.system(size: 10 * s, weight: .medium))
-                .monospacedDigit()
-                .foregroundStyle(.white)
         }
     }
 
-    @ViewBuilder
-    private func statusBadge(for status: AIProviderStatus) -> some View {
-        switch status {
-        case .active:
-            Text("Active")
-                .font(.system(size: 10 * s, weight: .medium))
-                .foregroundStyle(NotchColor.green)
-                .padding(.horizontal, 6 * s)
-                .padding(.vertical, 2 * s)
-                .background(NotchColor.green.opacity(0.12), in: Capsule())
-        case .loading:
-            HStack(spacing: 3 * s) {
-                ProgressView().controlSize(.small).scaleEffect(0.6)
-                Text("Checking…")
-                    .font(.system(size: 9 * s))
-                    .foregroundStyle(NotchColor.secondaryText)
-            }
-        case .unconfigured:
-            Button {
-                model.openSettings(.codingAssistants)
-            } label: {
-                Text("Set up")
-                    .font(.system(size: 10 * s, weight: .semibold))
-                    .foregroundStyle(NotchColor.blue)
-                    .padding(.horizontal, 6 * s)
-                    .padding(.vertical, 2 * s)
-                    .background(NotchColor.blue.opacity(0.15), in: Capsule())
-            }
-            .buttonStyle(.plain)
-        case .signedOut(let msg):
-            Text("Sign in: \(msg)")
-                .font(.system(size: 9 * s))
-                .foregroundStyle(NotchColor.orange)
-                .lineLimit(1)
-        case .offline(let msg):
-            Text("Offline: \(msg)")
-                .font(.system(size: 9 * s))
-                .foregroundStyle(NotchColor.secondaryText)
-                .lineLimit(1)
-        case .error(let msg), .unavailable(let msg):
-            Text(msg)
-                .font(.system(size: 9 * s))
-                .foregroundStyle(NotchColor.red)
-                .lineLimit(1)
+    private func metric(_ title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).foregroundStyle(NotchColor.secondaryText)
+            Spacer(minLength: 4)
+            Text(value).monospacedDigit()
         }
+        .font(.system(size: 10 * s))
+        .accessibilityElement(children: .combine)
     }
 
-    private func quotaTint(forRemaining remaining: Double) -> Color {
-        if remaining > 40 { return NotchColor.green }
-        if remaining > 15 { return NotchColor.yellow }
-        return NotchColor.red
+    private func message(_ text: String) -> some View {
+        Text(text).font(.system(size: 10 * s)).foregroundStyle(NotchColor.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func emptyStateView(_ message: String) -> some View {
-        VStack(spacing: 8 * s) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 24 * s))
-                .foregroundStyle(NotchColor.secondaryText)
-            Text(message)
-                .font(.system(size: 12 * s))
-                .foregroundStyle(NotchColor.secondaryText)
-                .multilineTextAlignment(.center)
-            if !model.aiUsage.isRefreshing {
-                ForEach(AIProvider.allCases.filter { model.settings.selectedAIProviders.contains($0) }, id: \.self) { provider in
-                    if let usage = model.aiUsage.usages[provider], !usage.status.isSuccess {
-                        Text("\(provider.displayName): \(usage.status.statusDescription)")
-                            .font(.system(size: 10 * s))
-                            .foregroundStyle(NotchColor.secondaryText)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-            Button("Configure in Settings") {
-                model.openSettings(.codingAssistants)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20 * s)
+    private func tint(_ remaining: Double?) -> Color {
+        guard let remaining else { return NotchColor.secondaryText }
+        return remaining > 40 ? NotchColor.green : remaining > 15 ? NotchColor.yellow : NotchColor.red
     }
 }
 
@@ -515,17 +345,31 @@ struct AIUsageCompactValue: View {
     let fontSize: CGFloat
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            Text("LEFT")
-                .font(.system(size: max(7, fontSize * 0.55), weight: .bold))
-                .kerning(0.3)
-                .foregroundStyle(NotchColor.secondaryText)
-            Text(remaining.map { "\(Int($0.rounded()))%" } ?? "–")
-                .font(.system(size: fontSize * 0.9, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(remaining.map { $0 > 25 ? NotchColor.green : NotchColor.yellow } ?? NotchColor.secondaryText)
+        HStack(spacing: 4) {
+            ZStack {
+                Circle().stroke(Color.white.opacity(0.18), lineWidth: 2)
+                if let remaining {
+                    Circle().trim(from: 0, to: max(0, min(1, remaining / 100)))
+                        .stroke(remaining > 25 ? NotchColor.green : NotchColor.yellow, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+            }
+            .frame(width: fontSize * 0.8, height: fontSize * 0.8)
+            .accessibilityHidden(true)
+            VStack(alignment: .trailing, spacing: 0) {
+                Text("LEFT")
+                    .font(.system(size: max(7, fontSize * 0.55), weight: .bold))
+                    .kerning(0.3)
+                    .foregroundStyle(NotchColor.secondaryText)
+                Text(remaining.map { "\(Int($0.rounded()))%" } ?? "–")
+                    .font(.system(size: fontSize * 0.9, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(remaining.map { $0 > 25 ? NotchColor.green : NotchColor.yellow } ?? NotchColor.secondaryText)
+            }
+            .fixedSize(horizontal: true, vertical: false)
         }
         .lineLimit(1)
-        .minimumScaleFactor(0.7)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(remaining.map { "Lowest allowance: \(Int($0)) percent left" } ?? "Allowance unavailable")
     }
 }

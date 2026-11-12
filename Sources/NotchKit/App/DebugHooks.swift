@@ -55,6 +55,10 @@ final class DebugHooks {
         case "mirror": model.showTab(.mirror)
         case "clipboard": model.showTab(.clipboard)
         case "timers": model.timerPanelMode = parts.dropFirst().first.flatMap(TimerPanelMode.init(rawValue:)) ?? .timer; model.showTab(.timers)
+        case "aiusage":
+            guard Bundle.main.bundleIdentifier?.hasSuffix(".QA") == true else { return }
+            model.showTab(.aiUsage)
+            model.isTypingInNook = true // Keep the QA panel open for screenshots.
         case "calendar": model.showTab(.calendar)
         case "launcher": model.showTab(.launcher)
         case "editshortcuts": model.showTab(.launcher); model.isEditingShortcuts = true

@@ -12,6 +12,19 @@ public final class AIUsageService {
     public private(set) var lastRefreshAttempt: Date?
     public private(set) var lastError: String?
 
+    var quotaHistory: [AIQuotaSample] = []
+    var tokenHistory = AITokenHistory()
+    var costRates = AICostRates() {
+        didSet { defaults.set(try? JSONEncoder().encode(costRates), forKey: "aiUsage.costRates") }
+    }
+    var recordsHistory = false {
+        didSet {
+            defaults.set(recordsHistory, forKey: "aiUsage.recordsHistory")
+            if !recordsHistory { clearHistory() }
+        }
+    }
+    @ObservationIgnored private var generation = 0
+
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private let log = Logger(subsystem: Log.subsystem, category: "aiUsage")
@@ -24,6 +37,12 @@ public final class AIUsageService {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         loadCachedUsages()
+        recordsHistory = defaults.bool(forKey: "aiUsage.recordsHistory")
+        if let data = defaults.data(forKey: "aiUsage.costRates"), let rates = try? JSONDecoder().decode(AICostRates.self, from: data) { costRates = rates }
+        if recordsHistory, let data = defaults.data(forKey: "aiUsage.quotaHistory"),
+           let samples = try? JSONDecoder().decode([AIQuotaSample].self, from: data) {
+            quotaHistory = AIUsageHistory.recording([], into: samples, now: Date())
+        }
     }
 
     /// Primary aggregated status for compact widget display.
@@ -64,6 +83,8 @@ public final class AIUsageService {
     public func stopAutomaticRefreshes() {
         timer?.invalidate()
         timer = nil
+        generation += 1
+        isRefreshing = false
     }
 
     public func refreshAll(userInitiated: Bool = false) {
@@ -77,19 +98,36 @@ public final class AIUsageService {
         isRefreshing = true
         lastError = nil
 
+        let refreshGeneration = generation
         Task {
             let codexEnabled = defaults.object(forKey: "aiUsage.codexEnabled") as? Bool ?? true
             let antigravityEnabled = defaults.object(forKey: "aiUsage.antigravityEnabled") as? Bool ?? true
             // Both at once: Codex can take a few seconds to answer.
             async let codex = codexEnabled ? fetchCodexUsage() : AIProviderUsage.unconfigured(for: .codex, message: "Codex tracking is off.")
             async let antigravity = antigravityEnabled ? fetchAntigravityUsage() : AIProviderUsage.unconfigured(for: .antigravity, message: "Antigravity tracking is off.")
-            let (codexUsage, antigravityUsage) = await (codex, antigravity)
+            let shouldReadHistory = codexEnabled && recordsHistory
+            async let history = shouldReadHistory ? CodexTokenHistoryReader.read() : AITokenHistory()
+            let (codexUsage, antigravityUsage, tokens) = await (codex, antigravity, history)
+            guard self.generation == refreshGeneration else { return }
+            if self.recordsHistory {
+                self.tokenHistory = tokens
+                self.quotaHistory = AIUsageHistory.recording([codexUsage, antigravityUsage], into: self.quotaHistory, now: Date())
+                self.defaults.set(try? JSONEncoder().encode(self.quotaHistory), forKey: "aiUsage.quotaHistory")
+            }
 
             self.usages[.codex] = codexUsage
             self.usages[.antigravity] = antigravityUsage
             self.isRefreshing = false
             self.saveCachedUsages()
         }
+    }
+
+    func clearHistory() {
+        generation += 1
+        isRefreshing = false
+        tokenHistory = AITokenHistory()
+        quotaHistory = []
+        defaults.removeObject(forKey: "aiUsage.quotaHistory")
     }
 
     // MARK: - OpenAI Codex Provider

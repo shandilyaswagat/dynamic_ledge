@@ -219,9 +219,12 @@ public struct LayoutEngine: Equatable, Sendable {
         notch.width + 2 * earWidth
     }
 
-    /// Music only needs the artwork on one side and the bars on the other, so its ears are
-    /// slimmer, hugging the camera like the Dynamic Island. Wider width settings still widen it.
+    /// Music uses slimmer ears. AI usage needs extra room for its ring and percentage.
     public func compactBodyWidth(for kind: ActivityKind) -> CGFloat {
+        if kind == .aiUsage {
+            let minimum = CompactScale(height: compactHeight, size: scale).aiUsageEarWidth
+            return notch.width + 2 * max(earWidth, minimum)
+        }
         guard kind == .nowPlaying else { return compactBodyWidth }
         let slim = (IslandMetrics.musicEarWidth(height: compactHeight) * scale).rounded()
         let ear = min(earWidth, max(slim, earWidth - (IslandMetrics.musicEarTrim * scale).rounded()))
@@ -296,9 +299,10 @@ public struct LayoutEngine: Equatable, Sendable {
     private let floatingBubbleGap: CGFloat = 6
 
     private var widestContent: CGFloat {
-        max(
+        let widestCompactBody = compactBodyWidth(for: .aiUsage)
+        return max(
             max(expandedWidth, appearance.nookLayout == .elongated ? elongatedWidth : nookWidth) + 2 * IslandMetrics.expandedFlare,
-            compactBodyWidth + 2 * (IslandMetrics.compactFlare + bubbleGap + bubbleDiameter + IslandMetrics.hoverGrowth(for: CGSize(width: compactBodyWidth + 2 * IslandMetrics.compactFlare, height: compactHeight)).width),
+            widestCompactBody + 2 * (IslandMetrics.compactFlare + bubbleGap + bubbleDiameter + IslandMetrics.hoverGrowth(for: CGSize(width: widestCompactBody + 2 * IslandMetrics.compactFlare, height: compactHeight)).width),
             alertBodySize.width + 2 * IslandMetrics.compactFlare
         )
     }

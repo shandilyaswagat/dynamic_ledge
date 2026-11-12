@@ -197,3 +197,16 @@ Everything else is in the [changelog](CHANGELOG.md).
 Free software, © 2026 Swagat Shandilya and Pritam Biswas. Use it, share it and change it under the
 [GNU GPL, version 3](LICENSE) or any later version. If you share a changed version, it has to stay
 free with its source code available.
+
+### AI usage history
+
+Settings › General › Coding Assistants › Keep usage history is off by default. When enabled,
+Dynamic Ledge records seven days of allowance samples and reads usage events in local Codex
+session logs (`$CODEX_HOME/sessions`, or `~/.codex/sessions`). The History view shows local daily
+input plus output tokens; cached input is included once. Remote work is not included. Scans
+are bounded and incomplete results are labelled. Optional blended USD rates produce estimates,
+not subscription charges. Antigravity shows its available quota and latest local session count;
+its daily token history and cost are not inferred. Turning history off erases recorded samples.
+
+AI usage remains accessible while music or video plays: click its secondary bubble, use the
+activity switcher in the player, or open its card on Home.

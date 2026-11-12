@@ -11,8 +11,7 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
     /// Memory and CPU, when Stats is on and nothing else is happening. Shares the notch only
     /// with AI usage: any other activity replaces it.
     case stats
-    /// The lowest AI agent limit left, when its tile is on and nothing else is happening. Like
-    /// Stats, any other activity replaces it.
+    /// The lowest AI agent limit left. Stays available alongside media while enabled.
     case aiUsage
 
     /// Its name, for help tags and VoiceOver.

@@ -110,3 +110,14 @@ Claude Code, Codex and Cursor also get a "stop" hook (`--finished`). It sends th
 assistant's name and the project folder's name, over the same authenticated socket, never waits
 for an answer, and prints nothing that changes what the assistant does. Copilot CLI and
 Antigravity have no stop hook.
+
+## AI usage history
+
+`AIUsageService` maintains bounded `AIQuotaSample` readings in preferences (seven days, at most
+4096 samples). History is opt-in and clearing/disabling it invalidates pending refresh results.
+`CodexTokenHistoryReader` scans only session JSONL files, skipping symlinks, off the main actor.
+Each refresh visits at most 20,000 entries, reads 200 files and 64 MiB; partial results are marked.
+Cumulative token counters are differenced per file, then grouped by event date; repeated counters
+are not summed. Only daily counts survive parsing, in memory. No credentials, prompts or responses
+are persisted. `AICostRates` applies user-entered blended rates and subtracts cached input from
+ordinary input before pricing it. It never equates a quota percentage with a token count.

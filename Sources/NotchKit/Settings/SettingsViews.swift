@@ -673,7 +673,7 @@ private struct CodingAssistantSection: View {
 
 private struct AIUsageSettingsSection: View {
     @Bindable var settings: SettingsStore
-    let aiUsage: AIUsageService
+    @Bindable var aiUsage: AIUsageService
 
     var body: some View {
         Section {
@@ -708,7 +708,7 @@ private struct AIUsageSettingsSection: View {
                 Toggle(isOn: $settings.aiUsageInNotch) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Show in the notch")
-                        Text("The lowest limit left shows beside the camera when nothing else is on. Off stops the checks. The AI Agent Usage tile turns this on and off too.")
+                        Text("The lowest limit left stays available alongside music and video. Off stops the checks. The AI Agent Usage tile turns this on and off too.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -717,6 +717,28 @@ private struct AIUsageSettingsSection: View {
                     .disabled(!settings.aiUsageInNotch)
                 Button("Refresh Now") { aiUsage.refreshAll(userInitiated: true) }
                     .disabled(aiUsage.isRefreshing)
+            }
+            Section {
+                Toggle("Keep usage history", isOn: $aiUsage.recordsHistory)
+                    .onChange(of: aiUsage.recordsHistory) { _, enabled in
+                        if enabled { aiUsage.refreshAll(userInitiated: false) }
+                    }
+                Button("Clear recorded history") { aiUsage.clearHistory() }
+            } header: {
+                Text("Usage history")
+            } footer: {
+                Text("Off by default. Records seven days of allowance readings on this Mac and reads token counts from local Codex session logs. No prompts or code are saved. Turning this off erases recorded readings. Local token totals are rebuilt from Codex logs when refreshed.")
+            }
+            if aiUsage.recordsHistory {
+                Section {
+                    TextField("Input · USD per million", text: $aiUsage.costRates.input)
+                    TextField("Output · USD per million", text: $aiUsage.costRates.output)
+                    TextField("Cached input · USD per million", text: $aiUsage.costRates.cached)
+                } header: {
+                    Text("Codex cost estimate")
+                } footer: {
+                    Text("Optional blended rates you choose for your models. Estimates use local input, output and cached tokens; they are not your subscription bill. Leave blank if you do not know the rates. Rates apply to all displayed days.")
+                }
             }
         }
     }

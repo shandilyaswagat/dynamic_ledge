@@ -11,9 +11,9 @@ struct CompactView: View {
 
     var body: some View {
         let scale = CompactScale(height: size.height, size: sizeScale)
-        let edge = scale.padding + 2
+        let edge = scale.edge
         // Each side gets the space between the outer edge and the camera, minus a little air.
-        let side = max(0, (size.width - cameraGap) / 2 - edge - (cameraGap > 0 ? 4 : 3))
+        let side = max(0, (size.width - cameraGap) / 2 - edge - (cameraGap > 0 ? CompactScale.cameraClearance : 3))
         HStack(spacing: 0) {
             leading(scale)
                 .frame(width: side, alignment: .leading)

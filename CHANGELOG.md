@@ -7,7 +7,15 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- AI usage now has side-by-side allowance cards, a compact remaining-limit ring, and separate
+  Usage and History views. Optional history keeps seven days of allowance readings and reads
+  local Codex token counts. Add your own blended USD rates for clearly labelled cost estimates;
+  missing data is never shown as zero. Claude usage remains excluded.
+
 ### Fixed
+- The compact AI usage counter shows the full percentage, including 100%.
+- AI usage stays accessible beside playing music or video, in Home and the activity switcher.
 - Dragging a window near the top of the screen no longer opens the Tray. It opens only once the
   pointer touches the notch, then stays open while you're over it.
 

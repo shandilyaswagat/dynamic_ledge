@@ -34,6 +34,7 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Compact | notch + 2 × ear, height = max(thickness, notch height) | shoulders 6, bottom min(0.42 × h, 14) |
 | Ear width | `round(h × 1.15) + (width − 180) / 2`, at least 80 % of that slot | — |
 | Music ear | slimmer, like the Dynamic Island: max(round(h × 1.03), ear − 14), never wider than the ear (33 at the usual settings, so 245 wide on a 179 pt notch) | — |
+| AI usage ear | at least `ceil(compact font size × 3.8 + 4)` plus the outer padding and 4 pt of camera clearance, to fit the ring and full percentage | — |
 | Alert | notch + 2 × max(ear, 128), compact height + 6 | shoulders 6, bottom min(0.42 × h, 16) |
 | Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14. Open music is 1.79 × its height wide (the Dynamic Island player's 321 × 179) | shoulders 10, continuous bottom 46 (approvals and other open alerts 30) |
 | Minimal bubble | as tall as the compact shape and square, with the shape's own corners: a flat top on the edge and the notch's bottom radius in Notch style, a circle 6 pt right of the pill in Pill style; 4 pt right of the shoulder's tip. It slides out of (and back into) the shape's right side at full height, and its symbol fades in 0.12 s later | — |
@@ -245,8 +246,8 @@ are connected, the panel explains how to configure them in Settings.
 
 While it's on, the compact notch shows an orange sparkles symbol on the left and the lowest
 limit left on the right ("LEFT" over the percentage, green above 25 %, yellow at or below),
-like Stats' two readings. Like Stats it shows only when nothing else is on, and shares the notch
-only with Stats, which comes first. Clicking it opens the panel. The launcher tile is a switch
+like Stats' two readings. It stays available while music or video plays, as a secondary bubble and in the activity switcher.
+Stats still appears only while other activities are idle. Clicking it opens the panel. The launcher tile is a switch
 in orange; turned off, the checks stop and the readout and Home widget go away. While it's
 showing in the notch it's a card in Home's live section instead of a widget.
 
@@ -256,3 +257,12 @@ The month panel has a 180 pt body, a 210 pt-wide month grid with 12 pt date labe
 and 23 pt rows, and a separately scrolling event list. In elongated Home, the date strip
 scrolls horizontally through the loaded month and adjacent days, with 10 pt weekday labels
 and 14 pt dates (18 pt for the selection). Event lists scroll vertically.
+
+### Usage dashboard
+
+Within the existing 220 pt AI usage body, a segmented Usage / History control sits beside Refresh
+and Settings. Usage uses equal-width cards (minimum 190 scaled points), wrapping on narrow layouts.
+Each card separates allowance remaining, token counts with their scope, and estimated cost.
+Unavailable and stale states remain explicit. History scrolls through local Codex daily token bars
+and sampled allowance points. Missing days are not drawn as measured zero. The compact LEFT value
+has a small ring with the same percentage; it does not animate continuously.

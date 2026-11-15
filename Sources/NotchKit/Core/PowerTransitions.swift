@@ -7,13 +7,17 @@ public struct PowerSnapshot: Equatable, Sendable {
     public var isOnAC: Bool
     public var isCharging: Bool
     public var isLowPowerMode: Bool
+    /// Minutes to full when charging, or to empty when running on battery.
+    public var estimatedMinutes: Int?
 
-    public init(hasBattery: Bool, level: Int, isOnAC: Bool, isCharging: Bool, isLowPowerMode: Bool) {
+    public init(hasBattery: Bool, level: Int, isOnAC: Bool, isCharging: Bool, isLowPowerMode: Bool,
+                estimatedMinutes: Int? = nil) {
         self.hasBattery = hasBattery
         self.level = min(max(level, 0), 100)
         self.isOnAC = isOnAC
         self.isCharging = isCharging
         self.isLowPowerMode = isLowPowerMode
+        self.estimatedMinutes = estimatedMinutes
     }
 }
 

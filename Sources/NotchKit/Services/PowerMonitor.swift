@@ -79,7 +79,17 @@ public final class PowerMonitor {
             let maximum = max(description[kIOPSMaxCapacityKey] as? Int ?? 100, 1)
             let level = Int((Double(current) / Double(maximum) * 100).rounded())
             let charging = description[kIOPSIsChargingKey] as? Bool ?? false
-            return PowerSnapshot(hasBattery: true, level: level, isOnAC: isOnAC, isCharging: charging, isLowPowerMode: lowPower)
+            let estimate: Int? = if charging {
+                description[kIOPSTimeToFullChargeKey] as? Int
+            } else if !isOnAC {
+                description[kIOPSTimeToEmptyKey] as? Int
+            } else {
+                nil
+            }
+            return PowerSnapshot(
+                hasBattery: true, level: level, isOnAC: isOnAC, isCharging: charging, isLowPowerMode: lowPower,
+                estimatedMinutes: estimate.flatMap { $0 > 0 ? $0 : nil }
+            )
         }
         return PowerSnapshot(hasBattery: false, level: 100, isOnAC: true, isCharging: false, isLowPowerMode: lowPower)
     }

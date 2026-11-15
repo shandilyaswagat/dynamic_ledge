@@ -10,6 +10,16 @@ public final class StatsService {
     public private(set) var snapshot = SystemSnapshot()
     /// False until two readings exist, since CPU and network need a difference to measure.
     public private(set) var hasReading = false
+    private(set) var hasNetworkReading = false
+    private(set) var cpuHistory: [Double] = []
+    private(set) var panelMemoryPressure: StatsMath.Level?
+
+    /// A rolling minute of CPU samples for the Stats panel and Home tile.
+    @ObservationIgnored var recordsCPUHistory = false {
+        didSet {
+            if !recordsCPUHistory, oldValue { cpuHistory.removeAll() }
+        }
+    }
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var lastTicks: StatsMath.CPUTicks?
@@ -25,11 +35,13 @@ public final class StatsService {
             guard detailed != oldValue else { return }
             // Start network over, so the first rate isn't an average over the time it was off.
             lastNetwork = nil
+            hasNetworkReading = false
             if detailed, timer != nil { sample() }
         }
     }
 
-    static let interval: TimeInterval = 2
+    nonisolated static let interval: TimeInterval = 2
+    nonisolated static let cpuHistoryLimit = Int(60 / interval)
     /// Asked for once: every `mach_host_self()` call hands out a port right that must be released.
     private static let host = mach_host_self()
     private static let pageSize = UInt64(getpagesize())
@@ -65,10 +77,19 @@ public final class StatsService {
         lastTicks = nil
         lastNetwork = nil
         hasReading = false
+        hasNetworkReading = false
+        cpuHistory.removeAll()
     }
 
     private func setScreenAsleep(_ asleep: Bool) {
         screenAsleep = asleep
+        if asleep, recordsCPUHistory {
+            cpuHistory.removeAll()
+            lastTicks = nil
+            hasReading = false
+            lastNetwork = nil
+            hasNetworkReading = false
+        }
         schedule()
     }
 
@@ -97,21 +118,33 @@ public final class StatsService {
             if let lastTicks {
                 next.cpu = StatsMath.cpuUsage(from: lastTicks, to: ticks)
                 measuredChange = true
+                if recordsCPUHistory {
+                    if cpuHistory.count == Self.cpuHistoryLimit { cpuHistory.removeFirst() }
+                    cpuHistory.append(next.cpu)
+                }
             }
             lastTicks = ticks
         }
         if let memory = Self.memoryUsed() {
             next.memoryUsed = memory
         }
-        next.memoryPressure = Self.memoryPressure()
+        let pressure = Self.memoryPressure()
+        next.memoryPressure = pressure ?? .normal
+        if detailed || recordsCPUHistory { panelMemoryPressure = pressure }
         next.memoryTotal = Self.memoryTotal
-        if detailed, let network = Self.networkBytes() {
-            if let last = lastNetwork {
-                let seconds = now.timeIntervalSince(last.at)
-                next.networkIn = StatsMath.rate(from: last.received, to: network.received, seconds: seconds)
-                next.networkOut = StatsMath.rate(from: last.sent, to: network.sent, seconds: seconds)
+        if detailed {
+            if let network = Self.networkBytes() {
+                if let last = lastNetwork {
+                    let seconds = now.timeIntervalSince(last.at)
+                    next.networkIn = StatsMath.rate(from: last.received, to: network.received, seconds: seconds)
+                    next.networkOut = StatsMath.rate(from: last.sent, to: network.sent, seconds: seconds)
+                    hasNetworkReading = seconds > 0
+                }
+                lastNetwork = (network.received, network.sent, now)
+            } else {
+                lastNetwork = nil
+                hasNetworkReading = false
             }
-            lastNetwork = (network.received, network.sent, now)
         }
         // Free space barely moves; once a minute is plenty.
         if detailed, now.timeIntervalSince(lastDiskCheck) > 60, let disk = Self.disk() {
@@ -178,10 +211,10 @@ public final class StatsService {
         return (received, sent)
     }
 
-    private static func memoryPressure() -> StatsMath.Level {
+    private static func memoryPressure() -> StatsMath.Level? {
         var level: Int32 = 1
         var size = MemoryLayout<Int32>.size
-        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else { return .normal }
+        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else { return nil }
         return StatsMath.pressure(level)
     }
 

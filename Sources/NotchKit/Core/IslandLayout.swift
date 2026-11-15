@@ -361,6 +361,8 @@ public struct LayoutEngine: Equatable, Sendable {
         case .expanded(.download): IslandMetrics.ContentHeight.download
         case .nook(.launcher): IslandMetrics.Nook.launcherBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.aiUsage): IslandMetrics.Nook.aiUsageBody + IslandMetrics.Nook.bodyTopInset
+        case .expanded(.stats): IslandMetrics.Nook.statsBody
+        case .nook(.stats): IslandMetrics.Nook.statsBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.calendar): IslandMetrics.Nook.calendarBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.clipboard):
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)

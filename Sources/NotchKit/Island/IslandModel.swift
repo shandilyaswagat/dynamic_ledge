@@ -1045,15 +1045,21 @@ public final class IslandModel {
     /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
     /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
+        let panelSelected = expandTarget == .nook(.stats)
         guard settings.statsEnabled else {
+            stats.recordsCPUHistory = false
             stats.stop()
             return
         }
-        let detailed = expandTarget == .nook(.stats) || (expandTarget == .home && settings.appearance.nookLayout == .elongated)
+        let homeOpen = expandTarget == .home
+        let showsIdleStats = activeActivities.contains(.stats)
+        let elongatedHome = homeOpen && settings.appearance.nookLayout == .elongated
+        let detailed = panelSelected || elongatedHome
+        stats.recordsCPUHistory = panelSelected || (homeOpen && !elongatedHome && showsIdleStats)
         stats.detailed = detailed
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
         // shows it in its live section.
-        if detailed || (activeActivities.contains(.stats) && (expandTarget == nil || expandTarget == .home)) {
+        if detailed || (showsIdleStats && (expandTarget == nil || homeOpen)) {
             stats.start()
         } else {
             stats.pause()

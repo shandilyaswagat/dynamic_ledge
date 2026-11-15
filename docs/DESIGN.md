@@ -147,8 +147,11 @@ shows the "on" dot while it's on; it's also in Settings › Home. When on and no
 memory on the left and CPU on the right: a 0.55 × size bold caption ("MEM", "CPU") over the
 percentage. CPU is green under 70 %, yellow under 90 %, red above; memory follows macOS's memory
 pressure (normal, warning, critical) rather than the percentage. Numbers change without an
-animation, which would redraw them on the CPU every 2 s. The Stats panel has four tiles (Memory, CPU, Disk, Network) with a 22 pt rounded
-value, a detail line and a 4 pt bar in the same colours. Readings every 2 s; disk every minute.
+animation, which would redraw them on the CPU every 2 s. The expanded Stats panel has a 196 pt
+body with a CPU chart card on the left and Memory, Network, Battery (when present) and Storage
+rows on the right, separated by thin dividers. The CPU graph shows a rolling minute on a fixed
+0–100% scale. Memory shows a labeled pressure indicator, and Battery shows the system estimate
+when available. Readings update every 2 s and storage capacity every minute.
 
 ## Surface
 

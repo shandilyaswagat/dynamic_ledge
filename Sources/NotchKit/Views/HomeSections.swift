@@ -119,8 +119,14 @@ struct StandardHomeBody: View {
         case .live(let items):
             VStack(spacing: 6 * s) {
                 ForEach(items, id: \.self) { item in
-                    LiveCard(model: model, item: item, compact: items.count > 1)
-                        .transition(.scale(scale: 0.92).combined(with: .opacity))
+                    Group {
+                        if item == .stats, items.count == 1 {
+                            HomeStatsTile(model: model)
+                        } else {
+                            LiveCard(model: model, item: item, compact: items.count > 1)
+                        }
+                    }
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
                 }
             }
             .frame(width: 196 * s)
@@ -210,7 +216,7 @@ private struct LiveCard: View {
             case .music: LiveMusic(service: model.nowPlaying, lyrics: model.showsLyrics ? model.lyrics.current : nil, compact: compact)
             case .timer: LiveTimer(model: model)
             case .stopwatch: LiveStopwatch(model: model)
-            case .stats: LiveStats(stats: model.stats, compact: compact)
+            case .stats: LiveStats(stats: model.stats)
             case .aiUsage: LiveAIUsage(model: model, compact: compact)
             }
         }
@@ -244,31 +250,136 @@ private struct LiveCard: View {
     }
 }
 
-/// Memory and CPU, as in the notch. Compact is one row.
+/// A preview of Stats when it has the entire live section to itself.
+private struct HomeStatsTile: View {
+    let model: IslandModel
+    @Environment(\.notchScale) private var s
+    @State private var isHovering = false
+
+    var body: some View {
+        let stats = model.stats
+        let shape = RoundedRectangle(cornerRadius: 14 * s, style: .continuous)
+
+        Button { model.showTab(.stats) } label: {
+            VStack(alignment: .leading, spacing: 6 * s) {
+                HStack {
+                    LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: StatsColor.cpu, title: "Stats")
+                    Spacer(minLength: 4 * s)
+                    Image(systemName: "chevron.forward")
+                        .font(.system(size: 9 * s, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+                HStack(alignment: .center, spacing: 8 * s) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(stats.hasReading ? StatsMath.percent(stats.snapshot.cpu) : "–")
+                            .font(.system(size: 24 * s, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(stats.hasReading ? HierarchicalShapeStyle.primary : .secondary)
+                        Text("CPU")
+                            .font(.system(size: 10 * s, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityElement(children: .combine)
+
+                    cpuGraph(stats.cpuHistory)
+                }
+                .frame(maxHeight: .infinity)
+                Divider()
+                memoryReading(stats)
+            }
+            .padding(10 * s)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background { shape.fill(StatsColor.surface).brightness(isHovering ? 0.04 : 0) }
+            .overlay { shape.strokeBorder(StatsColor.separator, lineWidth: 0.5).allowsHitTesting(false) }
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(Text("Opens Stats"))
+        .accessibilityIdentifier("home-stats-tile")
+    }
+
+    private func cpuGraph(_ history: [Double]) -> some View {
+        Canvas { context, size in
+            guard !history.isEmpty else { return }
+            let padding = 3 * s
+            let bottom = size.height - padding
+            let step = (size.width - 2 * padding) / CGFloat(StatsService.cpuHistoryLimit - 1)
+            let points = history.reversed().enumerated().map { offset, load in
+                CGPoint(x: size.width - padding - CGFloat(offset) * step,
+                        y: bottom - (bottom - padding) * load)
+            }
+            guard let latest = points.first, let earliest = points.last else { return }
+            let trace = Path { $0.addLines(points) }
+            var area = trace
+            area.addLine(to: CGPoint(x: earliest.x, y: bottom))
+            area.addLine(to: CGPoint(x: latest.x, y: bottom))
+            area.closeSubpath()
+            context.fill(area, with: .linearGradient(
+                Gradient(colors: [StatsColor.cpu.opacity(0.22), StatsColor.cpu.opacity(0)]),
+                startPoint: CGPoint(x: 0, y: padding), endPoint: CGPoint(x: 0, y: bottom)
+            ))
+            context.stroke(trace, with: .color(StatsColor.cpu),
+                           style: StrokeStyle(lineWidth: 1.4 * s, lineCap: .round, lineJoin: .round))
+            let dot = CGRect(x: latest.x - 2 * s, y: latest.y - 2 * s, width: 4 * s, height: 4 * s)
+            context.fill(Path(ellipseIn: dot), with: .color(StatsColor.cpu))
+        }
+        .frame(height: 34 * s)
+        .accessibilityHidden(true)
+    }
+
+    private func memoryReading(_ stats: StatsService) -> some View {
+        let snapshot = stats.snapshot
+        let pressure = stats.panelMemoryPressure
+        let used = snapshot.memoryTotal > 0 ? StatsMath.bytes(Int64(snapshot.memoryUsed)) : "–"
+        return HStack(spacing: 4 * s) {
+            if let pressure {
+                Circle()
+                    .fill(StatsColor.pressure(pressure))
+                    .frame(width: 5 * s, height: 5 * s)
+                    .accessibilityHidden(true)
+            }
+            Text("Memory \(used)")
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+            Group {
+                switch pressure {
+                case .normal: Text("Normal").accessibilityLabel(Text("Memory pressure normal"))
+                case .busy: Text("Warning").accessibilityLabel(Text("Memory pressure warning"))
+                case .high: Text("Critical").accessibilityLabel(Text("Memory pressure critical"))
+                case nil: EmptyView()
+                }
+            }
+            .foregroundStyle(pressure.map(StatsColor.pressure) ?? Color(nsColor: .secondaryLabelColor))
+        }
+        .font(.system(size: 10 * s, weight: .medium))
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Memory and CPU when Stats shares the live section with another activity.
 private struct LiveStats: View {
     let stats: StatsService
-    let compact: Bool
     @Environment(\.notchScale) private var s
 
     var body: some View {
         let snapshot = stats.snapshot
         let memory = snapshot.memoryTotal > 0 ? snapshot.memory : nil
         let cpu = stats.hasReading ? snapshot.cpu : nil
-        let values = HStack(spacing: (compact ? 10 : 16) * s) {
-            LiveReading(caption: "MEM", share: memory, level: snapshot.memoryPressure, size: compact ? 15 : 22)
-            LiveReading(caption: "CPU", share: cpu, level: nil, size: compact ? 15 : 22)
-        }
-        if compact {
-            HStack(spacing: 8 * s) {
-                LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: NotchColor.green, title: "Stats")
-                Spacer(minLength: 4 * s)
-                values
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: NotchColor.green, title: "Stats")
-                Spacer(minLength: 6 * s)
-                values
+
+        HStack(spacing: 8 * s) {
+            LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: NotchColor.green, title: "Stats")
+            Spacer(minLength: 4 * s)
+            HStack(spacing: 10 * s) {
+                LiveReading(caption: "MEM", share: memory, level: snapshot.memoryPressure, size: 15)
+                LiveReading(caption: "CPU", share: cpu, level: nil, size: 15)
             }
         }
     }

@@ -73,6 +73,7 @@ public enum IslandMetrics {
         /// Space for the AI usage header and scrollable provider details.
         public static let aiUsageBody: CGFloat = 220
         public static let calendarBody: CGFloat = 180
+        public static let statsBody: CGFloat = 196
         /// Clipboard's search bar, added below the clips while it's open.
         public static let searchBar: CGFloat = 40
         public static let launcherTile: CGFloat = 76

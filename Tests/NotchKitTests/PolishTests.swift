@@ -301,7 +301,9 @@ struct AIUsageNotchTests {
         model.settings.aiUsageEnabled = true
         model.nowPlaying.apply(NowPlayingInfo(title: "Video", duration: 300, isPlaying: true), artworkData: nil)
         #expect(model.presentation == .compact(primary: .nowPlaying, secondary: .aiUsage))
-        #expect(HomeSection.sections(for: model).first == .live([.music, .aiUsage]))
+        #expect(model.homeLiveItems == [.music], "AI usage has its own tile on Home")
+        model.removeHomeTile(.aiUsage)
+        #expect(model.homeLiveItems == [.music, .aiUsage], "without its tile, it shows beside the grid")
         #expect(ActivitySwitcher.others(model.activeActivities, preferred: nil, current: .nowPlaying).contains(.aiUsage))
         model.tapBubble()
         #expect(model.presentation == .nook(.aiUsage))
@@ -337,13 +339,14 @@ struct AIUsageNotchTests {
         #expect(model.presentation == .nook(.stats), "Home's live row switches between them")
     }
 
-    @Test func homeSharesItsLiveSectionBetweenTheTwo() {
+    @Test func homeShowsLiveActivitiesInTheirTilesOrBesideTheGrid() {
         let model = makeModel()
         model.settings.aiUsageEnabled = true
         model.settings.statsEnabled = true
-        let sections = HomeSection.sections(for: model)
-        #expect(sections.first == .live([.stats, .aiUsage]), "half each, like two apps playing")
-        #expect(!sections.contains(.aiUsage), "never shown twice")
+        #expect(model.homeLiveItems.isEmpty, "Stats and AI usage have tiles, so they aren't shown twice")
+        model.removeHomeTile(.stats)
+        model.removeHomeTile(.aiUsage)
+        #expect(model.homeLiveItems == [.stats, .aiUsage], "half each beside the grid, like two apps playing")
         model.showTab(.home)
         #expect(model.stats.isRunning, "Home's card shows memory and CPU")
     }

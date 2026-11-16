@@ -37,7 +37,14 @@ struct NookContainer<Content: View>: View {
                 Color.clear
                     .frame(width: cameraGap + 12 * s)
                 HStack(spacing: 4 * s) {
-                    if model.isEditingShortcuts {
+                    if model.isEditingHome, tab == .home {
+                        // Rearranging Home's tiles: back to the usual tiles, or finish.
+                        ResetButton { model.resetHomeTiles() }
+                            .accessibilityLabel(Text("Reset Home"))
+                            .help("Go back to the tiles Home starts with")
+                        DoneButton { model.isEditingHome = false }
+                            .accessibilityLabel(Text("Done editing Home"))
+                    } else if model.isEditingShortcuts {
                         // How many are picked, so the limit is clear before it's hit.
                         Text("\(model.featureShortcuts.count) of \(SettingsStore.maximumFeatureShortcuts)")
                             .font(.system(size: 11 * s, weight: .medium))
@@ -431,6 +438,25 @@ private struct DoneButton: View {
                 .padding(.horizontal, 10 * s)
                 .frame(height: 22 * s)
                 .background(Capsule().fill(NotchColor.blue))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+}
+
+/// Puts Home's tiles back the way they start, beside Done while editing Home.
+private struct ResetButton: View {
+    let action: () -> Void
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button(action: action) {
+            Text("Reset")
+                .font(.system(size: 11 * s, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10 * s)
+                .frame(height: 22 * s)
+                .background(Capsule().fill(Color.white.opacity(0.14)))
                 .contentShape(Capsule())
         }
         .buttonStyle(PressableButtonStyle())

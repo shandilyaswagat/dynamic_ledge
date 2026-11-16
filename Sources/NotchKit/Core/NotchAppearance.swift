@@ -20,7 +20,7 @@ public enum NotchSize: String, CaseIterable, Sendable, Codable, Identifiable {
 
 /// How Home and its tabs are laid out when the notch opens.
 public enum NookLayout: String, CaseIterable, Sendable, Codable, Identifiable {
-    /// A compact panel: music on the left, rows beside it.
+    /// Home as a grid of tiles you arrange, with music beside them while it plays.
     case standard
     /// A long, short panel across the top of the screen with a row of widgets you scroll through.
     case elongated

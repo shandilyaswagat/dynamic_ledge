@@ -53,7 +53,7 @@ public enum IslandMetrics {
         /// The line of lyrics in the music view, for songs that have timed lyrics.
         public static let lyrics: CGFloat = 30
         /// Tallest expanded content; sizes the window.
-        public static let maximum: CGFloat = max(agentRequest(lines: agentRequestLines), max(nowPlaying + lyrics + mediaSwitcher, max(Nook.launcherBody + Nook.bodyTopInset, Nook.aiUsageBody + Nook.bodyTopInset)))
+        public static let maximum: CGFloat = max(agentRequest(lines: agentRequestLines), max(nowPlaying + lyrics + mediaSwitcher, max(Nook.launcherBody + Nook.bodyTopInset, max(Nook.aiUsageBody + Nook.bodyTopInset, Nook.homeBody + Nook.homeEditExtra + Nook.bodyTopInset))))
     }
 
     /// The Home, Tray and Mirror tabs share one fixed-size "nook", like the paid notch apps:
@@ -74,6 +74,15 @@ public enum IslandMetrics {
         public static let aiUsageBody: CGFloat = 220
         public static let calendarBody: CGFloat = 180
         public static let statsBody: CGFloat = 196
+        /// Home's grid in the standard layout: six columns, two rows of tiles a page.
+        public static let homeBody: CGFloat = 170
+        public static let homeColumns = 6
+        public static let homeRows = 2
+        public static let homeGap: CGFloat = 8
+        /// Music (or a call) beside the grid while it's live; the panel widens to fit it.
+        public static let homeLiveWidth: CGFloat = 230
+        /// Below the grid while editing: "Add controls" and the features to add.
+        public static let homeEditExtra: CGFloat = 104
         /// Clipboard's search bar, added below the clips while it's open.
         public static let searchBar: CGFloat = 40
         public static let launcherTile: CGFloat = 76
@@ -163,8 +172,12 @@ public struct HomeContent: Equatable, Sendable {
     public var hasLyrics: Bool
     /// Clipboard's search bar is open below the clips.
     public var hasClipboardSearch: Bool
+    /// Music or a call is live, so Home shows it beside the grid.
+    public var hasLiveTile: Bool
+    /// Home's tiles are being edited, so "Add controls" shows below them.
+    public var isEditingHome: Bool
 
-    public init(hasMedia: Bool = false, hasEvent: Bool = false, hasTimer: Bool = true, hasShortcuts: Bool = false, hasMediaSwitcher: Bool = false, hasLyrics: Bool = false, hasClipboardSearch: Bool = false) {
+    public init(hasMedia: Bool = false, hasEvent: Bool = false, hasTimer: Bool = true, hasShortcuts: Bool = false, hasMediaSwitcher: Bool = false, hasLyrics: Bool = false, hasClipboardSearch: Bool = false, hasLiveTile: Bool = false, isEditingHome: Bool = false) {
         self.hasMedia = hasMedia
         self.hasEvent = hasEvent
         self.hasTimer = hasTimer
@@ -172,6 +185,8 @@ public struct HomeContent: Equatable, Sendable {
         self.hasMediaSwitcher = hasMediaSwitcher
         self.hasLyrics = hasLyrics
         self.hasClipboardSearch = hasClipboardSearch
+        self.hasLiveTile = hasLiveTile
+        self.isEditingHome = isEditingHome
     }
 
     /// Rows in the widget column (calendar, timer, shortcuts).

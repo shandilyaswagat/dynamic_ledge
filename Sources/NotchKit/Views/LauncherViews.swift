@@ -67,7 +67,7 @@ struct LauncherBody: View {
 }
 
 /// A dot per page, the current one bright, like the iPhone's page dots turned on their side.
-private struct PageDots: View {
+struct PageDots: View {
     let count: Int
     let current: Int
     let select: (Int) -> Void
@@ -93,7 +93,7 @@ private struct PageDots: View {
 }
 
 /// One feature: its icon, its name, and its shortcut in small grey type underneath.
-private struct LauncherTile: View {
+struct LauncherTile: View {
     let model: IslandModel
     let item: LauncherItem
     var isEditing: Bool = false

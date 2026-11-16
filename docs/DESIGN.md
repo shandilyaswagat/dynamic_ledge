@@ -78,8 +78,8 @@ resizes it.
 | Total height, notch style | notch height + 2 + 10 + 120 + 14 = 178 on a 32 pt notch |
 | Tabs | in the strip left of the camera; the selected tab shows its name, others an icon |
 | Tabs | Home, Tray and Clipboard left of the camera; Notes, Mirror and Settings right of it. Each side gets exactly half the room; if the selected tab's name doesn't fit, every tab on that side shows just its icon |
-| Home body | media card (210 wide) on the left; calendar, timers and shortcuts as 30 pt rows on the right |
-| Live section | the leftmost section, 196 wide: a call or the mic, playing music, Stats and AI usage, then paused music, two at most. One fills it as a card; two share it as one-row cards, one above the other, and clicking one opens it |
+| Home body | a grid of tiles (see Home grid below); 170 tall, so Home is taller than Tray and Clipboard |
+| Live cards | right of the grid, 230 wide; the nook widens by 238 for them: a call or the mic, playing music, then a running clock, Stats or AI usage whose tile isn't on Home, then paused music, two at most. One fills the space as a card; two share it as one-row cards, one above the other, and clicking one opens it |
 | Tray body | one scrolling row of 52 pt icons with names, clear button on the right |
 | Mirror body | 16:9 camera preview on the left, message and button on the right |
 | Clipboard body | one scrolling row of 150 pt text cards (4 lines, app and age below), clear button on the right |
@@ -87,6 +87,28 @@ resizes it.
 | Focus | indigo (Focus) and green (Break) versions of the timer; same shapes as the orange timer |
 
 Medium and Small scale all of it.
+
+## Home grid
+
+Standard Home is a grid like the iPhone's Control Center: six columns, two rows a page
+(body 170), 8 pt gaps, and 7 pt of room around the tiles for the edit badges. Tiles are 16 pt
+corner cards at 7 % white (10 % under the pointer). Each takes the first free spot it fits, in
+order, so a small tile fills a gap beside a big one; a tile never runs across two pages, and more
+tiles make more pages, scrolled with the launcher's dots.
+
+| Size | Cells | Shows |
+|---|---|---|
+| Small | 1 × 1 | the launcher's symbol (19 pt, its colour) and name (11 pt), the "on" dot top right |
+| Wide | 2 × 1 | a 12 pt header with symbol; Stats: CPU and memory; Calendar: next event; Reminders: the first to-do; Timer: presets; Shortcuts: the first favourite; others: "On", "Off" or "Running" |
+| Large | 2 × 2 | Wide, plus: Stats network speeds and the last minute of CPU; up to four to-dos; three lines of event title |
+
+Default: Stats large; Calendar and Reminders wide; Keep Awake, AI Agent Usage, Timer and
+Stopwatch small. Tiles whose feature is off are hidden until it's on again. Shortcuts runs the
+first favourite when small. Holding a tile (0.4 s) edits: an 18 pt "–" badge top left removes it,
+an 18 pt handle bottom right steps small, wide, large on a click or takes the size dragged out,
+and dragging the tile onto another moves it there. Reset and Done (22 pt capsules) replace the
+buttons right of the camera, with no title, and "Add controls" below the grid (104 more) lists the
+features not on Home as 28 pt capsules: symbol, name and plus. The layout is saved on this Mac.
 
 ## Elongated layout (1.4.0)
 
@@ -147,7 +169,7 @@ shows the "on" dot while it's on; it's also in Settings › Home. When on and no
 memory on the left and CPU on the right: a 0.55 × size bold caption ("MEM", "CPU") over the
 percentage. CPU is green under 70 %, yellow under 90 %, red above; memory follows macOS's memory
 pressure (normal, warning, critical) rather than the percentage. Numbers change without an
-animation, which would redraw them on the CPU every 2 s. The expanded Stats panel has a 196 pt
+animation, which would redraw them on the CPU every 2 s. Home's Stats tile reads while Home is open, even with the notch readout off; wide shows CPU and memory, large adds network and the CPU chart. The expanded Stats panel has a 196 pt
 body with a CPU chart card on the left and Memory, Network, Battery (when present) and Storage
 rows on the right, separated by thin dividers. The CPU graph shows a rolling minute on a fixed
 0–100% scale. Memory shows a labeled pressure indicator, and Battery shows the system estimate

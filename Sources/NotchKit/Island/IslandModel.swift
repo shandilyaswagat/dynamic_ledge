@@ -42,6 +42,9 @@ public final class IslandModel {
     /// The grid is picking the shortcuts beside Home (started by holding a tile). Ends when
     /// anything else opens or the notch closes.
     public var isEditingShortcuts = false
+    /// Home's tiles are being rearranged (started by holding one). Ends with Done, or when
+    /// anything else opens or the notch closes.
+    public var isEditingHome = false
     public let hotKeys = HotKeys()
     public let updater = Updater()
     let usage = UsageReporter()
@@ -387,8 +390,104 @@ public final class IslandModel {
             hasShortcuts: !favoriteShortcuts.isEmpty,
             hasMediaSwitcher: !nowPlaying.otherSources.isEmpty,
             hasLyrics: showsLyrics,
-            hasClipboardSearch: isSearchingClipboard
+            hasClipboardSearch: isSearchingClipboard,
+            hasLiveTile: !homeLiveItems.isEmpty,
+            isEditingHome: isEditingHome
         )
+    }
+
+    // MARK: Home grid
+
+    /// Home's tiles whose feature is switched on, in order. One switched off in Settings is
+    /// hidden, and comes back when it's switched on again.
+    public var homeTiles: [HomeTile] {
+        settings.homeTiles.filter { isAvailable($0.item) }
+    }
+
+    /// Features that can be added to Home while editing: switched on and not there yet.
+    public var addableHomeItems: [HomeTileItem] {
+        let shown = Set(settings.homeTiles.map(\.item))
+        return HomeTileItem.allCases.filter { isAvailable($0) && !shown.contains($0) }
+    }
+
+    /// A tile's feature is switched on (Shortcuts: in Settings › Home).
+    private func isAvailable(_ item: HomeTileItem) -> Bool {
+        guard let feature = item.launcherItem else { return settings.shortcutsEnabled }
+        return launcherItems.contains(feature)
+    }
+
+    /// A tile was clicked: its feature opens, or Shortcuts runs the first favourite (with none
+    /// picked yet, Settings opens to pick some).
+    public func openTile(_ item: HomeTileItem) {
+        if let feature = item.launcherItem {
+            open(feature)
+        } else if let first = favoriteShortcuts.first {
+            shortcuts.run(first)
+        } else {
+            collapse()
+            openSettings(.shortcuts)
+        }
+    }
+
+    /// Whether a tile's thing is on right now.
+    public func isTileLive(_ item: HomeTileItem) -> Bool {
+        item.launcherItem.map(isLive) ?? false
+    }
+
+    /// Live activities shown beside Home's grid, two at most: a call, music, then a running
+    /// clock, Stats or AI usage whose tile isn't on Home. Paused music comes last.
+    var homeLiveItems: [HomeSection.LiveItem] {
+        let active = activeActivities
+        let tiles = Set(homeTiles.compactMap(\.item.launcherItem))
+        var live: [HomeSection.LiveItem] = []
+        if active.contains(.call) { live.append(.call) }
+        let musicIsLive = active.contains(.nowPlaying)
+        if homeHasMedia, musicIsLive { live.append(.music) }
+        if active.contains(.timer), !tiles.contains(.timer) { live.append(.timer) }
+        if active.contains(.stopwatch), !tiles.contains(.stopwatch) { live.append(.stopwatch) }
+        if active.contains(.stats), !tiles.contains(.stats) { live.append(.stats) }
+        if active.contains(.aiUsage), !tiles.contains(.aiUsage) { live.append(.aiUsage) }
+        if homeHasMedia, !musicIsLive { live.append(.music) }
+        return Array(live.prefix(HomeSection.maximumLive))
+    }
+
+    public func startEditingHome() {
+        guard !isEditingHome else { return }
+        isEditingHome = true
+        Haptics.perform(enabled: settings.hapticsEnabled)
+    }
+
+    public func addHomeTile(_ item: HomeTileItem) {
+        var grid = HomeGrid(tiles: settings.homeTiles)
+        guard grid.add(item) else { return }
+        settings.homeTiles = grid.tiles
+        syncStatsSampling()
+    }
+
+    public func removeHomeTile(_ item: HomeTileItem) {
+        var grid = HomeGrid(tiles: settings.homeTiles)
+        guard grid.remove(item) else { return }
+        settings.homeTiles = grid.tiles
+        syncStatsSampling()
+    }
+
+    public func resizeHomeTile(_ item: HomeTileItem, to size: HomeTileSize) {
+        var grid = HomeGrid(tiles: settings.homeTiles)
+        grid.resize(item, to: size)
+        settings.homeTiles = grid.tiles
+        syncStatsSampling()
+    }
+
+    public func moveHomeTile(_ item: HomeTileItem, to target: HomeTileItem) {
+        var grid = HomeGrid(tiles: settings.homeTiles)
+        grid.move(item, to: target)
+        settings.homeTiles = grid.tiles
+    }
+
+    /// Back to the tiles Home starts with.
+    public func resetHomeTiles() {
+        settings.homeTiles = HomeGrid.defaultTiles
+        syncStatsSampling()
     }
 
     /// The saved shortcuts beside Home whose feature is switched on, in order. One switched off
@@ -639,6 +738,7 @@ public final class IslandModel {
         collapseTask?.cancel()
         collapseTask = nil
         pointerEnteredExpanded = isHoveringPill
+        if target != .home { isEditingHome = false }
         if expandTarget != target {
             expandTarget = target
             Haptics.perform(enabled: settings.hapticsEnabled)
@@ -653,6 +753,7 @@ public final class IslandModel {
         isTypingInNook = false
         isSearchingClipboard = false
         isEditingShortcuts = false
+        isEditingHome = false
         if expandTarget == .notes { notes.save() }
         expandTarget = nil
         syncStatsSampling()
@@ -1001,6 +1102,7 @@ public final class IslandModel {
         if tab == .mirror { camera.refresh() }
         // Editing belongs to the grid; going anywhere else ends it, and so does reopening the grid.
         isEditingShortcuts = false
+        isEditingHome = false
         expand(ExpandTarget(tab))
     }
 
@@ -1043,23 +1145,26 @@ public final class IslandModel {
 
     /// Stats reads the system only while it's showing; music, a timer or another open view
     /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
-    /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
+    /// elongated Home's Stats widget, or Home's large Stats tile) is open, since the notch shows just memory and CPU.
+    /// Home's Stats tile reads while Home is open even when the readout beside the camera is off.
     private func syncStatsSampling() {
         let panelSelected = expandTarget == .nook(.stats)
-        guard settings.statsEnabled else {
+        let homeOpen = expandTarget == .home
+        let elongatedHome = homeOpen && settings.appearance.nookLayout == .elongated
+        let gridStats = homeOpen && !elongatedHome ? homeTiles.first { $0.item == .stats }?.size : nil
+        let gridShowsReadings = gridStats.map { $0 != .small } ?? false
+        guard settings.statsEnabled || panelSelected || gridShowsReadings else {
             stats.recordsCPUHistory = false
             stats.stop()
             return
         }
-        let homeOpen = expandTarget == .home
         let showsIdleStats = activeActivities.contains(.stats)
-        let elongatedHome = homeOpen && settings.appearance.nookLayout == .elongated
-        let detailed = panelSelected || elongatedHome
-        stats.recordsCPUHistory = panelSelected || (homeOpen && !elongatedHome && showsIdleStats)
+        let detailed = panelSelected || elongatedHome || gridStats == .large
+        stats.recordsCPUHistory = panelSelected || gridShowsReadings
         stats.detailed = detailed
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
-        // shows it in its live section.
-        if detailed || (showsIdleStats && (expandTarget == nil || homeOpen)) {
+        // shows it in its Stats tile, or beside the grid.
+        if detailed || gridShowsReadings || (showsIdleStats && (expandTarget == nil || homeOpen)) {
             stats.start()
         } else {
             stats.pause()

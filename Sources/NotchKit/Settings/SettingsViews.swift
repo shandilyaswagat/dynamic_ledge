@@ -390,7 +390,7 @@ struct AppearanceSettingsView: View {
             } header: {
                 Text("Home Layout")
             } footer: {
-                Text("Standard keeps Home compact. Elongated stretches Home, Tray and Clipboard across the screen. Choose which features appear in Home & Widgets.")
+                Text("Standard shows Home as tiles you can arrange. Elongated stretches Home, Tray and Clipboard across the screen. Choose which features appear in Home & Widgets.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

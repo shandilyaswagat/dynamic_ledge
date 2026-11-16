@@ -282,9 +282,19 @@ public struct LayoutEngine: Equatable, Sendable {
         return tab.isTab
     }
 
-    /// The nook's width for a view: elongated or standard.
-    public func nookWidth(for presentation: IslandPresentation) -> CGFloat {
-        isElongated(presentation) ? elongatedWidth : nookWidth
+    /// The nook's width for a view: elongated or standard. Home widens for music (or a call)
+    /// beside its grid.
+    public func nookWidth(for presentation: IslandPresentation, home: HomeContent = HomeContent()) -> CGFloat {
+        if isElongated(presentation) { return elongatedWidth }
+        if usesHomeGrid(presentation), home.hasLiveTile {
+            return nookWidth + ((IslandMetrics.Nook.homeLiveWidth + IslandMetrics.Nook.homeGap) * scale).rounded()
+        }
+        return nookWidth
+    }
+
+    /// Home in the standard layout: the grid of tiles.
+    public func usesHomeGrid(_ presentation: IslandPresentation) -> Bool {
+        presentation == .nook(.home) && appearance.nookLayout == .standard
     }
 
     private func expandedHeight(content: CGFloat) -> CGFloat {
@@ -301,7 +311,7 @@ public struct LayoutEngine: Equatable, Sendable {
     private var widestContent: CGFloat {
         let widestCompactBody = compactBodyWidth(for: .aiUsage)
         return max(
-            max(expandedWidth, appearance.nookLayout == .elongated ? elongatedWidth : nookWidth) + 2 * IslandMetrics.expandedFlare,
+            max(expandedWidth, appearance.nookLayout == .elongated ? elongatedWidth : nookWidth(for: .nook(.home), home: HomeContent(hasLiveTile: true))) + 2 * IslandMetrics.expandedFlare,
             widestCompactBody + 2 * (IslandMetrics.compactFlare + bubbleGap + bubbleDiameter + IslandMetrics.hoverGrowth(for: CGSize(width: widestCompactBody + 2 * IslandMetrics.compactFlare, height: compactHeight)).width),
             alertBodySize.width + 2 * IslandMetrics.compactFlare
         )
@@ -364,6 +374,8 @@ public struct LayoutEngine: Equatable, Sendable {
         case .expanded(.stats): IslandMetrics.Nook.statsBody
         case .nook(.stats): IslandMetrics.Nook.statsBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.calendar): IslandMetrics.Nook.calendarBody + IslandMetrics.Nook.bodyTopInset
+        case .nook(.home) where appearance.nookLayout == .standard:
+            IslandMetrics.Nook.homeBody + IslandMetrics.Nook.bodyTopInset + (home.isEditingHome ? IslandMetrics.Nook.homeEditExtra : 0)
         case .nook(.clipboard):
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset
@@ -501,7 +513,7 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.cameraGap = cameraGap
         case .nook:
             // The tab header lives in the strip beside the camera; widgets sit below it.
-            let width = nookWidth(for: presentation)
+            let width = nookWidth(for: presentation, home: home)
             let body = expandedContentHeight(for: presentation, home: home) ?? 0
             layout.pill = shape(body: width, height: expandedHeight(content: body), flare: IslandMetrics.expandedFlare)
             layout.flare = IslandMetrics.expandedFlare

@@ -19,7 +19,8 @@ Sources/
     │   ├── MeetingLinks.swift      Finds Meet, Zoom, Teams and Webex links in events
     │   ├── ColorMath.swift         Album-art tint
     │   ├── LauncherItem.swift      Shared feature inventory and shortcut labels
-    │   └── FeatureShortcutSelection.swift  Ordered optional feature shortcuts
+    │   ├── FeatureShortcutSelection.swift  Ordered optional feature shortcuts
+    │   └── HomeGrid.swift          Home's tiles and sizes, and where each goes in the grid
     ├── Services/                 System integrations
     │   ├── MediaBridgeClient       Runs and restarts the media helper; parses its output
     │   │                           and album-art tint off the main thread
@@ -64,11 +65,14 @@ Sources/
 6. `SettingsStore` saves the shortcuts beside Home, in the order they were added; the grid's
    edit mode (hold a tile) adds and removes them. `IslandModel.featureShortcuts` hides any whose feature is
    switched off, and both the shortcuts and the grid open features through `IslandModel.open(_:)`.
+7. `SettingsStore.homeTiles` saves Home's tiles and sizes in order. `HomeGridLayout` places them
+   (first free spot, pages of two rows); holding a tile edits them through `IslandModel`'s
+   `addHomeTile`, `removeHomeTile`, `resizeHomeTile`, `moveHomeTile` and `resetHomeTiles`.
 
 ## Debug commands
 
 Debug builds listen for a distributed notification named `DynamicNotch.debug`. Its object is a
-command: `timer:<seconds>`, `pause`, `cancel`, `home`, `expand`, `collapse`, `charging`,
+command: `timer:<seconds>`, `pause`, `cancel`, `home`, `edithome`, `expand`, `collapse`, `charging`,
 `lowbattery`, `headphones`, `drop`, `target`, `nodrop`, `peek`, `hover`, `unhover`, `swipe`,
 `settings:<tab>`, `idle`, `dismiss`, `size:<small|medium|large>`, `welcome`,
 `dump` (writes the model state to `$TMPDIR/DynamicNotch-debug.txt`), `tray`, `mirror`,

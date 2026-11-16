@@ -8,6 +8,15 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Home as tiles.** Home is now a grid of tiles like Control Center on iPhone: Stats, Calendar,
+  Reminders, Keep Awake, AI Agent Usage, Timer and Stopwatch to start. Hold any tile to edit:
+  remove it, drag it somewhere else, drag or press its corner to make it small, wide or large,
+  or add Clipboard, Files, Scratchpad, Camera Mirror or Shortcuts. Reset puts the usual tiles
+  back. Music and calls show up beside the tiles while they're live. The elongated layout is
+  unchanged.
+- **A new Stats panel.** The last minute of CPU as a chart, with memory pressure, network,
+  battery and storage beside it. Battery shows the time left to full or empty when macOS has
+  an estimate, and storage shows how full the disk is.
 - AI usage now has side-by-side allowance cards, a compact remaining-limit ring, and separate
   Usage and History views. Optional history keeps seven days of allowance readings and reads
   local Codex token counts. Add your own blended USD rates for clearly labelled cost estimates;

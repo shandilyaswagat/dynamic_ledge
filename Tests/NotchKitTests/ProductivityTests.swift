@@ -207,8 +207,12 @@ struct ProductivityModelTests {
 
     @Test func nookTabsShareOneSize() {
         let engine = LayoutEngine(screen: .sample, appearance: .standard)
-        let sizes = [IslandPresentation.home, .clipboard, .notes].map { engine.layout(for: $0, home: HomeContent(), hovering: false).pill.size }
+        let sizes = [IslandPresentation.clipboard, .notes].map { engine.layout(for: $0, home: HomeContent(), hovering: false).pill.size }
         #expect(Set(sizes.map { "\($0)" }).count == 1)
+        // Home's grid keeps the width and adds a row of tiles.
+        let home = engine.layout(for: .home, home: HomeContent(), hovering: false).pill.size
+        #expect(home.width == sizes[0].width)
+        #expect(home.height > sizes[0].height)
     }
 }
 

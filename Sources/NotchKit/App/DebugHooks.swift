@@ -37,6 +37,9 @@ final class DebugHooks {
         case "pause": model.timer.togglePause()
         case "cancel": model.cancelTimer()
         case "home": model.expand(.home)
+        case "edithome":
+            model.expand(.home)
+            model.startEditingHome()
         case "expand": if case .compact(let primary, _) = model.presentation { model.expand(.activity(primary)) }
         case "collapse": model.collapse()
         case "drop": model.fileDragChanged(isDragging: true, at: CGPoint(x: model.engine.anchorX, y: 10))

@@ -179,6 +179,17 @@ public final class SettingsStore {
             }
         }
     }
+    /// Home's tiles and their sizes, in order (hold a tile in Home to edit them).
+    public var homeTiles: [HomeTile] {
+        didSet {
+            let normalized = HomeGrid(tiles: homeTiles).tiles
+            if normalized != homeTiles {
+                homeTiles = normalized
+            } else {
+                defaults.set(homeTiles.map(\.rawValue), forKey: Key.homeTiles)
+            }
+        }
+    }
     /// Show volume and brightness changes in the notch.
     public var levelsEnabled: Bool { didSet { defaults.set(levelsEnabled, forKey: Key.levels) } }
 
@@ -297,6 +308,7 @@ public final class SettingsStore {
         } else {
             featureShortcuts = Self.defaultFeatureShortcuts
         }
+        homeTiles = (defaults.stringArray(forKey: Key.homeTiles)).map { HomeGrid(rawValues: $0).tiles } ?? HomeGrid.defaultTiles
         levelsEnabled = defaults.object(forKey: Key.levels) as? Bool ?? true
         let linger = defaults.object(forKey: Key.linger) as? Double ?? 30
         pausedMediaLinger = Self.lingerChoices.contains(linger) ? linger : 30
@@ -425,6 +437,7 @@ public final class SettingsStore {
         static let shortcuts = "home.shortcuts"
         static let favoriteShortcuts = "home.favoriteShortcuts"
         static let featureShortcuts = "home.featureShortcuts"
+        static let homeTiles = "home.tiles"
         static let levels = "alert.levels"
     }
 }

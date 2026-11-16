@@ -1,22 +1,11 @@
 import SwiftUI
 
-// Home in the standard layout: up to three sections side by side, split by hairlines.
-// - Live: a call or the mic, music, Stats and AI usage, two at most. One fills the section as
-//   a card; two share it, one above the other. Clicking a card (not its buttons) opens that activity's full view.
-// - Calendar: the next event.
-// - Timer: presets, or, while a timer or the stopwatch runs, that clock above the presets.
-// - Shortcuts: shares the Timer section when there isn't a section left for it.
+// Home in the standard layout: a grid of tiles, six columns and two rows a page, arranged by the
+// user like the iPhone's Control Center. Hold a tile to edit: remove it, drag it somewhere else,
+// change its size with the corner handle, or add features from the list below.
+// Music (or a call) shows up as a card beside the grid while it's live.
 
-enum HomeSection: Hashable, Identifiable {
-    case live([LiveItem])
-    case calendar
-    /// The clocks running now (timer, stopwatch), shown above the presets.
-    case timer(running: [LiveItem])
-    case shortcuts
-    /// No room for both on their own, so they share the last section.
-    case timerAndShortcuts
-    case aiUsage
-
+enum HomeSection {
     enum LiveItem: Hashable {
         case call, music, timer, stopwatch, stats, aiUsage
 
@@ -32,53 +21,8 @@ enum HomeSection: Hashable, Identifiable {
         }
     }
 
-    /// Cards that share the live section, like two apps playing.
+    /// Cards that share the space beside the grid, like two apps playing.
     static let maximumLive = 2
-
-    static let maximum = 3
-
-    /// Stable across changes to what's running, so a section animates instead of being replaced.
-    var id: String {
-        switch self {
-        case .live: "live"
-        case .calendar: "calendar"
-        case .timer, .timerAndShortcuts: "timer"
-        case .shortcuts: "shortcuts"
-        case .aiUsage: "aiUsage"
-        }
-    }
-
-    @MainActor static func sections(for model: IslandModel) -> [HomeSection] {
-        let active = model.activeActivities
-        var live: [LiveItem] = []
-        if active.contains(.call) { live.append(.call) }
-        // Paused music can linger in Home; anything live comes before it.
-        let musicIsLive = active.contains(.nowPlaying)
-        if model.homeHasMedia, musicIsLive { live.append(.music) }
-        if active.contains(.stats) { live.append(.stats) }
-        if active.contains(.aiUsage) { live.append(.aiUsage) }
-        if model.homeHasMedia, !musicIsLive { live.append(.music) }
-        live = Array(live.prefix(maximumLive))
-        var clocks: [LiveItem] = []
-        if active.contains(.timer) { clocks.append(.timer) }
-        if active.contains(.stopwatch) { clocks.append(.stopwatch) }
-
-        var sections: [HomeSection] = live.isEmpty ? [] : [.live(live)]
-        if model.showsCalendarRow { sections.append(.calendar) }
-        let timer = model.settings.timerEnabled || !clocks.isEmpty
-        let shortcuts = !model.favoriteShortcuts.isEmpty
-        // A running clock already halves the Timer section, so Shortcuts can't share it too.
-        if timer, shortcuts, clocks.isEmpty, sections.count + 2 > maximum {
-            sections.append(.timerAndShortcuts)
-        } else {
-            if timer { sections.append(.timer(running: clocks)) }
-            if shortcuts { sections.append(.shortcuts) }
-        }
-        if model.settings.aiUsageLive, model.settings.aiUsageShowHomeWidget, !live.contains(.aiUsage), !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty, sections.count < maximum {
-            sections.append(.aiUsage)
-        }
-        return Array(sections.prefix(maximum))
-    }
 }
 
 struct StandardHomeBody: View {
@@ -86,87 +30,552 @@ struct StandardHomeBody: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
-        let sections = HomeSection.sections(for: model)
-        HStack(alignment: .top, spacing: 0) {
-            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                if index > 0, case .live = sections[index - 1] {
-                    Color.clear.frame(width: 14 * s)
-                } else if index > 0 {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.1))
-                        .frame(width: 1)
-                        .padding(.vertical, 8 * s)
-                        .padding(.horizontal, 12 * s)
+        let live = model.homeLiveItems
+        let gap = IslandMetrics.Nook.homeGap * s
+        VStack(alignment: .leading, spacing: 12 * s) {
+            HStack(alignment: .top, spacing: gap - HomeTileGrid.badgeInset * s) {
+                HomeTileGrid(model: model, tiles: model.homeTiles, isEditing: model.isEditingHome)
+                if !live.isEmpty {
+                    VStack(spacing: 6 * s) {
+                        ForEach(live, id: \.self) { item in
+                            LiveCard(model: model, item: item, compact: live.count > 1)
+                                .transition(.scale(scale: 0.92).combined(with: .opacity))
+                        }
+                    }
+                    .frame(width: IslandMetrics.Nook.homeLiveWidth * s)
+                    // Lines up with the tiles, which leave room for their edit badges.
+                    .padding(.vertical, HomeTileGrid.badgeInset * s)
+                    .padding(.trailing, HomeTileGrid.badgeInset * s)
+                    .transition(.scale(scale: 0.92, anchor: .trailing).combined(with: .opacity))
                 }
-                view(for: section)
+            }
+            .frame(height: (IslandMetrics.Nook.homeBody * s).rounded() - 2 * s)
+            if model.isEditingHome {
+                AddHomeControls(model: model)
+                    .padding(.horizontal, HomeTileGrid.badgeInset * s)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.bottom, 2 * s)
-        .overlay {
-            if sections.isEmpty {
-                Text("Nothing live right now")
-                    .font(.system(size: 13 * s, weight: .medium))
-                    .foregroundStyle(NotchColor.secondaryText)
+        .animation(.spring(duration: 0.35, bounce: 0.15), value: live)
+        .animation(.spring(duration: 0.35, bounce: 0.15), value: model.isEditingHome)
+    }
+}
+
+// MARK: Grid
+
+/// The tiles, placed by HomeGridLayout. More than two rows make more pages, scrolled with the
+/// dots on the right, like the launcher.
+private struct HomeTileGrid: View {
+    let model: IslandModel
+    let tiles: [HomeTile]
+    let isEditing: Bool
+    @State private var page: Int? = 0
+    @State private var dragging: HomeTileItem?
+    @State private var dragOffset: CGSize = .zero
+    @Environment(\.notchScale) private var s
+
+    /// Half an edit badge, so the ones on the outer tiles aren't cut off.
+    static let badgeInset: CGFloat = 7
+
+    var body: some View {
+        let placements = HomeGridLayout.place(tiles, columns: IslandMetrics.Nook.homeColumns, rowsPerPage: IslandMetrics.Nook.homeRows)
+        let pages = HomeGridLayout.pageCount(placements)
+        GeometryReader { geometry in
+            HStack(spacing: 8 * s) {
+                let width = geometry.size.width - (pages > 1 ? 22 * s : 0)
+                // Room around the tiles for the edit badges on their corners.
+                let inset = Self.badgeInset * s
+                let metrics = GridMetrics(size: CGSize(width: width - 2 * inset, height: geometry.size.height - 2 * inset), gap: IslandMetrics.Nook.homeGap * s)
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<pages, id: \.self) { index in
+                            ZStack(alignment: .topLeading) {
+                                ForEach(placements.filter { $0.page == index }, id: \.tile.item) { placement in
+                                    tile(placement, metrics: metrics, placements: placements)
+                                }
+                            }
+                            .padding(inset)
+                            .frame(width: width, height: geometry.size.height, alignment: .topLeading)
+                            .id(index)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $page)
+                .scrollDisabled(dragging != nil)
+                if pages > 1 {
+                    PageDots(count: pages, current: page ?? 0) { index in
+                        withAnimation(.smooth(duration: 0.35)) { page = index }
+                    }
+                }
             }
         }
-        .animation(.spring(duration: 0.35, bounce: 0.15), value: sections)
+        .overlay {
+            if tiles.isEmpty {
+                Text(isEditing ? "Add controls from the list below" : "Hold here to add controls")
+                    .font(.system(size: 12 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .allowsHitTesting(false)
+            }
+        }
+        .contentShape(Rectangle())
+        // An empty Home still has a way into editing.
+        .onLongPressGesture(minimumDuration: 0.4) { if tiles.isEmpty { model.startEditingHome() } }
+        .animation(.spring(duration: 0.35, bounce: 0.2), value: tiles)
+        .accessibilityIdentifier("home-grid")
     }
 
     @ViewBuilder
-    private func view(for section: HomeSection) -> some View {
-        switch section {
-        case .live(let items):
-            VStack(spacing: 6 * s) {
-                ForEach(items, id: \.self) { item in
-                    Group {
-                        if item == .stats, items.count == 1 {
-                            HomeStatsTile(model: model)
-                        } else {
-                            LiveCard(model: model, item: item, compact: items.count > 1)
-                        }
+    private func tile(_ placement: HomeGridLayout.Placement, metrics: GridMetrics, placements: [HomeGridLayout.Placement]) -> some View {
+        let frame = metrics.frame(placement)
+        let item = placement.tile.item
+        let isDragging = dragging == item
+        HomeTileView(model: model, tile: placement.tile, isEditing: isEditing, metrics: metrics)
+            .frame(width: frame.width, height: frame.height)
+            .scaleEffect(isDragging ? 1.04 : 1)
+            .offset(x: frame.minX + (isDragging ? dragOffset.width : 0), y: frame.minY + (isDragging ? dragOffset.height : 0))
+            .zIndex(isDragging ? 1 : 0)
+            .gesture(isEditing ? reorder(item, frame: frame, placements: placements, metrics: metrics) : nil)
+            .transition(.scale(scale: 0.85).combined(with: .opacity))
+    }
+
+    /// While editing, drag a tile onto another to put it there.
+    private func reorder(_ item: HomeTileItem, frame: CGRect, placements: [HomeGridLayout.Placement], metrics: GridMetrics) -> some Gesture {
+        DragGesture(minimumDistance: 4 * s)
+            .onChanged { value in
+                dragging = item
+                dragOffset = value.translation
+            }
+            .onEnded { value in
+                let point = CGPoint(x: frame.midX + value.translation.width, y: frame.midY + value.translation.height)
+                let current = placements.first { $0.tile.item == item }?.page ?? 0
+                if let target = placements.first(where: { $0.page == current && $0.tile.item != item && metrics.frame($0).contains(point) }) {
+                    model.moveHomeTile(item, to: target.tile.item)
+                    Haptics.perform(enabled: model.settings.hapticsEnabled)
+                }
+                withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
+                    dragging = nil
+                    dragOffset = .zero
+                }
+            }
+    }
+}
+
+/// Cell sizes for the space the grid has.
+private struct GridMetrics {
+    let size: CGSize
+    let gap: CGFloat
+
+    var columnWidth: CGFloat {
+        let columns = CGFloat(IslandMetrics.Nook.homeColumns)
+        return (size.width - gap * (columns - 1)) / columns
+    }
+
+    var rowHeight: CGFloat {
+        let rows = CGFloat(IslandMetrics.Nook.homeRows)
+        return (size.height - gap * (rows - 1)) / rows
+    }
+
+    func frame(_ placement: HomeGridLayout.Placement) -> CGRect {
+        let size = placement.tile.size
+        return CGRect(
+            x: CGFloat(placement.column) * (columnWidth + gap),
+            y: CGFloat(placement.row) * (rowHeight + gap),
+            width: CGFloat(size.columns) * columnWidth + CGFloat(size.columns - 1) * gap,
+            height: CGFloat(size.rows) * rowHeight + CGFloat(size.rows - 1) * gap
+        )
+    }
+}
+
+// MARK: Tile
+
+/// One tile: its content on a rounded card. Click to open it, hold to edit. While editing, the
+/// minus removes it and the corner handle changes its size.
+private struct HomeTileView: View {
+    let model: IslandModel
+    let tile: HomeTile
+    let isEditing: Bool
+    let metrics: GridMetrics
+    @State private var isHovering = false
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
+        HomeTileContent(model: model, tile: tile)
+            .padding(tile.size == .small ? 6 * s : 10 * s)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: tile.size == .small ? .center : .topLeading)
+            .background(shape.fill(Color.white.opacity(isHovering && !isEditing ? 0.1 : 0.07)))
+            .contentShape(shape)
+            .allowsHitTesting(true)
+            .modifier(TileTap(isEditing: isEditing, onHold: model.startEditingHome, onClick: { model.openTile(tile.item) }))
+            .overlay(alignment: .topTrailing) {
+                if !isEditing, tile.size == .small, model.isTileLive(tile.item) {
+                    // On right now: kept awake, a timer running, shown in the notch.
+                    Circle()
+                        .fill(HomeTileContent.tint(tile.item))
+                        .frame(width: 6 * s, height: 6 * s)
+                        .padding(9 * s)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if isEditing {
+                    EditBadge(symbol: "minus", label: "Remove \(tile.item.title)") {
+                        model.removeHomeTile(tile.item)
+                        Haptics.perform(enabled: model.settings.hapticsEnabled)
                     }
-                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+                    .offset(x: -HomeTileGrid.badgeInset * s, y: -HomeTileGrid.badgeInset * s)
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
-            .frame(width: 196 * s)
-            .frame(maxHeight: .infinity)
-            .transition(.scale(scale: 0.92, anchor: .leading).combined(with: .opacity))
-        case .calendar:
-            CalendarSection(model: model, calendar: model.calendar)
-                .sectionFrame()
-        case .timer(let running):
-            VStack(alignment: .leading, spacing: 8 * s) {
-                ForEach(running, id: \.self) { item in
-                    LiveCard(model: model, item: item, compact: true)
-                        .frame(height: 50 * s)
-                        .transition(.scale(scale: 0.92, anchor: .top).combined(with: .opacity))
-                }
-                if running.count < 2 {
-                    // Under a running clock, its card already says "Timer"; just the presets.
-                    TimerSection(model: model, compact: !running.isEmpty, showsHeader: running.isEmpty)
+            .overlay(alignment: .bottomTrailing) {
+                if isEditing {
+                    ResizeHandle(model: model, tile: tile, metrics: metrics)
+                        .offset(x: HomeTileGrid.badgeInset * s, y: HomeTileGrid.badgeInset * s)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
-            .sectionFrame()
-        case .shortcuts:
-            ShortcutsSection(model: model, compact: false)
-                .sectionFrame()
-        case .timerAndShortcuts:
-            VStack(alignment: .leading, spacing: 12 * s) {
-                TimerSection(model: model, compact: true)
-                ShortcutsSection(model: model, compact: true)
-            }
-            .sectionFrame()
-        case .aiUsage:
-            AIUsageHomeWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
-                .sectionFrame()
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+            .help(isEditing ? "Drag to move" : "Hold to edit Home")
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Text(tile.item.title))
+    }
+}
+
+/// Click opens and holding starts editing; while editing, the tile only moves.
+private struct TileTap: ViewModifier {
+    let isEditing: Bool
+    let onHold: () -> Void
+    let onClick: () -> Void
+
+    func body(content: Content) -> some View {
+        if isEditing {
+            content
+        } else {
+            content.modifier(ClickNotHold(onHold: onHold, onClick: onClick))
         }
     }
 }
 
-private extension View {
-    func sectionFrame() -> some View {
-        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+/// A small round button on a tile's corner while editing.
+private struct EditBadge: View {
+    let symbol: String
+    let label: LocalizedStringKey
+    let action: () -> Void
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 9 * s, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 18 * s, height: 18 * s)
+                .background(Circle().fill(Color(white: 0.28)))
+                .overlay(Circle().strokeBorder(Color.black.opacity(0.6), lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel(Text(label))
+    }
+}
+
+/// Drag it to pick a size, or press it to step through small, wide and large.
+private struct ResizeHandle: View {
+    let model: IslandModel
+    let tile: HomeTile
+    let metrics: GridMetrics
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Image(systemName: "arrow.up.left.and.arrow.down.right")
+            .font(.system(size: 8 * s, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 18 * s, height: 18 * s)
+            .background(Circle().fill(Color(white: 0.28)))
+            .overlay(Circle().strokeBorder(Color.black.opacity(0.6), lineWidth: 1))
+            .contentShape(Circle())
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { value in
+                        let moved = abs(value.translation.width) + abs(value.translation.height)
+                        let size: HomeTileSize
+                        if moved < 4 * s {
+                            size = tile.size.next
+                        } else {
+                            let columns = tile.size.columns + Int((value.translation.width / (metrics.columnWidth + metrics.gap)).rounded())
+                            let rows = tile.size.rows + Int((value.translation.height / (metrics.rowHeight + metrics.gap)).rounded())
+                            size = HomeTileSize.fitting(columns: columns, rows: rows)
+                        }
+                        guard size != tile.size else { return }
+                        model.resizeHomeTile(tile.item, to: size)
+                        Haptics.perform(enabled: model.settings.hapticsEnabled)
+                    }
+            )
+            .help("Drag to resize, or press to change size")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(Text("Change size of \(tile.item.title)"))
+            .accessibilityAction { model.resizeHomeTile(tile.item, to: tile.size.next) }
+    }
+}
+
+// MARK: Add controls
+
+/// Below the grid while editing: the features that aren't on Home yet. Click one to add it.
+private struct AddHomeControls: View {
+    let model: IslandModel
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        let items = model.addableHomeItems
+        VStack(alignment: .leading, spacing: 8 * s) {
+            Text("Add controls")
+                .font(.system(size: 12 * s, weight: .semibold))
+                .foregroundStyle(.white)
+            if items.isEmpty {
+                Text("Everything is on Home")
+                    .font(.system(size: 11 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    FlowLayout(spacing: 8 * s) {
+                        ForEach(items) { item in
+                            Button {
+                                model.addHomeTile(item)
+                                Haptics.perform(enabled: model.settings.hapticsEnabled)
+                            } label: {
+                                HStack(spacing: 6 * s) {
+                                    Image(systemName: item.symbolName)
+                                        .foregroundStyle(HomeTileContent.tint(item))
+                                    Text(item.title)
+                                        .foregroundStyle(.white)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 9 * s, weight: .bold))
+                                        .foregroundStyle(NotchColor.secondaryText)
+                                }
+                                .font(.system(size: 11.5 * s, weight: .medium))
+                                .lineLimit(1)
+                                .padding(.horizontal, 11 * s)
+                                .frame(height: 28 * s)
+                                .background(Capsule().fill(Color.white.opacity(0.09)))
+                                .contentShape(Capsule())
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            .accessibilityLabel(Text("Add \(item.title)"))
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("home-add-controls")
+    }
+}
+
+/// Lays chips out in rows, wrapping when a row is full.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        let height = rows.last.map { $0.y + $0.height } ?? 0
+        return CGSize(width: proposal.width ?? rows.map(\.width).max() ?? 0, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: bounds.minY + row.y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var y: CGFloat = 0
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = [Row()]
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            if !rows[rows.count - 1].indices.isEmpty, rows[rows.count - 1].width + spacing + size.width > width {
+                let last = rows[rows.count - 1]
+                rows.append(Row(y: last.y + last.height + spacing))
+            }
+            var row = rows[rows.count - 1]
+            row.width += (row.indices.isEmpty ? 0 : spacing) + size.width
+            row.height = max(row.height, size.height)
+            row.indices.append(index)
+            rows[rows.count - 1] = row
+        }
+        return rows
+    }
+}
+
+// MARK: Tile content
+
+/// What a tile shows at its size. Small is the feature's symbol and name, like the launcher;
+/// wide and large show what's going on (readings, the next event, the to-dos, the presets).
+private struct HomeTileContent: View {
+    let model: IslandModel
+    let tile: HomeTile
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        if tile.size == .small {
+            smallTile
+        } else {
+            switch tile.item {
+            case .stats: HomeStatsTile(model: model, large: tile.size == .large)
+            case .calendar: CalendarTile(model: model, calendar: model.calendar, large: tile.size == .large)
+            case .reminders: RemindersTile(model: model, reminders: model.reminders, large: tile.size == .large)
+            case .timer: TimerSection(model: model, compact: tile.size == .wide)
+            case .shortcuts: ShortcutsSection(model: model, compact: tile.size == .wide)
+            case .aiUsage where !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty:
+                LiveAIUsage(model: model, compact: tile.size == .wide)
+            default: wideTile
+            }
+        }
+    }
+
+    private var smallTile: some View {
+        VStack(spacing: 6 * s) {
+            Image(systemName: Self.symbol(tile.item, live: model.isTileLive(tile.item)))
+                .font(.system(size: 19 * s, weight: .regular))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Self.tint(tile.item))
+                .frame(height: 24 * s)
+            Text(tile.item.title)
+                .font(.system(size: 11 * s, weight: .medium))
+                .foregroundStyle(.white.opacity(0.92))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    /// A feature without more to show: its name, and whether it's on.
+    private var wideTile: some View {
+        let live = model.isTileLive(tile.item)
+        return VStack(alignment: .leading, spacing: 0) {
+            SectionHeader(symbol: Self.symbol(tile.item, live: live), tint: Self.tint(tile.item), title: LocalizedStringKey(tile.item.title))
+            Spacer(minLength: 4 * s)
+            if let state = Self.state(tile.item, live: live) {
+                Text(state)
+                    .font(.system(size: 11 * s, weight: .medium))
+                    .foregroundStyle(live ? Self.tint(tile.item) : NotchColor.secondaryText)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    static func symbol(_ item: HomeTileItem, live: Bool) -> String {
+        item.launcherItem.map { LauncherTile.symbol($0, live: live) } ?? item.symbolName
+    }
+
+    static func tint(_ item: HomeTileItem) -> Color {
+        item.launcherItem.map(LauncherTile.tint) ?? NotchColor.blue
+    }
+
+    /// "On" or "Off" for the switches.
+    static func state(_ item: HomeTileItem, live: Bool) -> LocalizedStringKey? {
+        switch item {
+        case .keepAwake, .stats, .aiUsage: live ? "On" : "Off"
+        case .timer, .stopwatch: live ? "Running" : nil
+        default: nil
+        }
+    }
+}
+
+/// The next event, or a way to connect the calendar. Clicking it opens the month once connected.
+private struct CalendarTile: View {
+    let model: IslandModel
+    let calendar: CalendarService
+    let large: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4 * s) {
+            SectionHeader(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
+            switch calendar.access {
+            case .notAsked: message("Connect calendar")
+            case .denied, .limited: message("Calendar access is off")
+            case .granted:
+                if let event = calendar.nextEvent {
+                    Text(event.title)
+                        .font(.system(size: 12 * s, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(large ? 3 : 1)
+                    TimelineView(.everyMinute) { context in
+                        Text(CalendarRules.relativeLabel(for: event, at: context.date))
+                            .font(.system(size: 11 * s, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(event.isHappening(at: context.date) ? NotchColor.green : NotchColor.secondaryText)
+                            .lineLimit(1)
+                    }
+                } else {
+                    message("No more events this week")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func message(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: 11 * s, weight: .medium))
+            .foregroundStyle(NotchColor.secondaryText)
+            .lineLimit(2)
+    }
+}
+
+/// Today's first to-dos, or a way to connect Reminders. Clicking it opens the list.
+private struct RemindersTile: View {
+    let model: IslandModel
+    let reminders: RemindersService
+    let large: Bool
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4 * s) {
+            SectionHeader(symbol: "checklist", tint: NotchColor.blue, title: "Reminders")
+            switch reminders.access {
+            case .notAsked: message("Connect Reminders")
+            case .denied: message("Reminders access is off")
+            case .granted:
+                if reminders.items.isEmpty {
+                    message("Nothing left for today")
+                } else {
+                    ForEach(reminders.items.prefix(large ? 4 : 1)) { item in
+                        HStack(spacing: 6 * s) {
+                            Image(systemName: "circle")
+                                .font(.system(size: 10 * s, weight: .regular))
+                                .foregroundStyle(NotchColor.accent(item.color))
+                            Text(item.title)
+                                .font(.system(size: 11.5 * s, weight: .medium))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func message(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: 11 * s, weight: .medium))
+            .foregroundStyle(NotchColor.secondaryText)
+            .lineLimit(2)
     }
 }
 
@@ -250,57 +659,73 @@ private struct LiveCard: View {
     }
 }
 
-/// A preview of Stats when it has the entire live section to itself.
+/// Stats as a Home tile: CPU and memory side by side; large adds network and the last minute
+/// of CPU. Clicking it opens the Stats panel.
 private struct HomeStatsTile: View {
     let model: IslandModel
+    let large: Bool
     @Environment(\.notchScale) private var s
-    @State private var isHovering = false
 
     var body: some View {
         let stats = model.stats
-        let shape = RoundedRectangle(cornerRadius: 14 * s, style: .continuous)
-
+        let snapshot = stats.snapshot
+        let pressure = stats.panelMemoryPressure ?? snapshot.memoryPressure
         Button { model.showTab(.stats) } label: {
             VStack(alignment: .leading, spacing: 6 * s) {
-                HStack {
+                HStack(spacing: 4 * s) {
                     LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: StatsColor.cpu, title: "Stats")
-                    Spacer(minLength: 4 * s)
                     Image(systemName: "chevron.forward")
-                        .font(.system(size: 9 * s, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 9 * s, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.3))
                         .accessibilityHidden(true)
                 }
-                HStack(alignment: .center, spacing: 8 * s) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(stats.hasReading ? StatsMath.percent(stats.snapshot.cpu) : "–")
-                            .font(.system(size: 24 * s, weight: .semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(stats.hasReading ? HierarchicalShapeStyle.primary : .secondary)
-                        Text("CPU")
-                            .font(.system(size: 10 * s, weight: .medium))
-                            .foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 0) {
+                    reading("CPU", value: stats.hasReading ? StatsMath.percent(snapshot.cpu) : nil, level: StatsMath.level(snapshot.cpu))
+                    reading("Memory", value: snapshot.memoryTotal > 0 ? StatsMath.percent(snapshot.memory) : nil, level: pressure)
+                }
+                if large {
+                    let ready = stats.hasNetworkReading
+                    HStack(spacing: 10 * s) {
+                        Label(ready ? StatsMath.rate(snapshot.networkIn) : "–", systemImage: "arrow.down")
+                        Label(ready ? StatsMath.rate(snapshot.networkOut) : "–", systemImage: "arrow.up")
                     }
-                    .fixedSize(horizontal: true, vertical: false)
+                    .font(.system(size: 10.5 * s, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .labelStyle(TightLabelStyle(spacing: 2 * s))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .accessibilityElement(children: .combine)
-
+                    .accessibilityLabel(Text("Network"))
+                    Spacer(minLength: 0)
                     cpuGraph(stats.cpuHistory)
                 }
-                .frame(maxHeight: .infinity)
-                Divider()
-                memoryReading(stats)
             }
-            .padding(10 * s)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background { shape.fill(StatsColor.surface).brightness(isHovering ? 0.04 : 0) }
-            .overlay { shape.strokeBorder(StatsColor.separator, lineWidth: 0.5).allowsHitTesting(false) }
-            .contentShape(shape)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: isHovering)
         .accessibilityElement(children: .combine)
         .accessibilityHint(Text("Opens Stats"))
         .accessibilityIdentifier("home-stats-tile")
+    }
+
+    /// A caption over a big percentage; the caption takes the reading's colour once it's busy
+    /// (CPU by load, memory by pressure, as in the notch).
+    private func reading(_ caption: LocalizedStringKey, value: String?, level: StatsMath.Level) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(caption)
+                .font(.system(size: 10.5 * s, weight: .medium))
+                .foregroundStyle(value != nil && level != .normal ? level.tint : NotchColor.secondaryText)
+            Text(value ?? "–")
+                .font(.system(size: (large ? 24 : 20) * s, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(value == nil ? NotchColor.secondaryText : .white)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private func cpuGraph(_ history: [Double]) -> some View {
@@ -331,36 +756,17 @@ private struct HomeStatsTile: View {
         .frame(height: 34 * s)
         .accessibilityHidden(true)
     }
+}
 
-    private func memoryReading(_ stats: StatsService) -> some View {
-        let snapshot = stats.snapshot
-        let pressure = stats.panelMemoryPressure
-        let used = snapshot.memoryTotal > 0 ? StatsMath.bytes(Int64(snapshot.memoryUsed)) : "–"
-        return HStack(spacing: 4 * s) {
-            if let pressure {
-                Circle()
-                    .fill(StatsColor.pressure(pressure))
-                    .frame(width: 5 * s, height: 5 * s)
-                    .accessibilityHidden(true)
-            }
-            Text("Memory \(used)")
-                .monospacedDigit()
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-            Group {
-                switch pressure {
-                case .normal: Text("Normal").accessibilityLabel(Text("Memory pressure normal"))
-                case .busy: Text("Warning").accessibilityLabel(Text("Memory pressure warning"))
-                case .high: Text("Critical").accessibilityLabel(Text("Memory pressure critical"))
-                case nil: EmptyView()
-                }
-            }
-            .foregroundStyle(pressure.map(StatsColor.pressure) ?? Color(nsColor: .secondaryLabelColor))
+/// A symbol and its text close together.
+private struct TightLabelStyle: LabelStyle {
+    let spacing: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: spacing) {
+            configuration.icon
+            configuration.title
         }
-        .font(.system(size: 10 * s, weight: .medium))
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -706,70 +1112,6 @@ private struct LiveMusic: View {
                 .padding(.top, 4 * s)
             }
         }
-    }
-}
-
-// MARK: Calendar
-
-/// The next event, or a way to connect the calendar. Opens the month once connected.
-private struct CalendarSection: View {
-    let model: IslandModel
-    let calendar: CalendarService
-    @Environment(\.notchScale) private var s
-
-    var body: some View {
-        switch calendar.access {
-        case .notAsked:
-            VStack(alignment: .leading, spacing: 6 * s) {
-                SectionHeader(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
-                message("See your next event here.")
-                Button("Connect") { calendar.requestAccess() }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-            }
-        case .denied, .limited:
-            VStack(alignment: .leading, spacing: 6 * s) {
-                SectionHeader(symbol: "calendar", tint: NotchColor.red, title: "Calendar")
-                message("Calendar access is off.")
-                Button("Allow Access") { calendar.openPrivacySettings() }
-                    .buttonStyle(QuickActionStyle(tint: NotchColor.red, scale: s))
-                    .help("Turn on Dynamic Ledge in Privacy & Security › Calendars")
-            }
-        case .granted:
-            Button { model.showTab(.calendar) } label: {
-                VStack(alignment: .leading, spacing: 6 * s) {
-                    SectionHeader(symbol: "calendar", tint: NotchColor.red, title: "Calendar", showsChevron: true)
-                    if let event = calendar.nextEvent {
-                        Text(event.title)
-                            .font(.system(size: 13 * s, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                        TimelineView(.everyMinute) { context in
-                            Text(CalendarRules.relativeLabel(for: event, at: context.date))
-                                .font(.system(size: 11 * s, weight: .medium))
-                                .monospacedDigit()
-                                .foregroundStyle(event.isHappening(at: context.date) ? NotchColor.green : NotchColor.secondaryText)
-                                .lineLimit(1)
-                        }
-                    } else {
-                        message("No more events this week")
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(PressableButtonStyle())
-            .accessibilityLabel(Text(calendar.nextEvent.map { "Next event, \($0.title)" } ?? "Calendar"))
-        }
-    }
-
-    private func message(_ text: LocalizedStringKey) -> some View {
-        Text(text)
-            .font(.system(size: 11 * s, weight: .medium))
-            .foregroundStyle(NotchColor.secondaryText)
-            .lineLimit(2)
-            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

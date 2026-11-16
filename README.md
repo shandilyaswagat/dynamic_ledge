@@ -41,7 +41,8 @@ Free, no account, nothing about you collected.
   they finish (if you turn it on)
 
 **When you click it:**
-- **Home** with what's live, your next event, quick timers and Shortcuts
+- **Home** as tiles you arrange like Control Center: Stats, your next event, to-dos, timers,
+  Shortcuts and more, with music beside them while it plays
 - **Tray** for files you need again soon. Drop them on the notch, drag them out later, or AirDrop
   them. Zip them, merge PDFs and images into one PDF, or convert an image to another format
 - **Clipboard** with the last 20 things you copied, and the text from images you copy (if you turn it on)

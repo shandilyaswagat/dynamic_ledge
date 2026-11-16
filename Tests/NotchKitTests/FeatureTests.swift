@@ -268,11 +268,14 @@ struct NewFeatureLayoutTests {
         let notch = try #require(ScreenMetrics.sample.notch)
         let full = HomeContent(hasMedia: true, hasEvent: true, hasTimer: true, hasShortcuts: true)
         #expect(full.fitsInNook, "three widget rows fit beside the media card")
-        let sizes = [IslandPresentation.home, .tray, .mirror].map { engine.layout(for: $0, home: full, hovering: false).pill.size }
+        let sizes = [IslandPresentation.tray, .mirror].map { engine.layout(for: $0, home: full, hovering: false).pill.size }
         #expect(Set(sizes.map { "\($0)" }).count == 1, "switching tabs never resizes the shape")
+        let tray = engine.layout(for: .tray, home: full, hovering: false)
+        #expect(tray.pill.width > tray.pill.height * 2.5, "wide, not tall")
+        #expect(tray.pill.height <= notch.height + IslandMetrics.Nook.body + 30)
         let home = engine.layout(for: .home, home: full, hovering: false)
-        #expect(home.pill.width > home.pill.height * 2.5, "wide, not tall")
-        #expect(home.pill.height <= notch.height + IslandMetrics.Nook.body + 30)
+        #expect(home.pill.width == tray.pill.width, "Home's grid is as wide as the other tabs")
+        #expect(home.pill.height <= notch.height + IslandMetrics.Nook.homeBody + 30, "and taller, for two rows of tiles")
         #expect(home.stripHeight == notch.height, "tabs sit beside the camera")
         #expect(home.cameraGap == notch.width)
         #expect(home.content.minY == 0)
@@ -282,7 +285,7 @@ struct NewFeatureLayoutTests {
 
     @Test func nookBodySitsEvenlyBetweenTheStripAndTheBottom() throws {
         let notch = try #require(ScreenMetrics.sample.notch)
-        let home = engine.layout(for: .home, home: HomeContent(), hovering: false)
+        let home = engine.layout(for: .tray, home: HomeContent(), hovering: false)
         let above = IslandMetrics.notchContentGap + IslandMetrics.Nook.bodyTopInset
         let below = home.pill.height - home.content.height
         #expect(home.content.height == notch.height + above + IslandMetrics.Nook.body)

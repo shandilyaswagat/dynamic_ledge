@@ -61,8 +61,12 @@ public final class IslandWindowController {
         hostingView.onPerformDrag = { [weak self] sender in
             guard let self else { return false }
             let pasteboard = sender.draggingPasteboard
+            let text = TextDropReader.text(from: pasteboard)
+            let textAction = TextDropAction.destination(at: self.windowPoint(), content: self.model.layout.content,
+                                                      notes: self.model.settings.notesEnabled)
             let destination = self.dropDestination(at: self.windowPoint())
             self.endNativeDrag()
+            if let text, let textAction { return self.model.acceptTextDrop(text, action: textAction) }
             guard let destination else { return false }
             return self.model.acceptDrop(pasteboard, into: destination)
         }
@@ -428,11 +432,17 @@ public final class IslandWindowController {
     private func updateNativeDrag(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard isActive || activateIfPointerHere() else { return [] }
         let pasteboard = sender.draggingPasteboard
-        guard model.acceptsFileDrops, !model.isDraggingFromTray,
-              FileDropReader.canReadFiles(from: pasteboard) else { return [] }
+        let text = TextDropReader.text(from: pasteboard)
+        guard !model.isDraggingFromTray,
+              text != nil || (model.acceptsFileDrops && FileDropReader.canReadFiles(from: pasteboard)) else { return [] }
+        model.isTextDrag = text != nil
         cancelDocumentDrag()
         if !isFileDragging { isFileDragging = true; watchForDragEnd() }
         model.fileDragChanged(isDragging: true, at: windowPoint())
+        if model.isTextDrag {
+            pointerChanged()
+            return model.targetedTextAction == nil ? [] : .copy
+        }
         let destination = dropDestination(at: windowPoint())
         model.setTargeted(destination, destination != nil)
         pointerChanged()
@@ -453,8 +463,10 @@ public final class IslandWindowController {
     private func updateFileDrag() {
         guard isActive else { return }
         let pasteboard = NSPasteboard(name: .drag)
-        guard pasteboard.changeCount != dragChangeCount,
-              FileDropReader.canReadFiles(from: pasteboard), !model.isDraggingFromTray else { return }
+        guard pasteboard.changeCount != dragChangeCount, !model.isDraggingFromTray else { return }
+        let text = TextDropReader.text(from: pasteboard)
+        guard text != nil || (model.acceptsFileDrops && FileDropReader.canReadFiles(from: pasteboard)) else { return }
+        model.isTextDrag = text != nil
         cancelDocumentDrag()
         if !isFileDragging { isFileDragging = true; watchForDragEnd() }
         model.fileDragChanged(isDragging: true, at: windowPoint())
@@ -473,7 +485,7 @@ public final class IslandWindowController {
                     self.lastIdleDragChangeCount = pasteboard.changeCount
                     continue
                 }
-                guard self.model.acceptsFileDrops, !self.model.isDraggingFromTray else { continue }
+                guard !self.model.isDraggingFromTray else { continue }
                 // A press on the notch itself is a click or hold on its buttons, never a document
                 // window being dragged in. The notch doesn't take focus, so the frontmost app
                 // check alone let a long press there show the Tray drop view.

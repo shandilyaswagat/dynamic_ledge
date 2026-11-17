@@ -35,7 +35,7 @@ struct AlertView: View {
                 BatteryLabel(level: level, isCharging: false, tint: NotchColor.red)
             }
             .accessibilityElement(children: .combine)
-        case .headphones(let name, let symbol):
+        case .headphones(let name, let symbol, let battery):
             AlertRow(cameraGap: cameraGap) {
                 HStack(spacing: 6 * s) {
                     Image(systemName: symbol)
@@ -46,7 +46,7 @@ struct AlertView: View {
                         .truncationMode(.tail)
                 }
             } trailing: {
-                Text("Connected")
+                Text(battery.map { "\($0)%" } ?? String(localized: "Connected"))
                     .foregroundStyle(NotchColor.green)
             }
             .accessibilityElement(children: .combine)
@@ -299,6 +299,14 @@ struct DropView: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
+        if model.isTextDrag {
+            TextDropView(model: model)
+        } else {
+            fileTargets
+        }
+    }
+
+    @ViewBuilder private var fileTargets: some View {
         let tray = model.settings.trayEnabled
         let airDrop = model.settings.airDropEnabled && !model.isDocumentWindowDrag
         GeometryReader { geometry in
@@ -528,5 +536,32 @@ private struct AgentButton: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct TextDropView: View {
+    let model: IslandModel
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(TextDropAction.available(notes: model.settings.notesEnabled), id: \.self) { action in
+                VStack(spacing: 8 * s) {
+                    Image(systemName: action.symbol).font(.system(size: 24 * s))
+                    Text(action.title).font(.system(size: 12 * s, weight: .semibold))
+                    Text(action == .translate ? "Opens in your browser" : action == .notes ? "Adds to your note" : "Puts it on the clipboard")
+                        .font(.system(size: 9 * s)).foregroundStyle(NotchColor.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 14 * s).fill(
+                    model.targetedTextAction == action ? NotchColor.blue.opacity(0.3) : Color.white.opacity(0.07)))
+                .overlay(RoundedRectangle(cornerRadius: 14 * s).strokeBorder(
+                    model.targetedTextAction == action ? NotchColor.blue : Color.white.opacity(0.15)))
+                .padding(5 * s)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(action.title)
+            }
+        }
+        .padding(7 * s)
     }
 }

@@ -37,6 +37,7 @@ final class DebugHooks {
             if let alert = PowerTransitions.alert(from: before, to: after) { model.receive(alert) }
         case "lowbattery": model.receive(.lowBattery(level: 20))
         case "headphones": model.receive(.headphones(name: "AirPods Pro", symbol: "airpodspro"))
+        case "headphonesbattery": model.receive(.headphones(name: "QA Headset", symbol: "headphones", battery: 73))
         case "timer": model.startTimer(Double(parts.dropFirst().first ?? "") ?? 300)
         case "pause": model.timer.togglePause()
         case "cancel": model.cancelTimer()

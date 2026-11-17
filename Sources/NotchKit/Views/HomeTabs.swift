@@ -573,6 +573,13 @@ struct TrayBody: View {
                     .font(.system(size: 10 * s))
                     .foregroundStyle(.orange)
             }
+            Button { model.captureWindow() } label: {
+                Label(model.isCapturingWindow ? "Capturing…" : "Capture Window", systemImage: "macwindow.badge.plus")
+                    .font(.system(size: 11 * s, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .disabled(model.isCapturingWindow)
+            .help("Add the frontmost document or browser page to Files")
             contents
         }
     }

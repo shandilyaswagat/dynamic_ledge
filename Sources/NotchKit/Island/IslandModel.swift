@@ -69,6 +69,9 @@ public final class IslandModel {
     public private(set) var isHoveringPill = false
     public private(set) var isHoveringNotch = false
     public private(set) var isFileDragNear = false
+    var isTextDrag = false
+    private(set) var targetedTextAction: TextDropAction?
+    private(set) var isCapturingWindow = false
     public var isDropTargeted = false
     /// Which half of the drop target the files are over.
     public private(set) var targetedZone: DropZone?
@@ -209,8 +212,7 @@ public final class IslandModel {
         nowPlaying.start()
         calls.start()
         power.start()
-        // No headphones alert: macOS already shows AirPods connecting at the top of the screen.
-        // The monitor stays for a later animated AirPods alert.
+        if settings.headphoneAlertsEnabled { audioRoute.start() }
         calendar.start()
         levels.start()
         audioOutput.start()
@@ -361,8 +363,8 @@ public final class IslandModel {
             preferredPrimary: preferredPrimary,
             alert: alerts.current,
             expandTarget: expandTarget,
-            isFileDragNear: acceptsFileDrops && isFileDragNear,
-            isDropTargeted: acceptsFileDrops && isDropTargeted,
+            isFileDragNear: (acceptsFileDrops || isTextDrag) && isFileDragNear,
+            isDropTargeted: (acceptsFileDrops || isTextDrag) && isDropTargeted,
             showWhenIdle: settings.showWhenIdle,
             isHoveringNotch: isHoveringNotch,
             isPreviewing: isPreviewing
@@ -1089,12 +1091,18 @@ public final class IslandModel {
 
     public func fileDragChanged(isDragging: Bool, at point: CGPoint?) {
         if !isDragging {
+            isTextDrag = false
+            targetedTextAction = nil
             isDraggingFromTray = false
         }
-        let near = acceptsFileDrops && isDragging && !isDraggingFromTray
+        let near = (acceptsFileDrops || isTextDrag) && isDragging && !isDraggingFromTray
             && (point.map { engine.dropZone.contains($0) } ?? false)
         if near != isFileDragNear {
             isFileDragNear = near
+        }
+        if isDragging, isTextDrag {
+            targetedTextAction = point.flatMap { TextDropAction.destination(at: $0, content: layout.content, notes: settings.notesEnabled) }
+            isDropTargeted = targetedTextAction != nil
         }
         if !isDragging, isDropTargeted {
             setTargeted(nil, false)
@@ -1154,6 +1162,51 @@ public final class IslandModel {
         tray.reportFailure(message)
         expand(.tray)
         pointerEnteredExpanded = true
+    }
+
+    @discardableResult
+    func acceptTextDrop(_ text: String, action: TextDropAction,
+                        pasteboard: NSPasteboard = .general,
+                        openURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }) -> Bool {
+        guard let text = TextDropReader.clean(text) else { return false }
+        switch action {
+        case .translate:
+            guard let url = TextDropReader.translationURL(text), openURL(url) else { return false }
+            collapse()
+        case .notes:
+            guard settings.notesEnabled else { return false }
+            notes.appendDroppedText(text)
+            showTab(.notes)
+        case .copy:
+            pasteboard.clearContents()
+            guard pasteboard.setString(text, forType: .string) else { return false }
+            collapse()
+        }
+        return true
+    }
+
+    func captureWindow() {
+        guard settings.trayEnabled, !isCapturingWindow else { return }
+        guard DocumentWindowDrag.hasAccess else {
+            showDropFailure("Allow Accessibility access, then try Capture Window again.")
+            DocumentWindowDrag.requestAccess()
+            return
+        }
+        let session = DocumentWindowDrag()
+        guard session.captureFocusedWindow() else {
+            showDropFailure("Switch to a document or browser window, then click Capture Window in Files.")
+            return
+        }
+        isCapturingWindow = true
+        tray.reportFailure("Reading the selected window…")
+        Task { @MainActor [weak self] in
+            let result = await session.resolve()
+            guard let self else { return }
+            self.isCapturingWindow = false
+            guard self.settings.trayEnabled else { return }
+            if let url = result.url { _ = self.addToTray([url]) }
+            else { self.showDropFailure(result.message ?? "This window does not expose a saved document.") }
+        }
     }
 
     /// Keeps dropped files in the tray and shows them.
@@ -1329,6 +1382,7 @@ public final class IslandModel {
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
             _ = settings.agentApprovals
+            _ = settings.headphoneAlertsEnabled
             _ = settings.agentFinishedAlerts
             _ = settings.agentWatchesTranscript
             _ = settings.remindersEnabled
@@ -1342,9 +1396,10 @@ public final class IslandModel {
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                if self.settings.headphoneAlertsEnabled { self.audioRoute.start() } else { self.audioRoute.stop() }
                 self.nowPlaying.lingerDuration = self.settings.pausedMediaLinger
                 self.nowPlaying.appFilter = self.settings.mediaAppFilter
-                if !self.acceptsFileDrops {
+                if !self.acceptsFileDrops && !self.isTextDrag {
                     self.isFileDragNear = false
                     self.setTargeted(nil, false)
                 }

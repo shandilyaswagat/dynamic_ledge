@@ -73,6 +73,17 @@ public final class NotesStore {
         }
     }
 
+    /// Append external text without discarding the existing note's formatting.
+    func appendDroppedText(_ value: String) {
+        let note = NSMutableAttributedString(attributedString: attributedText)
+        let separator = note.length == 0 || note.string.hasSuffix("\n") ? "" : "\n"
+        note.append(NSAttributedString(string: separator + value,
+            attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.white]))
+        update(note)
+        revision += 1
+        save()
+    }
+
     public func clear() {
         setText("")
         save()

@@ -8,6 +8,9 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Text drop actions.** Drag selected text to Translate in your browser, append to Notes, or Copy.
+- **Capture Window.** Add the frontmost saved document or browser page from Files.
+- **Headphone battery.** Bluetooth connection notices show a battery percentage when macOS reports one.
 - **Drop files straight from a web page.** Drag browser files, images, or direct download links
   to the Tray. Files are saved to Downloads; ordinary web pages stay as links.
 - **Top-edge reveal on displays without a notch.** Touch the middle of the top edge to reveal the

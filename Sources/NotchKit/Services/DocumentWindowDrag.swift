@@ -53,6 +53,20 @@ final class DocumentWindowDrag {
         return false
     }
 
+    /// Capture the frontmost external app before asynchronous resolution starts.
+    func captureFocusedWindow() -> Bool {
+        reset()
+        guard Self.hasAccess, let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return false }
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(element, 0.1)
+        guard let value = attribute(element, kAXFocusedWindowAttribute),
+              CFGetTypeID(value) == AXUIElementGetTypeID() else { return false }
+        window = unsafeDowncast(value, to: AXUIElement.self)
+        movementConfirmed = true
+        return true
+    }
+
     var hasMoved: Bool {
         if movementConfirmed { return true }
         guard let window, let origin, let current = position(window) else { return false }

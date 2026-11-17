@@ -46,7 +46,7 @@ public enum IslandAlert: Equatable, Sendable {
     case charging(level: Int, isCharging: Bool)
     case batteryFull
     case lowBattery(level: Int)
-    case headphones(name: String, symbol: String)
+    case headphones(name: String, symbol: String, battery: Int? = nil)
     case trackChanged(title: String, artist: String)
     case timerFinished
     /// Shown once on first launch, so a new user sees where the app lives.

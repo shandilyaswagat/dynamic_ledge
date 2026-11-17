@@ -93,6 +93,8 @@ Done. The notch waves hi, and a capsule icon appears in your menu bar.
 - **Grid button** (top right) opens everything else.
 - **Drag files** onto the notch to drop them in Tray or AirDrop.
 - **Drag a web file or direct download link** onto the Tray to save it to Downloads. Ordinary web pages stay as links.
+- **Drag selected text** onto the notch to Translate, Save in Notes or Copy. Translate opens Google Translate in your browser; Copy and Notes stay local.
+- **Capture Window** in Files adds the frontmost supported document or browser page.
 - **Right-click** the notch for quick controls.
 - **Settings:** click the capsule icon in the menu bar, then **Settings…**
 
@@ -132,6 +134,7 @@ All the code is here, so anyone can check.
 |---|---|---|
 | GitHub | Checking for updates, once a day | Nothing about you |
 | Dropped web addresses | Download a file you drop into the Tray | A request to the dropped address without browser cookies or saved credentials |
+| Google Translate | Only when you drop text on Translate | The selected text, up to 5,000 characters, opened in your browser |
 | [TelemetryDeck](https://telemetrydeck.com) | Counting how many Macs use and update the app, once a day, and spotting broken updates and crashes | A random ID (hashed, not tied to you), the app version (and the one before, after an update), macOS version and the kind of Mac (its model code, like "Mac14,2"). If an update fails, which step failed; if the app didn't quit properly last time, that version. No crash logs |
 | [lrclib.net](https://lrclib.net) | Lyrics, only if Lyrics is on | The song's name, artist, album and length |
 

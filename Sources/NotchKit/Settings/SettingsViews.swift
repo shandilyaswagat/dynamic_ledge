@@ -759,7 +759,7 @@ private struct AIUsageSettingsSection: View {
                 Toggle(isOn: $settings.aiUsageInNotch) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Show in the notch")
-                        Text("The lowest limit left stays available alongside music and video. Off stops automatic checks. The AI Agent Usage tile toggles this, just like Stats.")
+                        Text("The lowest limit left stays available alongside music and video. Off stops automatic checks. The AI Agent Usage tile opens your usage details.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

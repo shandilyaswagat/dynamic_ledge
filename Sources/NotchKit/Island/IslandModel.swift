@@ -650,10 +650,7 @@ public final class IslandModel {
             syncStatsSampling()
             Haptics.perform(enabled: settings.hapticsEnabled)
         case .aiUsage:
-            // Match Stats: toggle the compact readout and its automatic checks.
-            settings.aiUsageInNotch.toggle()
-            syncAIUsageRefreshes()
-            Haptics.perform(enabled: settings.hapticsEnabled)
+            showTab(.aiUsage)
         }
     }
 

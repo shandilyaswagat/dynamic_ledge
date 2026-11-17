@@ -170,8 +170,8 @@ Requests stay on your Mac. Switch it off and the hook is removed.
 **AI Agent Usage** is off until you switch it on. It shows how much of your Codex and Antigravity
 limits you've used, with the lowest limit left beside the camera when nothing else is on, or
 beside music and video. Its
-launcher tile switches the notch readout and automatic checks on or off, just like Stats.
-Click the compact usage readout to open the full usage panel. It asks the Codex app on your Mac, which checks with OpenAI using your own
+launcher tile opens the full usage panel. The Show in the notch setting controls the compact
+readout and automatic checks. It asks the Codex app on your Mac, which checks with OpenAI using your own
 Codex sign-in. For Antigravity it reads its files in `~/.gemini` and asks the Antigravity app
 running on your Mac, using the local key Antigravity hands its own background service; that
 request never leaves your Mac. Dynamic Ledge never stores your passwords, tokens or API keys,

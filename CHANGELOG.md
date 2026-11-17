@@ -51,8 +51,8 @@ last one.
   missing data is never shown as zero. Claude usage remains excluded.
 
 ### Fixed
-- AI Agent Usage follows the Stats menu behavior: toggle the compact readout, then click it
-  to open usage details.
+- Clicking AI Agent Usage opens its usage details without turning off the compact readout
+  or automatic checks.
 - Network speeds use the full interface counters and show slow transfers in bytes per second.
 - The compact AI usage counter shows the full percentage, including 100%.
 - AI usage stays accessible beside playing music or video, in Home and the activity switcher.

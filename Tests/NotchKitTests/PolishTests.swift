@@ -291,17 +291,32 @@ struct AIUsageNotchTests {
         #expect(model.presentation == .compact(primary: .aiUsage, secondary: nil))
     }
 
-    @Test func theTileTogglesUsageLikeStats() {
+    @Test func menuOpensUsageWithoutTogglingAutomaticChecks() {
         let model = makeModel()
         model.settings.aiUsageEnabled = true
-        model.settings.aiUsageInNotch = false
-        model.open(.aiUsage)
-        #expect(model.settings.aiUsageInNotch && model.isLive(.aiUsage))
-        #expect(model.presentation == .compact(primary: .aiUsage, secondary: nil))
-        model.open(.aiUsage)
-        #expect(!model.settings.aiUsageInNotch)
-        #expect(!model.isLive(.aiUsage))
-        #expect(model.settings.aiUsageEnabled)
+        for enabled in [true, false] {
+            model.settings.aiUsageInNotch = enabled
+            model.collapse()
+            model.open(.aiUsage)
+            #expect(model.presentation == .nook(.aiUsage))
+            #expect(model.settings.aiUsageInNotch == enabled)
+            model.open(.aiUsage)
+            #expect(model.presentation == .nook(.aiUsage), "repeated clicks keep usage open")
+            #expect(model.settings.aiUsageInNotch == enabled)
+            #expect(model.settings.aiUsageEnabled)
+        }
+    }
+
+    @Test func menuOpensUsageWithEveryOpeningMethod() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        for mode in [NotchOpenMode.click, .hover, .topLeft, .topRight, .topCenter, .bottomCenter] {
+            model.settings.notchOpenMode = mode
+            model.collapse()
+            model.open(.aiUsage)
+            #expect(model.presentation == .nook(.aiUsage))
+            #expect(model.settings.aiUsageInNotch)
+        }
     }
 
     @Test func clickingCompactUsageOpensDetailsLikeStats() {

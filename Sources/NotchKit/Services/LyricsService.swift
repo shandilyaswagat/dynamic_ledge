@@ -23,6 +23,13 @@ public final class LyricsService {
         self.session = session
     }
 
+    #if DEBUG
+    func showFixture(_ lyrics: SyncedLyrics?) {
+        lookup?.cancel()
+        current = lyrics
+    }
+    #endif
+
     /// Call when the song changes. Pass nil (or switch lyrics off) to clear.
     public func update(for info: NowPlayingInfo?, enabled: Bool) {
         let key = enabled ? info.flatMap(LyricsLookup.Key.init) : nil

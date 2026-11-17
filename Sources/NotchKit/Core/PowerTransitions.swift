@@ -32,6 +32,9 @@ public enum PowerTransitions {
         if !old.isOnAC && new.isOnAC {
             return .charging(level: new.level, isCharging: new.isCharging)
         }
+        if old.hasBattery, new.isOnAC, old.level < 100, new.level == 100 {
+            return .batteryFull
+        }
 
         guard !new.isOnAC, new.level < old.level else { return nil }
         let crossed = lowBatteryThresholds.filter { old.level > $0 && new.level <= $0 }

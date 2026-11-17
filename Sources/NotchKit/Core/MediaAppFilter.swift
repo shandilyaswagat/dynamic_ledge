@@ -12,19 +12,24 @@ public struct MediaAppFilter: Equatable, Sendable {
     public var mode: Mode
     /// Bundle identifiers allowed in `.chosen` mode.
     public var allowed: Set<String>
+    private let bundlePatterns: [String]
 
     public static let all = MediaAppFilter(mode: .all, allowed: [])
 
-    public init(mode: Mode, allowed: Set<String>) {
+    public init(mode: Mode, allowed: Set<String>, bundlePatterns: [String] = []) {
         self.mode = mode
         self.allowed = allowed
+        self.bundlePatterns = bundlePatterns
     }
 
     /// An app that can't be identified is only shown when every app is.
     public func allows(_ bundleIdentifier: String?) -> Bool {
         switch mode {
         case .all: true
-        case .chosen: bundleIdentifier.map(allowed.contains) ?? false
+        case .chosen:
+            bundleIdentifier.map { identifier in
+                allowed.contains(identifier) || bundlePatterns.contains { identifier.localizedCaseInsensitiveContains($0) }
+            } ?? false
         }
     }
 }

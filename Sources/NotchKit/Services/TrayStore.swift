@@ -43,6 +43,13 @@ public final class TrayStore {
     @ObservationIgnored private let fileManager: FileManager
     @ObservationIgnored private let sessionFolder: URL
     @ObservationIgnored private let defaults: UserDefaults?
+    @ObservationIgnored private let dropFolder: URL?
+    @ObservationIgnored private let dropQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 2
+        queue.qualityOfService = .userInitiated
+        return queue
+    }()
     private static let pinnedKey = "tray.pinned"
 
     /// What's saved for a pinned item: a bookmark for a file, the address for a web link.
@@ -56,9 +63,11 @@ public final class TrayStore {
 
     /// `folder` injects a base directory for tests. Generated shortcuts belong to this instance.
     /// Pinned items are saved to `defaults`; pass nil to keep nothing.
-    public init(folder: URL? = nil, fileManager: FileManager = .default, defaults: UserDefaults? = .standard) {
+    public init(folder: URL? = nil, fileManager: FileManager = .default, defaults: UserDefaults? = .standard,
+                dropFolder: URL? = nil) {
         self.fileManager = fileManager
         self.defaults = defaults
+        self.dropFolder = dropFolder ?? fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first
         sessionFolder = (folder ?? fileManager.temporaryDirectory)
             .appendingPathComponent("DynamicNotch-Tray-" + UUID().uuidString, isDirectory: true)
         restorePinned()
@@ -76,6 +85,89 @@ public final class TrayStore {
     }
 
     public func reportFailure(_ message: String) { statusMessage = message }
+
+    /// The source app writes promised files, including browser images, only after a drop.
+    func receive(_ promises: [NSFilePromiseReceiver]) -> Bool {
+        pruneMissing()
+        let available = Self.capacity - items.count
+        guard available > 0 else {
+            statusMessage = "Tray full — remove an item to add another."
+            return false
+        }
+        guard !promises.isEmpty, let staging = try? makeDropFolder() else {
+            statusMessage = "Couldn’t prepare the dropped files."
+            return false
+        }
+        statusMessage = "Receiving dropped files…"
+        // AppKit requires all promises from one drag to share a destination.
+        for promise in promises.prefix(available) {
+            promise.receivePromisedFiles(atDestination: staging, options: [:], operationQueue: dropQueue) { [weak self] url, error in
+                let failed = error != nil
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if failed {
+                        self.statusMessage = "The source app couldn’t provide the dropped file."
+                    } else {
+                        self.finishDrop(url, from: staging)
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    func saveDroppedImage(_ image: FileDropReader.Image) -> Bool {
+        pruneMissing()
+        guard items.count < Self.capacity else {
+            statusMessage = "Tray full — remove an item to add another."
+            return false
+        }
+        guard let staging = try? makeDropFolder() else {
+            statusMessage = "Couldn’t prepare the dropped image."
+            return false
+        }
+        let url = staging.appendingPathComponent(image.name).appendingPathExtension(image.ext)
+        let data = image.data
+        statusMessage = "Saving dropped image…"
+        dropQueue.addOperation { [weak self] in
+            let saved = (try? data.write(to: url, options: .atomic)) != nil
+            Task { @MainActor [weak self] in
+                defer { try? FileManager.default.removeItem(at: staging) }
+                guard let self else { return }
+                if saved { self.finishDrop(url, from: staging) }
+                else { self.statusMessage = "Couldn’t save the dropped image." }
+            }
+        }
+        return true
+    }
+
+    private func makeDropFolder() throws -> URL {
+        let folder = sessionFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: folder, withIntermediateDirectories: true,
+                                        attributes: [.posixPermissions: 0o700])
+        return folder
+    }
+
+    private func finishDrop(_ input: URL, from staging: URL) {
+        pruneMissing()
+        guard items.count < Self.capacity else {
+            statusMessage = "Tray full — remove an item to add another."
+            return
+        }
+        do {
+            guard input.isFileURL, input.deletingLastPathComponent().resolvingSymlinksInPath() == staging.resolvingSymlinksInPath(),
+                  try input.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == false,
+                  let dropFolder else {
+                throw CocoaError(.fileWriteInvalidFileName)
+            }
+            let target = TrayActions.unique(in: dropFolder, name: input.deletingPathExtension().lastPathComponent,
+                                            extension: input.pathExtension, fileManager: fileManager)
+            try fileManager.moveItem(at: input, to: target)
+            add([target])
+        } catch {
+            statusMessage = "Couldn’t save the dropped file to Downloads."
+        }
+    }
 
     /// Files on disk, in the order shown: what Zip and Merge PDF work on. Web links are left out.
     public var files: [URL] {
@@ -281,6 +373,13 @@ public final class TrayStore {
     public func copy(_ item: Item, to pasteboard: NSPasteboard = .general) {
         pasteboard.clearContents()
         pasteboard.writeObjects([Self.sharedURL(for: item) as NSURL])
+    }
+
+    public func copyPath(_ item: Item, to pasteboard: NSPasteboard = .general) {
+        let url = Self.sharedURL(for: item)
+        guard url.isFileURL else { return }
+        pasteboard.clearContents()
+        pasteboard.setString(url.path, forType: .string)
     }
 
     public func icon(for item: Item) -> NSImage {

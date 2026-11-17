@@ -153,6 +153,8 @@ struct PowerTransitionTests {
         #expect(PowerTransitions.alert(from: snapshot(40, ac: false), to: snapshot(40, ac: true, charging: true)) == .charging(level: 40, isCharging: true))
         #expect(PowerTransitions.alert(from: snapshot(80, ac: false), to: snapshot(80, ac: true, charging: false)) == .charging(level: 80, isCharging: false))
         #expect(PowerTransitions.alert(from: snapshot(40, ac: true), to: snapshot(41, ac: true, charging: true)) == nil)
+        #expect(PowerTransitions.alert(from: snapshot(99, ac: true, charging: true), to: snapshot(100, ac: true)) == .batteryFull)
+        #expect(PowerTransitions.alert(from: snapshot(100, ac: true), to: snapshot(100, ac: true)) == nil)
     }
 
     @Test func lowBatteryAtThresholdsOnly() {

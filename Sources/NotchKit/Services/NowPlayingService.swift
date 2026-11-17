@@ -27,7 +27,11 @@ public final class NowPlayingService {
     /// True for a while after playback pauses, so the activity doesn't vanish instantly.
     public private(set) var isLingering = false
 
-    public var lingerDuration: TimeInterval = 30
+    public var lingerDuration: TimeInterval = 30 {
+        didSet {
+            if lingerDuration != oldValue, isLingering { beginLinger() }
+        }
+    }
 
     /// Which apps to show. Anything else playing is treated as if nothing were.
     public var appFilter: MediaAppFilter = .all {
@@ -39,6 +43,15 @@ public final class NowPlayingService {
 
     /// Called with each app that reports playback, shown or not, so Settings can list it.
     @ObservationIgnored public var onAppSeen: ((String) -> Void)?
+    @ObservationIgnored var onTrackChange: ((NowPlayingInfo) -> Void)?
+    @ObservationIgnored private var lastPlayingTrack: PlayingTrack?
+
+    private struct PlayingTrack: Equatable {
+        let source: String?
+        let title: String
+        let artist: String
+        let album: String
+    }
 
     /// Apps that were playing before the current one took over and are probably still going
     /// (macOS reports only one "now playing" app, so these are remembered here).
@@ -130,6 +143,11 @@ public final class NowPlayingService {
         bridge.send("seek \(target)")
     }
 
+    func seek(by seconds: TimeInterval) {
+        guard let info, let duration = info.duration, duration > 0, let elapsed = info.elapsed(at: Date()) else { return }
+        seek(to: elapsed + seconds)
+    }
+
     public func openSourceApp() {
         if let pid = info?.processIdentifier, let app = NSRunningApplication(processIdentifier: pid), app.activationPolicy == .regular {
             app.activate()
@@ -157,6 +175,7 @@ public final class NowPlayingService {
 
     func apply(_ newInfo: NowPlayingInfo?, artworkData: Data?, accent newAccent: ColorMath.RGB? = nil, now: Date = Date()) {
         guard var newInfo else {
+            lastPlayingTrack = nil
             info = nil
             artwork = nil
             accent = .white
@@ -197,6 +216,12 @@ public final class NowPlayingService {
         info = newInfo
         if newInfo.isPlaying {
             endLinger()
+            if !newInfo.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let track = PlayingTrack(source: identifier, title: newInfo.title, artist: newInfo.artist, album: newInfo.album)
+                let changed = lastPlayingTrack.map { $0 != track } ?? false
+                lastPlayingTrack = track
+                if changed { onTrackChange?(newInfo) }
+            }
         } else if wasPlaying {
             beginLinger()
         }
@@ -317,9 +342,11 @@ public final class NowPlayingService {
     }
 
     private func beginLinger() {
-        lingerTask?.cancel()
-        isLingering = true
+        endLinger()
         let duration = lingerDuration
+        guard duration != 0 else { return }
+        isLingering = true
+        guard duration > 0 else { return }
         lingerTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled else { return }

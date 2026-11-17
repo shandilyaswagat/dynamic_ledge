@@ -79,6 +79,7 @@ public final class SettingsStore {
         }
     }
     public var collapseOnPointerExit: Bool { didSet { defaults.set(collapseOnPointerExit, forKey: Key.collapseOnPointerExit) } }
+    public var collapseDelay: Double { didSet { defaults.set(collapseDelay, forKey: Key.collapseDelay) } }
     public var hapticsEnabled: Bool { didSet { defaults.set(hapticsEnabled, forKey: Key.haptics) } }
     public var liquidAnimations: Bool { didSet { defaults.set(liquidAnimations, forKey: Key.liquid) } }
     public var motionStyle: MotionStyle { didSet { defaults.set(motionStyle.rawValue, forKey: Key.motionStyle) } }
@@ -87,15 +88,20 @@ public final class SettingsStore {
     public var timerSound: Bool { didSet { defaults.set(timerSound, forKey: Key.timerSound) } }
 
     public var nowPlayingEnabled: Bool { didSet { defaults.set(nowPlayingEnabled, forKey: Key.nowPlaying) } }
+    var nowPlayingOnHoverOnly: Bool { didSet { defaults.set(nowPlayingOnHoverOnly, forKey: Key.nowPlayingOnHoverOnly) } }
+    var trackChangeAlertsEnabled: Bool { didSet { defaults.set(trackChangeAlertsEnabled, forKey: Key.trackChangeAlerts) } }
     /// Every app's music, or only the apps in `nowPlayingApps`.
     public var nowPlayingAppMode: MediaAppFilter.Mode { didSet { defaults.set(nowPlayingAppMode.rawValue, forKey: Key.nowPlayingAppMode) } }
     /// Bundle identifiers of the apps picked for Now Playing.
     public var nowPlayingApps: [String] { didSet { defaults.set(nowPlayingApps, forKey: Key.nowPlayingApps) } }
+    var nowPlayingAppPatterns: String { didSet { defaults.set(nowPlayingAppPatterns, forKey: Key.nowPlayingAppPatterns) } }
     /// Apps that played something lately, offered as choices in Settings.
     public private(set) var recentMediaApps: RecentMediaApps { didSet { defaults.set(recentMediaApps.identifiers, forKey: Key.recentMediaApps) } }
 
     public var mediaAppFilter: MediaAppFilter {
-        MediaAppFilter(mode: nowPlayingAppMode, allowed: Set(nowPlayingApps))
+        let patterns = nowPlayingAppPatterns.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        return MediaAppFilter(mode: nowPlayingAppMode, allowed: Set(nowPlayingApps), bundlePatterns: patterns)
     }
 
     /// Coding assistants whose permission requests the notch answers. None until asked for:
@@ -112,6 +118,9 @@ public final class SettingsStore {
     public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
+    var lyricOffset: Int { didSet { defaults.set(lyricOffset, forKey: Key.lyricOffset) } }
+    var bluetoothLyricOffset: Int { didSet { defaults.set(bluetoothLyricOffset, forKey: Key.bluetoothLyricOffset) } }
+    static let lyricOffsetRange = -5000...5000
     /// The music bars follow what's playing, measured from the Mac's sound. Off by default.
     public var liveMusicBars: Bool { didSet { defaults.set(liveMusicBars, forKey: Key.liveMusicBars) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
@@ -126,6 +135,8 @@ public final class SettingsStore {
     public var clipboardEnabled: Bool { didSet { defaults.set(clipboardEnabled, forKey: Key.clipboard) } }
     /// Copied images have their text read on this Mac and added to Clipboard. Off by default.
     public var clipboardReadsImages: Bool { didSet { defaults.set(clipboardReadsImages, forKey: Key.clipboardImages) } }
+    var clipboardExcludedApps: String { didSet { defaults.set(clipboardExcludedApps, forKey: Key.clipboardExcludedApps) } }
+    var clipboardKeepsImages: Bool { didSet { defaults.set(clipboardKeepsImages, forKey: Key.clipboardKeepsImages) } }
     public var notesEnabled: Bool { didSet { defaults.set(notesEnabled, forKey: Key.notes) } }
     /// Show a heads-up when a download finishes. Off until asked for: macOS asks for Downloads access.
     public var downloadsEnabled: Bool { didSet { defaults.set(downloadsEnabled, forKey: Key.downloads) } }
@@ -164,6 +175,8 @@ public final class SettingsStore {
     /// Focus session length and the break after it, in minutes.
     public var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: Key.focusMinutes) } }
     public var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: Key.breakMinutes) } }
+    public var longBreakMinutes: Int { didSet { defaults.set(longBreakMinutes, forKey: Key.longBreakMinutes) } }
+    public var keepAwakeMinutes: Int { didSet { defaults.set(keepAwakeMinutes, forKey: Key.keepAwakeMinutes) } }
     public var calendarEnabled: Bool { didSet { defaults.set(calendarEnabled, forKey: Key.calendar) } }
     public var shortcutsEnabled: Bool { didSet { defaults.set(shortcutsEnabled, forKey: Key.shortcuts) } }
     /// Shortcut names pinned to the Home tab, in order.
@@ -191,13 +204,15 @@ public final class SettingsStore {
         }
     }
     /// Show volume and brightness changes in the notch.
-    public var levelsEnabled: Bool { didSet { defaults.set(levelsEnabled, forKey: Key.levels) } }
+    public var volumeAlertsEnabled: Bool { didSet { defaults.set(volumeAlertsEnabled, forKey: Key.volumeAlerts) } }
+    public var brightnessAlertsEnabled: Bool { didSet { defaults.set(brightnessAlertsEnabled, forKey: Key.brightnessAlerts) } }
 
     public static let maximumFavoriteShortcuts = 4
     public static let maximumFeatureShortcuts = FeatureShortcutSelection.maximumItems
     public static let defaultFeatureShortcuts = FeatureShortcutSelection.defaultItems
     public static let focusChoices = [15, 25, 45, 50, 60]
     public static let breakChoices = [5, 10, 15]
+    static let longBreakChoices = [10, 15, 20, 30]
 
     /// Whether the user has explicitly customized their shortcuts. When false, the default shortcuts
     /// matching earlier versions (Files and Clipboard) are preserved.
@@ -210,8 +225,9 @@ public final class SettingsStore {
     /// How long a paused track stays in the pill.
     public var pausedMediaLinger: TimeInterval { didSet { defaults.set(pausedMediaLinger, forKey: Key.linger) } }
 
-    public static let lingerChoices: [TimeInterval] = [10, 30, 60, 300]
+    public static let lingerChoices: [TimeInterval] = [0, 10, 30, 60, 120, 300, -1]
     public static let hoverDelayChoices: [Double] = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5]
+    static let collapseDelayChoices: [Double] = [0.2, 0.4, 0.9, 1.5, 2, 3, 5, 10]
 
     public static func hoverDelayLabel(_ seconds: Double) -> String {
         if abs(seconds - 0.4) < 0.001 {
@@ -246,6 +262,8 @@ public final class SettingsStore {
         let delay = defaults.object(forKey: Key.hoverDelay) as? Double ?? 0.4
         hoverDelay = max(0.1, min(0.5, (delay * 100).rounded() / 100))
         collapseOnPointerExit = defaults.object(forKey: Key.collapseOnPointerExit) as? Bool ?? true
+        let collapseDelay = defaults.double(forKey: Key.collapseDelay)
+        self.collapseDelay = Self.collapseDelayChoices.contains(collapseDelay) ? collapseDelay : 0.9
         hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
         liquidAnimations = defaults.object(forKey: Key.liquid) as? Bool ?? true
         motionStyle = defaults.string(forKey: Key.motionStyle).flatMap(MotionStyle.init(rawValue:)) ?? .standard
@@ -253,11 +271,18 @@ public final class SettingsStore {
         display = (defaults.string(forKey: Key.display)).flatMap(DisplayChoice.init(rawValue:)) ?? .automatic
         timerSound = defaults.object(forKey: Key.timerSound) as? Bool ?? true
         nowPlayingEnabled = defaults.object(forKey: Key.nowPlaying) as? Bool ?? true
+        nowPlayingOnHoverOnly = defaults.bool(forKey: Key.nowPlayingOnHoverOnly)
+        trackChangeAlertsEnabled = defaults.bool(forKey: Key.trackChangeAlerts)
         nowPlayingAppMode = defaults.string(forKey: Key.nowPlayingAppMode).flatMap(MediaAppFilter.Mode.init(rawValue:)) ?? .all
         var seenApps = Set<String>()
         nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
+        nowPlayingAppPatterns = defaults.string(forKey: Key.nowPlayingAppPatterns) ?? ""
         recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
+        let lyricOffset = defaults.integer(forKey: Key.lyricOffset)
+        self.lyricOffset = Self.lyricOffsetRange.contains(lyricOffset) ? lyricOffset : 0
+        let bluetoothOffset = defaults.integer(forKey: Key.bluetoothLyricOffset)
+        bluetoothLyricOffset = Self.lyricOffsetRange.contains(bluetoothOffset) ? bluetoothOffset : 0
         liveMusicBars = defaults.object(forKey: Key.liveMusicBars) as? Bool ?? false
         if let saved = defaults.stringArray(forKey: Key.agentApprovalKinds) {
             agentApprovals = Set(saved.compactMap(AgentKind.init(rawValue:)))
@@ -276,6 +301,8 @@ public final class SettingsStore {
         mirrorEnabled = defaults.object(forKey: Key.mirror) as? Bool ?? true
         clipboardEnabled = defaults.object(forKey: Key.clipboard) as? Bool ?? true
         clipboardReadsImages = defaults.object(forKey: Key.clipboardImages) as? Bool ?? false
+        clipboardExcludedApps = defaults.string(forKey: Key.clipboardExcludedApps) ?? ""
+        clipboardKeepsImages = defaults.bool(forKey: Key.clipboardKeepsImages)
         notesEnabled = defaults.object(forKey: Key.notes) as? Bool ?? true
         downloadsEnabled = defaults.object(forKey: Key.downloads) as? Bool ?? false
         remindersEnabled = defaults.object(forKey: Key.reminders) as? Bool ?? true
@@ -300,6 +327,10 @@ public final class SettingsStore {
         focusMinutes = Self.focusChoices.contains(focus) ? focus : 25
         let rest = defaults.object(forKey: Key.breakMinutes) as? Int ?? 5
         breakMinutes = Self.breakChoices.contains(rest) ? rest : 5
+        let longRest = defaults.integer(forKey: Key.longBreakMinutes)
+        longBreakMinutes = Self.longBreakChoices.contains(longRest) ? longRest : 15
+        let awake = defaults.integer(forKey: Key.keepAwakeMinutes)
+        keepAwakeMinutes = KeepAwakeService.minuteChoices.contains(awake) ? awake : 0
         calendarEnabled = defaults.object(forKey: Key.calendar) as? Bool ?? true
         shortcutsEnabled = defaults.object(forKey: Key.shortcuts) as? Bool ?? true
         favoriteShortcuts = Array((defaults.stringArray(forKey: Key.favoriteShortcuts) ?? []).prefix(Self.maximumFavoriteShortcuts))
@@ -309,7 +340,9 @@ public final class SettingsStore {
             featureShortcuts = Self.defaultFeatureShortcuts
         }
         homeTiles = (defaults.stringArray(forKey: Key.homeTiles)).map { HomeGrid(rawValues: $0).tiles } ?? HomeGrid.defaultTiles
-        levelsEnabled = defaults.object(forKey: Key.levels) as? Bool ?? true
+        let levelsEnabled = defaults.object(forKey: Key.levels) as? Bool ?? true
+        volumeAlertsEnabled = defaults.object(forKey: Key.volumeAlerts) as? Bool ?? levelsEnabled
+        brightnessAlertsEnabled = defaults.object(forKey: Key.brightnessAlerts) as? Bool ?? levelsEnabled
         let linger = defaults.object(forKey: Key.linger) as? Double ?? 30
         pausedMediaLinger = Self.lingerChoices.contains(linger) ? linger : 30
     }
@@ -388,6 +421,7 @@ public final class SettingsStore {
         /// Legacy boolean retained only to migrate versions that shipped before interaction modes.
         static let expandOnHover = "behavior.expandOnHover"
         static let collapseOnPointerExit = "behavior.collapseOnPointerExit"
+        static let collapseDelay = "behavior.collapseDelay"
         static let haptics = "behavior.haptics"
         static let liquid = "behavior.liquidAnimations"
         static let motionStyle = "behavior.motionStyle"
@@ -396,12 +430,15 @@ public final class SettingsStore {
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
         static let lyrics = "activity.lyrics"
+        static let lyricOffset = "nowPlaying.lyricOffset"
+        static let bluetoothLyricOffset = "nowPlaying.bluetoothLyricOffset"
         static let liveMusicBars = "activity.liveMusicBars"
         /// The single Claude Code switch from earlier builds, read once to carry it over.
         static let agentApprovals = "activity.agentApprovals"
         static let agentApprovalKinds = "activity.agentApprovalKinds"
         static let nowPlayingAppMode = "nowPlaying.appMode"
         static let nowPlayingApps = "nowPlaying.apps"
+        static let nowPlayingAppPatterns = "nowPlaying.appPatterns"
         static let recentMediaApps = "nowPlaying.recentApps"
         static let timer = "activity.timer"
         static let calls = "activity.calls"
@@ -410,11 +447,15 @@ public final class SettingsStore {
         static let lowBattery = "alert.lowBattery"
         static let headphones = "alert.headphones"
         static let linger = "nowPlaying.pausedLinger"
+        static let nowPlayingOnHoverOnly = "nowPlaying.hoverOnly"
+        static let trackChangeAlerts = "alert.trackChanges"
         static let welcome = "app.hasShownWelcome"
         static let tray = "home.tray"
         static let mirror = "home.mirror"
         static let clipboard = "home.clipboard"
         static let clipboardImages = "home.clipboardImages"
+        static let clipboardExcludedApps = "clipboard.excludedApps"
+        static let clipboardKeepsImages = "clipboard.keepImages"
         static let notes = "home.notes"
         static let downloads = "alert.downloads"
         static let reminders = "home.reminders"
@@ -433,11 +474,15 @@ public final class SettingsStore {
         static let aiUsageAntigravityEnabled = "aiUsage.antigravityEnabled"
         static let focusMinutes = "timer.focusMinutes"
         static let breakMinutes = "timer.breakMinutes"
+        static let longBreakMinutes = "timer.longBreakMinutes"
+        static let keepAwakeMinutes = "power.keepAwakeMinutes"
         static let calendar = "home.calendar"
         static let shortcuts = "home.shortcuts"
         static let favoriteShortcuts = "home.favoriteShortcuts"
         static let featureShortcuts = "home.featureShortcuts"
         static let homeTiles = "home.tiles"
         static let levels = "alert.levels"
+        static let volumeAlerts = "alert.volume"
+        static let brightnessAlerts = "alert.brightness"
     }
 }

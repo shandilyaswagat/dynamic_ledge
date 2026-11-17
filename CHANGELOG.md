@@ -8,6 +8,26 @@ last one.
 ## [Unreleased]
 
 ### Added
+- **Drop files straight from a web page.** Drag a browser image or another file the source app
+  provides to the Tray. Dynamic Ledge saves a copy in Downloads and adds it to the Tray.
+- **Top-edge reveal on displays without a notch.** Touch the middle of the top edge to reveal the
+  notch or pill right away. Click it to open, or stay at the edge in Hover mode.
+- **Copy path in the Tray.** Right-click a file to copy its path as plain text.
+- **Timed Keep Awake.** Choose 30 minutes, 1 hour, 2 hours, 8 hours, or until you turn it off.
+- **Collapse delay.** Choose how long the notch stays open after the pointer leaves.
+- **Live Stats history.** CPU, upload and download charts retain up to a minute of readings as you move between panels.
+- **Resume timers after reopening.** Running and paused countdowns survive an app restart.
+- **Long focus breaks.** Choose how long a break to take after every fourth completed focus session.
+- **Battery full alert.** The notch shows when your plugged-in Mac reaches 100%.
+- **Separate volume and brightness alerts.** Turn each one on or off in Activities & Alerts.
+- **Clipboard app exclusions.** Choose which apps' copies to skip in Clipboard history.
+- **Clipboard image history.** Opt in to preview and copy back up to six recent images.
+- **Seek 15 seconds.** Right-click the notch to go back or forward in seekable media.
+- **Paused media.** Hide it immediately, keep it for two minutes, or show it until the player closes.
+- **Show music only on hover.** Hide the compact Now Playing activity until the pointer reaches the notch.
+- **Track-change alerts.** Optionally show a notice when a new song starts.
+- **Lyric timing.** Adjust when lyrics appear, with separate values for Bluetooth and other outputs.
+- **Manual Now Playing filters.** Include apps by matching part of their bundle identifiers.
 - **Home as tiles.** Home is now a grid of tiles like Control Center on iPhone: Stats, Calendar,
   Reminders, Keep Awake, AI Agent Usage, Timer and Stopwatch to start. Hold any tile to edit:
   remove it, drag it somewhere else, drag or press its corner to make it small, wide or large,
@@ -23,6 +43,7 @@ last one.
   missing data is never shown as zero. Claude usage remains excluded.
 
 ### Fixed
+- Network speeds use the full interface counters and show slow transfers in bytes per second.
 - The compact AI usage counter shows the full percentage, including 100%.
 - AI usage stays accessible beside playing music or video, in Home and the activity switcher.
 - Dragging a window near the top of the screen no longer opens the Tray. It opens only once the

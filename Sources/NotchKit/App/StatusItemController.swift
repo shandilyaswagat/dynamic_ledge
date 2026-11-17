@@ -82,7 +82,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             stopwatch.isEnabled = model.settings.timerEnabled
             menu.addItem(stopwatch)
         }
-        let awake = action("Keep Mac Awake") { [weak self] in self?.model.keepAwake.toggle() }
+        let awake = action("Keep Mac Awake") { [weak self] in self?.model.toggleKeepAwake() }
         awake.state = model.keepAwake.isOn ? .on : .off
         menu.addItem(awake)
         menu.addItem(action("Open Notch") { [weak self] in self?.model.expand(.home) })

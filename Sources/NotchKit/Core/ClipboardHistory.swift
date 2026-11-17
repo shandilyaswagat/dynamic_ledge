@@ -103,6 +103,15 @@ public struct ClipboardHistory: Equatable, Sendable {
 
 /// Which copies must never be recorded.
 public enum ClipboardRules {
+    static func excludesApp(name: String?, bundleID: String?, exclusions: String) -> Bool {
+        exclusions.split(separator: ",").contains { entry in
+            let filter = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !filter.isEmpty else { return false }
+            return name?.caseInsensitiveCompare(filter) == .orderedSame
+                || bundleID?.caseInsensitiveCompare(filter) == .orderedSame
+        }
+    }
+
     /// Markers apps put on the pasteboard to say "don't keep this" (see nspasteboard.org).
     /// Password managers mark passwords as concealed.
     public static let privateTypes: Set<String> = [

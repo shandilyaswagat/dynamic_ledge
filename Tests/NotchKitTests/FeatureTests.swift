@@ -191,6 +191,33 @@ struct TrayTests {
         web.setString(link.absoluteString, forType: .URL)
         #expect(pasteboard.writeObjects([web]))
         #expect(FileDropReader.urls(from: pasteboard) == [link])
+        #expect(FileDropReader.image(from: pasteboard, source: link) == nil)
+    }
+
+    @Test func draggedBrowserImageBecomesAFileWithItsOwnContents() async throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let tray = TrayStore(folder: folder, defaults: nil, dropFolder: folder)
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        let model = IslandModel(settings: SettingsStore(defaults: defaults), tray: tray)
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let image = try #require(BridgeReaderTests.solidPNG(red: 0, green: 0, blue: 1))
+        let existing = folder.appendingPathComponent("web image.png")
+        try Data("original".utf8).write(to: existing)
+        let item = NSPasteboardItem()
+        item.setString("https://example.com/web%20image.png", forType: .URL)
+        item.setData(image, forType: .png)
+        #expect(pasteboard.writeObjects([item]))
+        #expect(FileDropReader.canReadFiles(from: pasteboard))
+        #expect(model.acceptDrop(pasteboard, into: .tray))
+        for _ in 0..<100 where tray.items.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+        let imported = try #require(tray.items.first)
+        #expect(imported.name == "web image 2.png")
+        #expect(try Data(contentsOf: imported.url) == image)
+        #expect(try Data(contentsOf: existing) == Data("original".utf8))
+        tray.remove(imported.id)
+        #expect(FileManager.default.fileExists(atPath: imported.url.path))
     }
 
     @Test func documentReleaseAcceptsNotchEdgeAndExpandedTarget() {
@@ -448,9 +475,11 @@ struct NewFeatureModelTests {
         model.levels.onChange?(.volume, 0.4, false)
         #expect(model.presentation == .home)
         model.collapse()
-        model.settings.levelsEnabled = false
+        model.settings.volumeAlertsEnabled = false
         model.levels.onChange?(.volume, 0.5, false)
         #expect(model.presentation == .hidden(peek: false))
+        model.levels.onChange?(.brightness, 0.5, false)
+        #expect(model.presentation == .alert(.level(.brightness, value: 0.5, muted: false)))
     }
 
     @Test func favouritesAreCapped() {

@@ -12,14 +12,15 @@ struct ClipboardBody: View {
 
     var body: some View {
         let history = model.clipboard.history
-        if history.entries.isEmpty {
+        let images = model.clipboard.images
+        if history.entries.isEmpty && images.isEmpty {
             ZStack {
                 RoundedRectangle(cornerRadius: 16 * s, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
                 VStack(spacing: 6 * s) {
                     Image(systemName: "doc.on.clipboard.fill")
                         .font(.system(size: 20 * s, weight: .semibold))
-                    Text("Text you copy shows up here")
+                    Text(model.clipboard.keepsImages ? "Text and images you copy show up here" : "Text you copy shows up here")
                         .font(.system(size: 12 * s, weight: .medium))
                     Text("Passwords are skipped. Pin a clip to keep it after you quit.")
                         .font(.system(size: 10 * s))
@@ -31,10 +32,12 @@ struct ClipboardBody: View {
         } else {
             let isSearching = model.isSearchingClipboard
             let entries = history.matching(isSearching ? query : "")
+            let visibleImages = isSearching && !query.isEmpty ? [] : images
+            let canClear = history.pinnedCount < history.entries.count || !images.isEmpty
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 8 * s) {
                     ZStack {
-                        if entries.isEmpty {
+                        if entries.isEmpty && visibleImages.isEmpty {
                             VStack(spacing: 4 * s) {
                                 Image(systemName: "magnifyingglass")
                                     .font(.system(size: 16 * s, weight: .semibold))
@@ -48,7 +51,15 @@ struct ClipboardBody: View {
                         } else {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8 * s) {
-                                    ForEach(entries) { entry in
+                                    ForEach(entries.filter(\.isPinned)) { entry in
+                                        ClipboardCard(model: model, entry: entry)
+                                            .transition(.scale(scale: 0.9).combined(with: .opacity))
+                                    }
+                                    ForEach(visibleImages) { image in
+                                        ClipboardImageCard(clipboard: model.clipboard, clip: image)
+                                            .transition(.scale(scale: 0.9).combined(with: .opacity))
+                                    }
+                                    ForEach(entries.filter { !$0.isPinned }) { entry in
                                         ClipboardCard(model: model, entry: entry)
                                             .transition(.scale(scale: 0.9).combined(with: .opacity))
                                     }
@@ -68,8 +79,8 @@ struct ClipboardBody: View {
                         SideButton(symbol: "xmark.bin.fill", label: history.pinnedCount > 0 ? "Clear the history (pinned clips stay)" : "Clear the history") {
                             withAnimation(.snappy(duration: 0.25)) { model.clipboard.removeAll() }
                         }
-                        .disabled(history.pinnedCount == history.entries.count)
-                        .opacity(history.pinnedCount == history.entries.count ? 0.4 : 1)
+                        .disabled(!canClear)
+                        .opacity(canClear ? 1 : 0.4)
                     }
                 }
                 // The clips keep their size; the notch grows below them for the search bar.
@@ -80,7 +91,7 @@ struct ClipboardBody: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.snappy(duration: 0.25), value: entries.map(\.id))
+            .animation(.snappy(duration: 0.25), value: entries.map(\.id) + visibleImages.map(\.id))
         }
     }
 
@@ -148,6 +159,36 @@ struct ClipboardBody: View {
         withAnimation(Motion.resize) {
             query = ""
             model.isSearchingClipboard = false
+        }
+    }
+}
+
+private struct ClipboardImageCard: View {
+    let clipboard: ClipboardMonitor
+    let clip: ClipboardMonitor.CopiedImage
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        Button { clipboard.copyImage(clip) } label: {
+            VStack(alignment: .leading, spacing: 6 * s) {
+                Image(decorative: clip.thumbnail, scale: 1)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text(clipboard.justCopied == clip.id ? "Copied" : clip.appName ?? "Image")
+                    .font(.system(size: 10 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+                    .lineLimit(1)
+            }
+            .padding(8 * s)
+            .frame(width: 140 * s, height: (IslandMetrics.Nook.body - 4) * s)
+            .background(NotchColor.buttonFill, in: RoundedRectangle(cornerRadius: 12 * s))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Copy image")
+        .contextMenu {
+            Button("Remove from Clipboard history") { clipboard.remove(clip.id) }
         }
     }
 }

@@ -55,9 +55,10 @@ MacBook. Nothing is drawn while nothing is happening; at rest the shape is retra
 top edge of the screen.
 
 * Live activities and alerts grow out of the top edge the same way they grow out of the notch.
-* Resting the pointer on the notch's spot for the hover delay (0.4 s by default) slides the notch
-  down (notch + 20 wide, + 3 tall). Until then the menu bar underneath keeps its clicks.
-* Click it to open Home. With Hover chosen in Settings, it opens Home after another hover delay.
+* Touching the top edge at the centre reveals the notch or pill immediately. Passing below
+  the edge leaves a hidden notch tucked away, so browser tabs stay accessible.
+* Click the revealed shape to open it. In Hover mode, stay at the edge for the configured
+  delay to open the live activity or Home.
 * Moving away slides it back up into the edge.
 
 **Pill** (Settings › Appearance › Displays Without a Notch) swaps that notch for a floating pill,

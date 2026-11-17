@@ -44,8 +44,10 @@ public enum ActivityKind: String, CaseIterable, Sendable, Codable, Hashable {
 /// A short system event, shown briefly like the iPhone's charging or AirPods alerts.
 public enum IslandAlert: Equatable, Sendable {
     case charging(level: Int, isCharging: Bool)
+    case batteryFull
     case lowBattery(level: Int)
     case headphones(name: String, symbol: String)
+    case trackChanged(title: String, artist: String)
     case timerFinished
     /// Shown once on first launch, so a new user sees where the app lives.
     case welcome
@@ -73,6 +75,7 @@ public enum IslandAlert: Equatable, Sendable {
     public enum Kind: Hashable, Sendable {
         case power
         case headphones
+        case track
         case timer
         case app
         case level
@@ -86,8 +89,9 @@ public enum IslandAlert: Equatable, Sendable {
 
     public var kind: Kind {
         switch self {
-        case .charging, .lowBattery: .power
+        case .charging, .batteryFull, .lowBattery: .power
         case .headphones: .headphones
+        case .trackChanged: .track
         case .timerFinished: .timer
         case .welcome: .app
         case .level: .level
@@ -104,9 +108,10 @@ public enum IslandAlert: Equatable, Sendable {
     /// ten minutes so an unattended Mac isn't left with the notch expanded.
     public var displayDuration: TimeInterval {
         switch self {
-        case .charging: 3
+        case .charging, .batteryFull: 3
         case .lowBattery: 4
         case .headphones: 3
+        case .trackChanged: 3
         case .timerFinished: 600
         case .welcome: 4
         case .level: 1.6

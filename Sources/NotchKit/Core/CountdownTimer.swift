@@ -2,7 +2,7 @@ import Foundation
 
 /// What a timer is for. Focus sessions and their breaks are timers that offer the next step
 /// when they end.
-public enum TimerMode: String, Equatable, Sendable {
+public enum TimerMode: String, Codable, Equatable, Sendable {
     case plain
     case focus
     case rest
@@ -19,8 +19,8 @@ public enum TimerMode: String, Equatable, Sendable {
 
 /// The pill's own timer. A value type with an injected clock so it can be
 /// tested without waiting.
-public struct CountdownTimer: Equatable, Sendable {
-    public enum Phase: Equatable, Sendable {
+public struct CountdownTimer: Codable, Equatable, Sendable {
+    public enum Phase: Codable, Equatable, Sendable {
         case running(endDate: Date)
         case paused(remaining: TimeInterval)
         case finished
@@ -65,6 +65,11 @@ public struct CountdownTimer: Equatable, Sendable {
     }
 
     public var isFinished: Bool { phase == .finished }
+
+    func canRestore(at now: Date) -> Bool {
+        if isFinished || !(Self.minimumDuration...Self.maximumDuration).contains(duration) { return false }
+        return (0...Self.maximumDuration).contains(remaining(at: now))
+    }
 
     public var endDate: Date? {
         if case .running(let endDate) = phase { return endDate }

@@ -90,8 +90,10 @@ private struct HomeTileGrid: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 0) {
                         ForEach(0..<pages, id: \.self) { index in
+                            let pageTiles = placements.filter { $0.page == index }
                             ZStack(alignment: .topLeading) {
-                                ForEach(placements.filter { $0.page == index }, id: \.tile.item) { placement in
+                                if isEditing { emptyCells(metrics: metrics, placements: pageTiles) }
+                                ForEach(pageTiles, id: \.tile.item) { placement in
                                     tile(placement, metrics: metrics, placements: placements)
                                 }
                             }
@@ -125,6 +127,26 @@ private struct HomeTileGrid: View {
         .onLongPressGesture(minimumDuration: 0.4) { if tiles.isEmpty { model.startEditingHome() } }
         .animation(.spring(duration: 0.35, bounce: 0.2), value: tiles)
         .accessibilityIdentifier("home-grid")
+    }
+
+    private func emptyCells(metrics: GridMetrics, placements: [HomeGridLayout.Placement]) -> some View {
+        let columns = IslandMetrics.Nook.homeColumns
+        let rows = IslandMetrics.Nook.homeRows
+        let occupied = placements.map(metrics.frame)
+        return ForEach(0..<(columns * rows), id: \.self) { index in
+            let x = CGFloat(index % columns) * (metrics.columnWidth + metrics.gap)
+            let y = CGFloat(index / columns) * (metrics.rowHeight + metrics.gap)
+            let center = CGPoint(x: x + metrics.columnWidth / 2, y: y + metrics.rowHeight / 2)
+            if !occupied.contains(where: { $0.contains(center) }) {
+                RoundedRectangle(cornerRadius: 12 * s, style: .continuous)
+                    .strokeBorder(.white.opacity(0.22),
+                                  style: StrokeStyle(lineWidth: s, lineCap: .round, dash: [2 * s, 3 * s]))
+                    .frame(width: metrics.columnWidth, height: metrics.rowHeight)
+                    .offset(x: x, y: y)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
     }
 
     @ViewBuilder
@@ -622,7 +644,8 @@ private struct LiveCard: View {
         Group {
             switch item {
             case .call: LiveCall(model: model, compact: compact)
-            case .music: LiveMusic(service: model.nowPlaying, lyrics: model.showsLyrics ? model.lyrics.current : nil, compact: compact)
+            case .music: LiveMusic(service: model.nowPlaying, lyrics: model.showsLyrics ? model.lyrics.current : nil,
+                                   timingAdjustment: model.lyricTimingAdjustment, compact: compact)
             case .timer: LiveTimer(model: model)
             case .stopwatch: LiveStopwatch(model: model)
             case .stats: LiveStats(stats: model.stats)
@@ -659,8 +682,8 @@ private struct LiveCard: View {
     }
 }
 
-/// Stats as a Home tile: CPU and memory side by side; large adds network and the last minute
-/// of CPU. Clicking it opens the Stats panel.
+/// Stats as a Home tile: CPU and memory side by side; large adds live rates and network history.
+/// Clicking it opens the Stats panel.
 private struct HomeStatsTile: View {
     let model: IslandModel
     let large: Bool
@@ -685,20 +708,17 @@ private struct HomeStatsTile: View {
                 }
                 if large {
                     let ready = stats.hasNetworkReading
-                    HStack(spacing: 10 * s) {
-                        Label(ready ? StatsMath.rate(snapshot.networkIn) : "–", systemImage: "arrow.down")
-                        Label(ready ? StatsMath.rate(snapshot.networkOut) : "–", systemImage: "arrow.up")
+                    HStack(spacing: 6 * s) {
+                        networkRate("Download", value: ready ? StatsMath.rate(snapshot.networkIn) : "–",
+                                    symbol: "arrow.down", color: StatsColor.network)
+                        networkRate("Upload", value: ready ? StatsMath.rate(snapshot.networkOut) : "–",
+                                    symbol: "arrow.up", color: StatsColor.networkUpload)
                     }
                     .font(.system(size: 10.5 * s, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(NotchColor.secondaryText)
                     .labelStyle(TightLabelStyle(spacing: 2 * s))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(Text("Network"))
                     Spacer(minLength: 0)
-                    cpuGraph(stats.cpuHistory)
+                    networkGraph(stats.networkHistory, sampledAt: stats.sampledAt)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -708,6 +728,20 @@ private struct HomeStatsTile: View {
         .accessibilityElement(children: .combine)
         .accessibilityHint(Text("Opens Stats"))
         .accessibilityIdentifier("home-stats-tile")
+    }
+
+    private func networkRate(_ caption: LocalizedStringKey, value: String, symbol: String, color: Color) -> some View {
+        Label {
+            Text(value)
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel(Text(caption))
+        .accessibilityValue(Text(value))
     }
 
     /// A caption over a big percentage; the caption takes the reading's colour once it's busy
@@ -728,30 +762,32 @@ private struct HomeStatsTile: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func cpuGraph(_ history: [Double]) -> some View {
-        Canvas { context, size in
-            guard !history.isEmpty else { return }
-            let padding = 3 * s
+    private func networkGraph(_ history: [StatsService.NetworkSample], sampledAt: Date) -> some View {
+        let peak = history.reduce(1024.0) { max($0, $1.download, $1.upload) }
+        let scale = s
+        return Canvas { context, size in
+            let padding = 4 * scale
             let bottom = size.height - padding
-            let step = (size.width - 2 * padding) / CGFloat(StatsService.cpuHistoryLimit - 1)
-            let points = history.reversed().enumerated().map { offset, load in
-                CGPoint(x: size.width - padding - CGFloat(offset) * step,
-                        y: bottom - (bottom - padding) * load)
+            let width = max(0, size.width - 2 * padding)
+            let height = max(0, bottom - padding)
+            func trace(_ rate: KeyPath<StatsService.NetworkSample, Double>, color: Color) {
+                let points = history.map { sample in
+                    let age = sampledAt.timeIntervalSince(sample.time) / StatsService.historyDuration
+                    return CGPoint(x: size.width - padding - width * age,
+                                   y: bottom - height * sample[keyPath: rate] / peak)
+                }
+                guard let latest = points.last else { return }
+                let line = Path { $0.addLines(points) }
+                context.drawLayer { glow in
+                    glow.addFilter(.shadow(color: color.opacity(0.65), radius: 2.5 * scale))
+                    glow.stroke(line, with: .color(color),
+                                style: StrokeStyle(lineWidth: 1.25 * scale, lineCap: .round, lineJoin: .round))
+                    let dot = CGRect(x: latest.x - 2 * scale, y: latest.y - 2 * scale, width: 4 * scale, height: 4 * scale)
+                    glow.fill(Path(ellipseIn: dot), with: .color(color))
+                }
             }
-            guard let latest = points.first, let earliest = points.last else { return }
-            let trace = Path { $0.addLines(points) }
-            var area = trace
-            area.addLine(to: CGPoint(x: earliest.x, y: bottom))
-            area.addLine(to: CGPoint(x: latest.x, y: bottom))
-            area.closeSubpath()
-            context.fill(area, with: .linearGradient(
-                Gradient(colors: [StatsColor.cpu.opacity(0.22), StatsColor.cpu.opacity(0)]),
-                startPoint: CGPoint(x: 0, y: padding), endPoint: CGPoint(x: 0, y: bottom)
-            ))
-            context.stroke(trace, with: .color(StatsColor.cpu),
-                           style: StrokeStyle(lineWidth: 1.4 * s, lineCap: .round, lineJoin: .round))
-            let dot = CGRect(x: latest.x - 2 * s, y: latest.y - 2 * s, width: 4 * s, height: 4 * s)
-            context.fill(Path(ellipseIn: dot), with: .color(StatsColor.cpu))
+            trace(\.download, color: StatsColor.network)
+            trace(\.upload, color: StatsColor.networkUpload)
         }
         .frame(height: 34 * s)
         .accessibilityHidden(true)
@@ -1059,6 +1095,7 @@ private struct LiveMusic: View {
     let service: NowPlayingService
     /// Shown as one line under the title when the song has timed lyrics.
     let lyrics: SyncedLyrics?
+    let timingAdjustment: TimeInterval
     let compact: Bool
     @Environment(\.notchScale) private var s
 
@@ -1096,7 +1133,7 @@ private struct LiveMusic: View {
                 title
                     .padding(.trailing, 12 * s)
                 if let lyrics {
-                    LyricsLine(lyrics: lyrics, service: service, size: 11 * s, alignment: .leading)
+                    LyricsLine(lyrics: lyrics, service: service, size: 11 * s, timingAdjustment: timingAdjustment, alignment: .leading)
                         .frame(height: 16 * s)
                         .padding(.top, 4 * s)
                 }

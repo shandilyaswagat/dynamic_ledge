@@ -103,8 +103,6 @@ public final class IslandModel {
     @ObservationIgnored private var hoverExpandTask: Task<Void, Never>?
     /// What the pending hover opens, so moving from the shape onto the bubble switches it.
     @ObservationIgnored private var hoverExpandTarget: ExpandTarget?
-    /// On a display without a notch, shows the notch once the pointer has rested on its spot.
-    @ObservationIgnored private var revealTask: Task<Void, Never>?
     /// Auto-collapse only starts once the pointer has been inside the expanded pill, so opening
     /// it from the menu bar doesn't collapse it while the pointer travels over.
     @ObservationIgnored private var pointerEnteredExpanded = false
@@ -113,7 +111,7 @@ public final class IslandModel {
     public init(
         settings: SettingsStore,
         nowPlaying: NowPlayingService = NowPlayingService(),
-        timer: TimerService = TimerService(),
+        timer: TimerService? = nil,
         calls: CallMonitor = CallMonitor(),
         power: PowerMonitor = PowerMonitor(),
         audioRoute: AudioRouteMonitor = AudioRouteMonitor(),
@@ -130,6 +128,7 @@ public final class IslandModel {
     ) {
         self.settings = settings
         self.nowPlaying = nowPlaying
+        let timer = timer ?? TimerService(defaults: settings.defaults)
         self.timer = timer
         self.calls = calls
         self.power = power
@@ -155,7 +154,7 @@ public final class IslandModel {
             self?.receive(.shortcut(name: name, succeeded: succeeded))
         }
         levels.onChange = { [weak self] kind, value, muted in
-            guard let self, self.settings.levelsEnabled else { return }
+            guard let self else { return }
             // While an expanded view is open, it stays put; the system indicator still shows.
             guard self.expandTarget == nil else { return }
             self.receive(.level(kind, value: value, muted: muted))
@@ -185,6 +184,9 @@ public final class IslandModel {
         nowPlaying.lingerDuration = settings.pausedMediaLinger
         nowPlaying.appFilter = settings.mediaAppFilter
         nowPlaying.onAppSeen = { [weak self] identifier in self?.settings.noteMediaApp(identifier) }
+        nowPlaying.onTrackChange = { [weak self] info in
+            self?.receive(.trackChanged(title: info.title, artist: info.artist))
+        }
         agents.onChange = { [weak self] in self?.syncAgentAlert() }
         agents.onFinished = { [weak self] kind, project in
             guard let self, self.settings.agentFinishedAlerts else { return }
@@ -213,6 +215,8 @@ public final class IslandModel {
         levels.start()
         audioOutput.start()
         clipboard.readsTextInImages = settings.clipboardReadsImages
+        clipboard.excludedApps = settings.clipboardExcludedApps
+        clipboard.keepsImages = settings.clipboardKeepsImages
         if settings.clipboardEnabled { clipboard.start() }
         syncMusicBars()
         syncAIUsageRefreshes()
@@ -287,7 +291,7 @@ public final class IslandModel {
             return true
         }
         guard expandTarget == nil, !isFileDragNear, !isDropTargeted, !isDocumentWindowDrag else { return false }
-        cancelReveal()
+        cancelHoverExpand()
         setHovering(pill: false, notch: false)
         activeDisplayID = id
         screen = metrics
@@ -296,7 +300,11 @@ public final class IslandModel {
 
     /// The only display there is (every mode except "All displays"): always the one in use.
     public func useOnly(display id: UInt32, metrics: ScreenMetrics) {
-        if activeDisplayID != id { activeDisplayID = id }
+        if activeDisplayID != id {
+            cancelHoverExpand()
+            setHovering(pill: false, notch: false)
+            activeDisplayID = id
+        }
         if screen != metrics { screen = metrics }
     }
 
@@ -323,7 +331,10 @@ public final class IslandModel {
         if settings.callsEnabled, calls.session != nil { active.insert(.call) }
         if settings.timerEnabled, timer.isActive { active.insert(.timer) }
         if settings.timerEnabled, stopwatch.isActive { active.insert(.stopwatch) }
-        if settings.nowPlayingEnabled, nowPlaying.isActivityVisible { active.insert(.nowPlaying) }
+        if settings.nowPlayingEnabled, nowPlaying.isActivityVisible,
+           !settings.nowPlayingOnHoverOnly || isHoveringPill || isHoveringNotch || expandTarget != nil {
+            active.insert(.nowPlaying)
+        }
         if settings.downloadsEnabled, !downloadProgress.items.isEmpty { active.insert(.download) }
         // Stats fills idle space. AI usage does too, and also stays beside music or video.
         let idle = active.isEmpty
@@ -360,6 +371,12 @@ public final class IslandModel {
     /// rather than on another app that's playing.
     public var showsLyrics: Bool {
         settings.nowPlayingEnabled && settings.lyricsEnabled && lyrics.current != nil && nowPlaying.selectedSource == nil
+    }
+
+    var lyricTimingAdjustment: TimeInterval {
+        let milliseconds = audioOutput.currentDevice?.isBluetooth == true
+            ? settings.bluetoothLyricOffset : settings.lyricOffset
+        return TimeInterval(milliseconds) / 1000
     }
 
     public var homeHasMedia: Bool {
@@ -578,7 +595,7 @@ public final class IslandModel {
         case .scratchpad: showTab(.notes)
         case .mirror: showTab(.mirror)
         case .keepAwake:
-            keepAwake.toggle()
+            toggleKeepAwake()
             Haptics.perform(enabled: settings.hapticsEnabled)
         case .stats:
             // A switch, like Keep Awake: memory and CPU beside the camera, on or off.
@@ -593,6 +610,11 @@ public final class IslandModel {
         }
     }
 
+    func toggleKeepAwake() {
+        let minutes = settings.keepAwakeMinutes
+        keepAwake.toggle(for: minutes > 0 ? TimeInterval(minutes) * 60 : nil)
+    }
+
     public var layout: IslandLayout {
         engine.layout(for: presentation, home: homeContent, hovering: isHoveringPill)
     }
@@ -605,11 +627,12 @@ public final class IslandModel {
     public func pointerMoved(to point: CGPoint?) -> Bool {
         let current = presentation
         let engine = engine
+        let atVirtualEdge = point.map(engine.touchesVirtualNotchEdge) ?? false
         let inside: Bool
         var onBubble = false
-        if current.isHidden {
-            // The usual state: no layout to work out, just the notch's spot.
-            inside = point.map(engine.notchHoverRect.contains) ?? false
+        if case .hidden(let peek) = current {
+            let insideNotch = point.map(engine.notchHoverRect.contains) ?? false
+            inside = engine.isVirtualNotch ? atVirtualEdge || (peek && insideNotch) : insideNotch
         } else {
             let resting = engine.layout(for: current, home: homeContent, hovering: false)
             inside = point.map { point in
@@ -620,23 +643,14 @@ public final class IslandModel {
             }
         }
 
-        // A display without a notch has nothing to see until the pointer rests on the notch's
-        // spot for the hover delay. Until then the menu bar underneath keeps its clicks.
-        let waitsForReveal = current.isHidden && engine.isVirtualNotch
         if case .hidden = current {
-            if waitsForReveal {
-                setHovering(pill: false, notch: inside && isHoveringNotch)
-                if inside, !isHoveringNotch { scheduleReveal() } else if !inside { cancelReveal() }
-            } else {
-                setHovering(pill: false, notch: inside)
-            }
+            setHovering(pill: false, notch: inside)
         } else {
-            cancelReveal()
-            setHovering(pill: inside, notch: false)
+            setHovering(pill: inside || atVirtualEdge, notch: false)
         }
 
         if current.isExpandedFamily {
-            if inside {
+            if inside || atVirtualEdge {
                 pointerEnteredExpanded = true
                 collapseTask?.cancel()
                 collapseTask = nil
@@ -645,43 +659,25 @@ public final class IslandModel {
             }
         }
 
-        if settings.notchOpenMode == .hover, inside, case .compact(let primary, let secondary) = current {
+        let canHoverOpen = settings.notchOpenMode == .hover && (engine.isVirtualNotch ? atVirtualEdge : inside)
+        // Edge entry can reveal a compact activity that is configured to show only on hover.
+        let hoverPresentation = atVirtualEdge && current.isHidden ? presentation : current
+        if canHoverOpen, case .compact(let primary, let secondary) = hoverPresentation {
             // Like any activity, hovering Stats opens Stats; hovering the bubble opens its own.
             scheduleHoverExpand(.activity(onBubble ? secondary ?? primary : primary))
-        } else if settings.notchOpenMode == .hover, inside, current == .idle || (current.isHidden && (!waitsForReveal || isHoveringNotch)) {
+        } else if canHoverOpen, current == .idle || current.isHidden {
             // The tucked-away notch, or the resting pill (Show when idle, or while previewing a
             // size in Settings), opens Home.
             scheduleHoverExpand(.home)
-        } else if !inside {
+        } else {
             cancelHoverExpand()
         }
 
-        let takesMouse = inside && (!waitsForReveal || isHoveringNotch)
-        return takesMouse || isFileDragNear
-    }
-
-    /// The pointer is on the spot of a hidden notch and it's about to appear.
-    public var isRevealPending: Bool { revealTask != nil }
-
-    private func scheduleReveal() {
-        guard revealTask == nil else { return }
-        revealTask = Task { [weak self] in
-            let ms = Int(((self?.settings.hoverDelay ?? 0.4) * 1000).rounded())
-            try? await Task.sleep(for: .milliseconds(max(50, ms)))
-            guard !Task.isCancelled, let self else { return }
-            self.revealTask = nil
-            guard self.presentation.isHidden else { return }
-            self.setHovering(pill: false, notch: true)
-            // With Hover, it then opens after the same delay, like the MacBook's notch does.
-            if self.settings.notchOpenMode == .hover {
-                self.scheduleHoverExpand(.home)
-            }
+        if engine.isVirtualNotch, current.isHidden, inside, let point {
+            let revealed = engine.layout(for: .hidden(peek: true), home: homeContent, hovering: false)
+            return revealed.pill.contains(point) || isFileDragNear
         }
-    }
-
-    private func cancelReveal() {
-        revealTask?.cancel()
-        revealTask = nil
+        return inside || isFileDragNear
     }
 
     private func setHovering(pill: Bool, notch: Bool) {
@@ -733,7 +729,6 @@ public final class IslandModel {
         case .activity(.aiUsage): .nook(.aiUsage)
         default: target
         }
-        cancelReveal()
         cancelHoverExpand()
         collapseTask?.cancel()
         collapseTask = nil
@@ -777,11 +772,12 @@ public final class IslandModel {
 
     private func scheduleCollapse() {
         guard collapseTask == nil else { return }
+        let delay = settings.collapseDelay
         collapseTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(900))
+            try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, let self else { return }
             self.collapseTask = nil
-            if !self.isHoveringPill, !self.isTypingInNook {
+            if self.settings.collapseOnPointerExit, !self.isHoveringPill, !self.isTypingInNook {
                 self.collapse()
             }
         }
@@ -805,8 +801,11 @@ public final class IslandModel {
             guard !Task.isCancelled, let self else { return }
             self.hoverExpandTask = nil
             self.hoverExpandTarget = nil
+            guard self.settings.notchOpenMode == .hover else { return }
             switch (target, self.presentation) {
-            case (.activity(let kind), .compact(let primary, let secondary)) where self.isHoveringPill && (primary == kind || secondary == kind):
+            case (.activity(let kind), .compact(let primary, let secondary))
+                where (self.isHoveringPill || (self.engine.isVirtualNotch && self.isHoveringNotch))
+                    && (primary == kind || secondary == kind):
                 self.expand(target)
             case (.home, .hidden) where self.isHoveringNotch, (.home, .idle) where self.isHoveringPill:
                 self.expand(.home)
@@ -844,10 +843,12 @@ public final class IslandModel {
 
     private func isEnabled(_ alert: IslandAlert) -> Bool {
         switch alert {
-        case .charging: settings.chargingAlertsEnabled
+        case .charging, .batteryFull: settings.chargingAlertsEnabled
         case .lowBattery: settings.lowBatteryAlertsEnabled
         case .headphones: settings.headphoneAlertsEnabled
-        case .level: settings.levelsEnabled
+        case .trackChanged: settings.nowPlayingEnabled && settings.trackChangeAlertsEnabled
+        case .level(.volume, _, _): settings.volumeAlertsEnabled
+        case .level(.brightness, _, _): settings.brightnessAlertsEnabled
         case .upcomingEvent: settings.calendarEnabled
         case .download: settings.downloadsEnabled
         case .updateAvailable: true
@@ -940,7 +941,7 @@ public final class IslandModel {
         let minutes = chosen ?? {
             switch mode {
             case .focus: settings.focusMinutes
-            case .rest: settings.breakMinutes
+            case .rest: timer.shouldOfferLongBreak ? settings.longBreakMinutes : settings.breakMinutes
             case .plain: 0
             }
         }()
@@ -1064,6 +1065,28 @@ public final class IslandModel {
     }
 
     @discardableResult
+    func acceptDrop(_ pasteboard: NSPasteboard, into destination: DropZone) -> Bool {
+        let urls = FileDropReader.urls(from: pasteboard)
+        if destination == .tray, settings.trayEnabled {
+            let promises = FileDropReader.promises(from: pasteboard)
+            if !promises.isEmpty {
+                let accepted = tray.receive(promises)
+                expand(.tray)
+                pointerEnteredExpanded = true
+                return accepted
+            }
+            if !urls.contains(where: \.isFileURL),
+               let image = FileDropReader.image(from: pasteboard, source: urls.first) {
+                let saved = tray.saveDroppedImage(image)
+                expand(.tray)
+                pointerEnteredExpanded = true
+                return saved
+            }
+        }
+        return acceptDrop(urls, into: destination)
+    }
+
+    @discardableResult
     public func acceptDrop(_ urls: [URL], into destination: DropZone) -> Bool {
         let supported = urls.filter(DropPolicy.isSupported)
         guard !supported.isEmpty else { return false }
@@ -1154,13 +1177,12 @@ public final class IslandModel {
         let gridStats = homeOpen && !elongatedHome ? homeTiles.first { $0.item == .stats }?.size : nil
         let gridShowsReadings = gridStats.map { $0 != .small } ?? false
         guard settings.statsEnabled || panelSelected || gridShowsReadings else {
-            stats.recordsCPUHistory = false
-            stats.stop()
+            stats.pause()
+            stats.detailed = false
             return
         }
         let showsIdleStats = activeActivities.contains(.stats)
         let detailed = panelSelected || elongatedHome || gridStats == .large
-        stats.recordsCPUHistory = panelSelected || gridShowsReadings
         stats.detailed = detailed
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
         // shows it in its Stats tile, or beside the grid.
@@ -1241,11 +1263,14 @@ public final class IslandModel {
             _ = settings.pausedMediaLinger
             _ = settings.nowPlayingAppMode
             _ = settings.nowPlayingApps
+            _ = settings.nowPlayingAppPatterns
             _ = settings.airDropEnabled
             _ = settings.trayEnabled
             _ = settings.mirrorEnabled
             _ = settings.clipboardEnabled
             _ = settings.clipboardReadsImages
+            _ = settings.clipboardExcludedApps
+            _ = settings.clipboardKeepsImages
             _ = settings.notesEnabled
             _ = settings.downloadsEnabled
             _ = settings.agentApprovals
@@ -1295,6 +1320,8 @@ public final class IslandModel {
                     self.downloadProgress.stop()
                 }
                 self.clipboard.readsTextInImages = self.settings.clipboardReadsImages
+                self.clipboard.excludedApps = self.settings.clipboardExcludedApps
+                self.clipboard.keepsImages = self.settings.clipboardKeepsImages
                 if self.settings.clipboardEnabled {
                     self.clipboard.start()
                 } else {

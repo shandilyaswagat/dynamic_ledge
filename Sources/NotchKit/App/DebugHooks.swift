@@ -31,6 +31,10 @@ final class DebugHooks {
         let parts = command.split(separator: ":").map(String.init)
         switch parts.first {
         case "charging": model.receive(.charging(level: 82, isCharging: true))
+        case "batteryfull":
+            let before = PowerSnapshot(hasBattery: true, level: 99, isOnAC: true, isCharging: true, isLowPowerMode: false)
+            let after = PowerSnapshot(hasBattery: true, level: 100, isOnAC: true, isCharging: false, isLowPowerMode: false)
+            if let alert = PowerTransitions.alert(from: before, to: after) { model.receive(alert) }
         case "lowbattery": model.receive(.lowBattery(level: 20))
         case "headphones": model.receive(.headphones(name: "AirPods Pro", symbol: "airpodspro"))
         case "timer": model.startTimer(Double(parts.dropFirst().first ?? "") ?? 300)
@@ -66,6 +70,26 @@ final class DebugHooks {
         case "editshortcuts": model.showTab(.launcher); model.isEditingShortcuts = true
         case "hoverexpand": model.settings.notchOpenMode = parts.dropFirst().first != "off" ? .hover : .click
         case "reminders": model.showTab(.reminders)
+        case "stats": model.showTab(.stats)
+        case "lyricsqa":
+            model.nowPlaying.stop()
+            if let value = parts.dropFirst().first.flatMap(Int.init), SettingsStore.lyricOffsetRange.contains(value) {
+                model.settings.lyricOffset = value
+            }
+            model.nowPlaying.apply(NowPlayingInfo(title: "Timed lyric fixture", duration: 60, elapsed: 1, isPlaying: true),
+                                   artworkData: nil)
+            model.nowPlaying.apply(NowPlayingInfo(title: "Timed lyric fixture", duration: 60, elapsed: 1),
+                                   artworkData: nil)
+            model.lyrics.showFixture(SyncedLyrics(lrc: "[00:00] First lyric\n[00:02] Second lyric"))
+            model.expand(.activity(.nowPlaying))
+            model.isTypingInNook = true
+        case "track":
+            if let title = parts.dropFirst().first {
+                let playing = parts.dropFirst(2).first != "paused"
+                let source = parts.dropFirst(3).first
+                model.nowPlaying.apply(NowPlayingInfo(title: title, artist: "QA fixture", isPlaying: playing, bundleIdentifier: source),
+                                       artworkData: nil)
+            }
         case "checkupdate": model.updater.check()
         case "lockpreview": lockScreen?.preview(parts.dropFirst().first != "off")
         case "fakeupdate":
@@ -75,7 +99,7 @@ final class DebugHooks {
         // Only the running app: saving the setting would add hooks to real tools on next launch.
         case "agentserver": model.agents.enabledKinds = Set(AgentKind.allCases); model.agents.start()
         case "stopwatch": model.stopwatch.start()
-        case "awake": model.keepAwake.toggle()
+        case "awake": model.toggleKeepAwake()
         case "download": model.receive(.download(URL(fileURLWithPath: parts.dropFirst().first ?? "/tmp/Report.pdf")))
         case "expandnow": if case .compact(let primary, _) = model.presentation { model.expand(.activity(primary)) }
         case "skip": model.swipe(forward: true)
@@ -92,9 +116,9 @@ final class DebugHooks {
             let info = model.nowPlaying.info
             let line = "presentation=\(model.presentation) active=\(model.activeActivities.map(\.rawValue).sorted()) "
                 + "playing=\(String(describing: info?.isPlaying)) lingering=\(model.nowPlaying.isLingering) "
-                + "title=\(info?.title ?? "-") rate=\(info?.playbackRate ?? -1) expand=\(String(describing: model.expandTarget)) "
+                + "title=\(info?.title ?? "-") elapsed=\(info?.elapsed(at: Date()) ?? -1) rate=\(info?.playbackRate ?? -1) expand=\(String(describing: model.expandTarget)) "
                 + "hoverNotch=\(model.isHoveringNotch) hoverPill=\(model.isHoveringPill) notch=\(model.engine.notchInWindow) virtual=\(model.engine.isVirtualNotch) "
-                + "downloads=\(model.downloadProgress.items.map { "\($0.name) \($0.completed)/\($0.total)" }) alert=\(String(describing: model.alerts.current)) agents=\(model.agents.isRunning) socket=\(model.agents.socketPath)\n"
+                + "history=\(model.stats.cpuHistory.count)/\(model.stats.networkHistory.count) timer=\(String(describing: model.timer.timer?.phase)) downloads=\(model.downloadProgress.items.map { "\($0.name) \($0.completed)/\($0.total)" }) alert=\(String(describing: model.alerts.current)) agents=\(model.agents.isRunning) socket=\(model.agents.socketPath)\n"
             let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DynamicNotch-debug.txt")
             if let handle = try? FileHandle(forWritingTo: url) {
                 handle.seekToEndOfFile()

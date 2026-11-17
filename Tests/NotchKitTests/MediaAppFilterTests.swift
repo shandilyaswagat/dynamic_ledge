@@ -37,6 +37,14 @@ struct MediaAppFilterTests {
 @MainActor
 @Suite("Now Playing from chosen apps")
 struct NowPlayingAppChoiceTests {
+    @Test func manualPatternsMatchKnownSourcesOnly() {
+        let filter = MediaAppFilter(mode: .chosen, allowed: ["com.apple.Music"], bundlePatterns: ["spotify"])
+        #expect(filter.allows("com.apple.Music"))
+        #expect(filter.allows("com.Spotify.client"))
+        #expect(!filter.allows("com.apple.Safari"))
+        #expect(!filter.allows(nil))
+    }
+
     private func playing(_ title: String, _ app: String?, isPlaying: Bool = true, now: Date = Date()) -> NowPlayingInfo {
         NowPlayingInfo(title: title, duration: 300, elapsed: 10, sampledAt: now, playbackRate: isPlaying ? 1 : 0, isPlaying: isPlaying, bundleIdentifier: app)
     }

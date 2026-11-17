@@ -88,11 +88,14 @@ Done. The notch waves hi, and a capsule icon appears in your menu bar.
 - **Click the notch** to open it. Move away or click anywhere else to close it.
 - **Grid button** (top right) opens everything else.
 - **Drag files** onto the notch to drop them in Tray or AirDrop.
+- **Drag an image from a web page** onto the Tray to save it to Downloads and add it to the Tray.
 - **Right-click** the notch for quick controls.
 - **Settings:** click the capsule icon in the menu bar, then **Settings…**
 
 Nothing showing? That's normal. It stays hidden until there's something to show. Hover over the
 notch to peek, or click it.
+On a display without a notch, touch the middle of its top edge to reveal the notch or pill.
+Click it to open it, or stay at the edge in Hover mode.
 
 ## Update it
 
@@ -145,7 +148,9 @@ everything else keeps working.
 - **Clipboard:** the last 20 bits of text, in memory only. Gone when you quit, except clips you
   pin. Anything a password manager marks private is skipped. Turn Clipboard off any time.
   With **Text from images** on, a copied picture's text is read on your Mac and kept like any
-  other clip; the picture itself isn't kept.
+  other clip. The separate **Image history** option keeps up to six recent pictures in memory,
+  within a 32 MiB image budget and up to 2560 pixels on the longest side. Pictures clear when
+  you quit or turn off Image history.
 - **Tray:** links to your files, never copies. Your original files are never changed. Clears when
   you quit, except pinned items.
 - **Notes and settings:** saved on your Mac only.

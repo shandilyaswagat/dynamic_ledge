@@ -44,11 +44,7 @@ final class IslandHostingView<Content: View>: NSHostingView<Content> {
 
     required init(rootView: Content) {
         super.init(rootView: rootView)
-        registerForDraggedTypes([
-            .fileURL,
-            .URL,
-            NSPasteboard.PasteboardType("NSFilenamesPboardType"),
-        ])
+        registerForDraggedTypes(FileDropReader.draggedTypes)
     }
 
     @available(*, unavailable)

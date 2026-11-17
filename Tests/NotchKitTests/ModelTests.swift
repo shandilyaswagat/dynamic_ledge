@@ -13,10 +13,22 @@ private func makeDefaults() -> UserDefaults {
 @MainActor
 @Suite("Settings store")
 struct SettingsStoreTests {
+    @Test func keepsLegacyLevelAlertPreferenceForEachNewSwitch() {
+        let defaults = makeDefaults()
+        defaults.set(false, forKey: "alert.levels")
+        let store = SettingsStore(defaults: defaults)
+        #expect(!store.volumeAlertsEnabled && !store.brightnessAlertsEnabled)
+        store.volumeAlertsEnabled = true
+        let reloaded = SettingsStore(defaults: defaults)
+        #expect(reloaded.volumeAlertsEnabled && !reloaded.brightnessAlertsEnabled)
+    }
+
     @Test func defaults() {
         let store = SettingsStore(defaults: makeDefaults())
         #expect(store.appearance == .standard)
         #expect(store.collapseOnPointerExit)
+        #expect(store.collapseDelay == 0.9)
+        #expect(store.keepAwakeMinutes == 0)
         #expect(!store.showWhenIdle)
         #expect(store.notchOpenMode == .click)
         #expect(store.hoverDelay == 0.4)
@@ -34,6 +46,8 @@ struct SettingsStoreTests {
         store.display = .main
         store.notchOpenMode = .hover
         store.hoverDelay = 0.4
+        store.collapseDelay = 3
+        store.keepAwakeMinutes = 480
         store.pausedMediaLinger = 300
         store.callsEnabled = false
 
@@ -44,6 +58,8 @@ struct SettingsStoreTests {
         #expect(reloaded.display == .main)
         #expect(reloaded.notchOpenMode == .hover)
         #expect(reloaded.hoverDelay == 0.4)
+        #expect(reloaded.collapseDelay == 3)
+        #expect(reloaded.keepAwakeMinutes == 480)
         #expect(reloaded.pausedMediaLinger == 300)
         #expect(!reloaded.callsEnabled)
     }
@@ -55,12 +71,16 @@ struct SettingsStoreTests {
         defaults.set("moon", forKey: "general.display")
         defaults.set(7.0, forKey: "nowPlaying.pausedLinger")
         defaults.set(2.5, forKey: "behavior.hoverDelay")
+        defaults.set(-5, forKey: "behavior.collapseDelay")
+        defaults.set(-5, forKey: "power.keepAwakeMinutes")
         let store = SettingsStore(defaults: defaults)
         #expect(store.appearance.width == NotchAppearance.widthRange.upperBound)
         #expect(defaults.object(forKey: "shape.style") == nil, "the old floating pill setting is forgotten")
         #expect(store.display == .automatic)
         #expect(store.pausedMediaLinger == 30)
         #expect(store.hoverDelay == 0.5)
+        #expect(store.collapseDelay == 0.9)
+        #expect(store.keepAwakeMinutes == 0)
     }
 
     @Test func migratesTheLegacyHoverSetting() {
@@ -88,6 +108,45 @@ private final class TestClock {
 @MainActor
 @Suite("Timer service")
 struct TimerServiceTests {
+    @Test func offersLongBreakAfterFourthCompletedFocusSession() {
+        let defaults = makeDefaults()
+        let clock = TestClock()
+        let beforeRelaunch = TimerService(defaults: defaults, now: { clock.now })
+        for _ in 1...3 {
+            beforeRelaunch.start(duration: 60, mode: .focus)
+            clock.now += 60
+            beforeRelaunch.checkCompletion()
+            #expect(!beforeRelaunch.shouldOfferLongBreak)
+        }
+        let afterRelaunch = TimerService(defaults: defaults, now: { clock.now })
+        afterRelaunch.start(duration: 60, mode: .focus)
+        clock.now += 60
+        afterRelaunch.checkCompletion()
+        #expect(afterRelaunch.shouldOfferLongBreak)
+        afterRelaunch.start(duration: 900, mode: .rest)
+        #expect(!afterRelaunch.shouldOfferLongBreak)
+    }
+
+    @Test func restoresActiveTimerAcrossLaunches() {
+        let defaults = makeDefaults()
+        let clock = TestClock()
+        let original = TimerService(defaults: defaults, now: { clock.now })
+        original.start(duration: 120, mode: .focus)
+        clock.now += 20
+
+        let running = TimerService(defaults: defaults, now: { clock.now })
+        #expect(running.timer?.remaining(at: clock.now) == 100)
+        #expect(running.timer?.mode == .focus)
+        running.pause()
+        clock.now += 200
+
+        let paused = TimerService(defaults: defaults, now: { clock.now })
+        #expect(paused.timer?.isPaused == true)
+        #expect(paused.timer?.remaining(at: clock.now) == 100)
+        paused.cancel()
+        #expect(TimerService(defaults: defaults, now: { clock.now }).timer == nil)
+    }
+
     @Test func finishesOnceAndRepeats() {
         let clock = TestClock()
         let service = TimerService(now: { clock.now })
@@ -233,18 +292,18 @@ struct IslandModelTests {
         #expect(model.presentation == .hidden(peek: false))
     }
 
-    @Test func aScreenWithoutANotchShowsItOnlyAfterTheHoverDelay() async throws {
+    @Test(arguments: ExternalDisplayStyle.allCases)
+    func topEdgeRevealsAVirtualNotchInClickMode(style: ExternalDisplayStyle) {
         let model = makeModel()
         model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
-        model.settings.hoverDelay = 0.1
-        let spot = CGPoint(x: model.engine.notchInWindow.midX, y: 8)
-        #expect(!model.pointerMoved(to: spot), "the menu bar keeps its clicks until the notch shows")
+        model.settings.appearance.externalStyle = style
+        let center = model.engine.notchInWindow.midX
+        #expect(!model.pointerMoved(to: CGPoint(x: center, y: 8)))
         #expect(model.presentation == .hidden(peek: false))
-        for _ in 0..<60 where model.presentation != .hidden(peek: true) {
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        let acceptsMouseAtEdge = model.pointerMoved(to: CGPoint(x: center, y: 1))
+        #expect(acceptsMouseAtEdge == (style == .notch), "the floating pill leaves the gap clickable")
         #expect(model.presentation == .hidden(peek: true))
-        #expect(model.pointerMoved(to: spot), "once it shows, it takes the click")
+        #expect(model.pointerMoved(to: CGPoint(x: center, y: model.layout.pill.midY)))
         model.tapPill()
         #expect(model.presentation == .home)
         model.collapse()
@@ -252,15 +311,18 @@ struct IslandModelTests {
         #expect(model.presentation == .hidden(peek: false))
     }
 
-    @Test func leavingTheSpotEarlyShowsNothing() async throws {
+    @Test func leavingTheExternalEdgeCancelsHoverOpening() async throws {
         let model = makeModel()
         model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
         model.settings.hoverDelay = 0.1
-        _ = model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 8))
-        #expect(model.isRevealPending, "the window keeps listening until the pointer leaves")
-        _ = model.pointerMoved(to: nil)
-        #expect(!model.isRevealPending)
+        model.settings.notchOpenMode = .hover
+        let center = model.engine.notchInWindow.midX
+        model.pointerMoved(to: CGPoint(x: center, y: 1))
+        #expect(model.presentation == .hidden(peek: true))
+        model.pointerMoved(to: CGPoint(x: center, y: 8))
         try await Task.sleep(for: .milliseconds(250))
+        #expect(model.presentation == .hidden(peek: true))
+        model.pointerMoved(to: nil)
         #expect(model.presentation == .hidden(peek: false))
     }
 
@@ -269,11 +331,46 @@ struct IslandModelTests {
         model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
         model.settings.hoverDelay = 0.1
         model.settings.notchOpenMode = .hover
-        _ = model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 8))
+        model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 1))
+        #expect(model.presentation == .hidden(peek: true))
         for _ in 0..<60 where model.presentation != .home {
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(model.presentation == .home)
+    }
+
+    @Test func hoveringTheExternalEdgeOpensTheCurrentActivity() async throws {
+        let model = makeModel()
+        model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        model.settings.appearance.externalStyle = .pill
+        model.settings.notchOpenMode = .hover
+        model.settings.hoverDelay = 0.1
+        model.startTimer(60)
+        let pill = model.layout.pill
+        model.pointerMoved(to: CGPoint(x: pill.midX, y: pill.midY))
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(model.presentation == .compact(primary: .timer, secondary: nil))
+        model.pointerMoved(to: CGPoint(x: model.engine.notchInWindow.midX, y: 1))
+        for _ in 0..<60 where !model.presentation.isExpandedFamily {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(model.presentation == .expanded(.timer))
+        model.cancelTimer()
+    }
+
+    @Test func externalEdgeOpensHiddenMusicWithoutAnotherPointerEvent() async throws {
+        let model = makeModel()
+        model.screen = ScreenMetrics(size: CGSize(width: 1920, height: 1080), notch: nil, menuBarHeight: 25)
+        model.settings.notchOpenMode = .hover
+        model.settings.hoverDelay = 0.1
+        model.settings.nowPlayingOnHoverOnly = true
+        model.nowPlaying.apply(NowPlayingInfo(title: "Test track", isPlaying: true), artworkData: nil)
+        #expect(model.presentation == .hidden(peek: false))
+        model.pointerMoved(to: CGPoint(x: model.engine.anchorX, y: 1))
+        for _ in 0..<60 where !model.presentation.isExpandedFamily {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(model.presentation == .expanded(.nowPlaying))
     }
 
     @Test func liveActivitiesShowOnAScreenWithoutANotch() {

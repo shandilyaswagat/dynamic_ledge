@@ -64,8 +64,7 @@ public enum StatsMath {
         return total > 0 ? min(1, busy / total) : 0
     }
 
-    /// Bytes per second from two cumulative counters. The kernel's 32-bit counters wrap, so a
-    /// smaller second reading counts as no traffic rather than a huge spike.
+    /// Bytes per second from two cumulative counters. A reset starts a new baseline.
     public static func rate(from old: UInt64, to new: UInt64, seconds: TimeInterval) -> Double {
         guard seconds > 0, new >= old else { return 0 }
         return Double(new - old) / seconds
@@ -81,14 +80,29 @@ public enum StatsMath {
         ByteCountFormatter.string(fromByteCount: max(0, value), countStyle: .memory)
     }
 
-    /// "1.2 MB/s", "0 KB/s".
+    struct InterfaceBytes {
+        let received: UInt64
+        let sent: UInt64
+    }
+
+    static func networkRates(from old: [UInt16: InterfaceBytes], to new: [UInt16: InterfaceBytes],
+                             seconds: TimeInterval) -> (download: Double, upload: Double) {
+        var rates = (download: 0.0, upload: 0.0)
+        for (interface, current) in new {
+            guard let previous = old[interface] else { continue }
+            rates.download += rate(from: previous.received, to: current.received, seconds: seconds)
+            rates.upload += rate(from: previous.sent, to: current.sent, seconds: seconds)
+        }
+        return rates
+    }
+
+    /// "12 B/s", "12.9 KB/s", "1.2 MB/s".
     public static func rate(_ bytesPerSecond: Double) -> String {
-        let value = max(0, bytesPerSecond)
-        if value < 1_000 { return "0 KB/s" }
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .decimal
-        formatter.allowedUnits = value < 1_000_000 ? .useKB : (value < 1_000_000_000 ? .useMB : .useGB)
-        return formatter.string(fromByteCount: Int64(value)) + "/s"
+        guard bytesPerSecond.isFinite, bytesPerSecond >= 0 else { return "0 B/s" }
+        let units: [(divisor: Double, name: String)] = [(1_000_000_000, "GB/s"), (1_000_000, "MB/s"), (1_000, "KB/s"), (1, "B/s")]
+        let unit = units.first { bytesPerSecond >= $0.divisor } ?? units[units.count - 1]
+        let amount = (bytesPerSecond / unit.divisor).formatted(.number.precision(.fractionLength(0...1)).grouping(.never))
+        return "\(amount) \(unit.name)"
     }
 
     /// How a reading should look: calm, busy or under strain.

@@ -166,7 +166,7 @@ struct GeneralSettingsView: View {
                     Text("All displays").tag(DisplayChoice.all)
                 }
             } footer: {
-                Text("Built-in display keeps it on your MacBook's notch. Pick a screen by name to keep it there, or All displays to show it on every screen: music, timers and alerts appear everywhere, and what you open shows on the screen you're using. Screens without a notch get a notch of their own at the top, which stays out of sight until something's showing or you rest the pointer on its spot. When the menu bar icon is hidden, open Dynamic Ledge again from Applications to get back here.")
+                Text("Built-in display keeps it on your MacBook's notch. Pick a screen by name to keep it there, or All displays to show it on every screen. On screens without a notch, touch the middle of the top edge to reveal it. Click the notch to open it, or stay at the edge in Hover mode. When the menu bar icon is hidden, open Dynamic Ledge again from Applications to get back here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -209,6 +209,13 @@ struct GeneralSettingsView: View {
             Section("Behavior") {
                 Toggle("Show when idle", isOn: $settings.showWhenIdle)
                 Toggle("Collapse when the pointer leaves", isOn: $settings.collapseOnPointerExit)
+                if settings.collapseOnPointerExit {
+                    Picker("Collapse delay", selection: $settings.collapseDelay) {
+                        ForEach(SettingsStore.collapseDelayChoices, id: \.self) { delay in
+                            Text("\(delay.formatted()) seconds").tag(delay)
+                        }
+                    }
+                }
                 Toggle("Haptic feedback", isOn: $settings.hapticsEnabled)
                 Toggle("Keyboard shortcuts (⌃⌥ + a letter)", isOn: $settings.keyboardShortcutsEnabled)
             }
@@ -528,8 +535,21 @@ struct NowPlayingSettingsView: View {
                 }
             }
             if settings.nowPlayingEnabled {
+                if settings.lyricsEnabled {
+                    Section("Lyric timing") {
+                        Stepper("Other outputs: \(settings.lyricOffset) ms", value: $settings.lyricOffset,
+                                in: SettingsStore.lyricOffsetRange, step: 100)
+                        Stepper("Bluetooth: \(settings.bluetoothLyricOffset) ms", value: $settings.bluetoothLyricOffset,
+                                in: SettingsStore.lyricOffsetRange, step: 100)
+                        Text("Positive values show lyrics earlier. Negative values delay them.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 NowPlayingAppsSection(settings: settings)
                 Section {
+                    Toggle("Show only on hover", isOn: $settings.nowPlayingOnHoverOnly)
+                    Toggle("Show track-change alerts", isOn: $settings.trackChangeAlertsEnabled)
                     Picker("Keep paused media for", selection: $settings.pausedMediaLinger) {
                         ForEach(SettingsStore.lingerChoices, id: \.self) { seconds in
                             Text(Self.label(for: seconds)).tag(seconds)
@@ -541,8 +561,14 @@ struct NowPlayingSettingsView: View {
         .formStyle(.grouped)
     }
 
-    private static func label(for seconds: TimeInterval) -> String {
-        seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
+    private static func label(for seconds: TimeInterval) -> LocalizedStringKey {
+        switch seconds {
+        case -1: "Until the player closes"
+        case 0: "Hide immediately"
+        case 60: "1 minute"
+        case ..<60: "\(Int(seconds)) seconds"
+        default: "\(Int(seconds / 60)) minutes"
+        }
     }
 }
 
@@ -576,17 +602,33 @@ struct ActivitiesSettingsView: View {
                 Picker("Break", selection: $settings.breakMinutes) {
                     ForEach(SettingsStore.breakChoices, id: \.self) { Text("\($0) minutes").tag($0) }
                 }
+                Picker("Long break", selection: $settings.longBreakMinutes) {
+                    ForEach(SettingsStore.longBreakChoices, id: \.self) { Text("\($0) minutes").tag($0) }
+                }
             } header: {
                 Text("Timer")
             } footer: {
-                Text("Focus in Home starts a session. When it ends, the notch offers a break, then the next session.")
+                Text("The notch offers a long break after every fourth completed focus session.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Section("Alerts") {
-                IconToggle(title: "Charging", detail: nil, symbol: "bolt.fill", color: .green, isOn: $settings.chargingAlertsEnabled)
+                IconToggle(title: "Charging", detail: "Shows when power is connected and when the battery reaches 100%", symbol: "bolt.fill", color: .green, isOn: $settings.chargingAlertsEnabled)
                 IconToggle(title: "Low Battery", detail: "At 20% and 10%", symbol: "battery.25percent", color: .red, isOn: $settings.lowBatteryAlertsEnabled)
-                IconToggle(title: "Volume & Brightness", detail: "Shows the level in the notch when you change it", symbol: "speaker.wave.2.fill", color: .indigo, isOn: $settings.levelsEnabled)
+                IconToggle(title: "Volume", detail: "Shows the sound level when you change it", symbol: "speaker.wave.2.fill", color: .indigo, isOn: $settings.volumeAlertsEnabled)
+                IconToggle(title: "Brightness", detail: "Shows the display brightness when you change it", symbol: "sun.max.fill", color: .orange, isOn: $settings.brightnessAlertsEnabled)
+            }
+            Section("Keep Awake") {
+                Picker("Keep Awake duration", selection: $settings.keepAwakeMinutes) {
+                    ForEach(KeepAwakeService.minuteChoices, id: \.self) { minutes in
+                        switch minutes {
+                        case 0: Text("Until turned off").tag(minutes)
+                        case 30: Text("30 minutes").tag(minutes)
+                        case 60: Text("1 hour").tag(minutes)
+                        default: Text("\(minutes / 60) hours").tag(minutes)
+                        }
+                    }
+                }
             }
         }
         .formStyle(.grouped)
@@ -792,12 +834,13 @@ private struct NowPlayingAppsSection: View {
                     }
                 }
                 Button("Add App…", action: addApp)
+                TextField("Match bundle identifiers", text: $settings.nowPlayingAppPatterns, prompt: Text("e.g. spotify, com.apple.Safari"))
             }
         } header: {
             Text("Now Playing Apps")
         } footer: {
             if settings.nowPlayingAppMode == .chosen {
-                Text("Music from other apps won’t show in the notch. Apps join this list once they play something. YouTube and other websites play through your browser, so leave the browser off to keep them out.")
+                Text("Choose apps above or enter matching parts of bundle identifiers separated by commas. Websites count as the browser playing them.")
             }
         }
     }
@@ -893,7 +936,12 @@ struct HomeSettingsView: View {
                 }
                 IconToggle(title: "Clipboard", detail: "Text you copied recently. Passwords are skipped; only pinned clips are saved", symbol: "doc.on.clipboard.fill", color: .orange, isOn: $settings.clipboardEnabled)
                 if settings.clipboardEnabled {
-                    IconToggle(title: "Text from images", detail: "When you copy an image, its text is read on this Mac and added to Clipboard. The image isn't kept", symbol: "text.viewfinder", color: .orange, isOn: $settings.clipboardReadsImages)
+                    TextField("Excluded apps", text: $settings.clipboardExcludedApps, prompt: Text("App names, separated by commas"))
+                    Text("Clipboard history skips copies while one of these apps is in front.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    IconToggle(title: "Text from images", detail: "Read text from copied images on this Mac and add it to Clipboard", symbol: "text.viewfinder", color: .orange, isOn: $settings.clipboardReadsImages)
+                    IconToggle(title: "Image history", detail: "Keep up to six recent images in memory until you quit", symbol: "photo", color: .orange, isOn: $settings.clipboardKeepsImages)
                 }
                 IconToggle(title: "Notes", detail: "A quick scratchpad, saved as you type", symbol: "note.text", color: .yellow, isOn: $settings.notesEnabled)
                 IconToggle(title: "Reminders", detail: "Today's to-dos, ticked off from the notch", symbol: "checklist", color: .blue, isOn: $settings.remindersEnabled)

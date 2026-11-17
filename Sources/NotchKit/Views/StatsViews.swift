@@ -6,6 +6,7 @@ enum StatsColor {
     static let surface = Color(nsColor: .controlBackgroundColor)
     static let separator = Color(nsColor: .separatorColor)
     static let network = Color(nsColor: .systemBlue)
+    static let networkUpload = Color(nsColor: .systemTeal)
 
     static func battery(_ battery: PowerSnapshot) -> Color {
         if battery.isCharging { return Color(nsColor: .systemGreen) }
@@ -71,7 +72,8 @@ struct StatsPanelBody: View {
             HStack(spacing: gap) {
                 StatsCPUChart(
                     usage: stats.hasReading ? stats.snapshot.cpu : nil,
-                    history: stats.cpuHistory
+                    history: stats.cpuHistory,
+                    sampledAt: stats.sampledAt
                 )
                 .frame(width: max(0, (geometry.size.width - gap) * 0.52))
 
@@ -90,8 +92,13 @@ struct StatsPanelBody: View {
             row("Memory", symbol: "memorychip", value: memoryValue(snapshot),
                 detail: pressureLabel(stats.panelMemoryPressure), indicator: pressure, symbolTint: pressure)
             Divider()
-            row("Network", symbol: "network", value: networkValue(snapshot, ready: stats.hasNetworkReading),
-                symbolTint: StatsColor.network)
+            VStack(spacing: 0) {
+                row("Network", symbol: "network", value: networkValue(snapshot, ready: stats.hasNetworkReading),
+                    symbolTint: StatsColor.network)
+                networkChart(stats.networkHistory, sampledAt: stats.sampledAt)
+                    .frame(height: 32 * s)
+                    .padding(.bottom, 4 * s)
+            }
             if let battery = model.power.snapshot, battery.hasBattery {
                 let tint = StatsColor.battery(battery)
                 Divider()
@@ -125,9 +132,31 @@ struct StatsPanelBody: View {
         let download = StatsMath.rate(snapshot.networkIn)
         let upload = StatsMath.rate(snapshot.networkOut)
         let down = Text(Image(systemName: "arrow.down")).foregroundColor(StatsColor.network)
-        let up = Text(Image(systemName: "arrow.up")).foregroundColor(StatsColor.network)
+        let up = Text(Image(systemName: "arrow.up")).foregroundColor(StatsColor.networkUpload)
         return Text("\(down) \(download)    \(up) \(upload)")
             .accessibilityLabel(Text("Download \(download), upload \(upload)"))
+    }
+
+    private func networkChart(_ history: [StatsService.NetworkSample], sampledAt: Date) -> some View {
+        let window = StatsService.historyDuration
+        let peak = history.reduce(1024.0) { max($0, $1.download, $1.upload) }
+        return Chart {
+            ForEach(history.indices, id: \.self) { index in
+                let time = history[index].time.timeIntervalSince(sampledAt)
+                LineMark(x: .value("Time", time), y: .value("Download", history[index].download),
+                         series: .value("Direction", "Download"))
+                    .foregroundStyle(StatsColor.network)
+                LineMark(x: .value("Time", time), y: .value("Upload", history[index].upload),
+                         series: .value("Direction", "Upload"))
+                    .foregroundStyle(StatsColor.networkUpload)
+            }
+        }
+        .chartXScale(domain: -window...0)
+        .chartYScale(domain: 0...(peak * 1.1))
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 4 * s))
+        .accessibilityLabel("Upload and download over the last minute")
     }
 
     private func batterySymbol(_ battery: PowerSnapshot) -> String {
@@ -212,11 +241,12 @@ struct StatsPanelBody: View {
 
 private struct StatsCPUChart: View {
     let usage: Double?
-    let history: [Double]
+    let history: [StatsService.CPUSample]
+    let sampledAt: Date
     @Environment(\.notchScale) private var s
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private static let historyDuration = Double(StatsService.cpuHistoryLimit) * StatsService.interval
+    private static let historyDuration = StatsService.historyDuration
 
     var body: some View {
         let reading = usage.map(StatsMath.percent) ?? "–"
@@ -248,8 +278,8 @@ private struct StatsCPUChart: View {
     private var chart: some View {
         Chart {
             ForEach(history.indices, id: \.self) { index in
-                let seconds = Double(index + 1 - history.count) * StatsService.interval
-                let percent = history[index] * 100
+                let seconds = history[index].time.timeIntervalSince(sampledAt)
+                let percent = history[index].load * 100
                 AreaMark(x: .value("Seconds from latest sample", seconds), y: .value("CPU usage", percent))
                     .foregroundStyle(.linearGradient(
                         colors: [StatsColor.cpu.opacity(0.22), StatsColor.cpu.opacity(0.02)],
@@ -259,11 +289,12 @@ private struct StatsCPUChart: View {
                 LineMark(x: .value("Seconds from latest sample", seconds), y: .value("CPU usage", percent))
                     .foregroundStyle(StatsColor.cpu)
                     .lineStyle(StrokeStyle(lineWidth: 1.5 * s, lineCap: .round, lineJoin: .round))
-                    .accessibilityValue(Text(history[index].formatted(.percent.precision(.fractionLength(0)))))
+                    .accessibilityValue(Text(history[index].load.formatted(.percent.precision(.fractionLength(0)))))
             }
 
             if let latest = history.last {
-                PointMark(x: .value("Seconds from latest sample", 0.0), y: .value("CPU usage", latest * 100))
+                PointMark(x: .value("Seconds from latest sample", latest.time.timeIntervalSince(sampledAt)),
+                          y: .value("CPU usage", latest.load * 100))
                     .foregroundStyle(StatsColor.cpu)
                     .symbolSize(17 * s * s)
                     .accessibilityHidden(true)

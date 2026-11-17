@@ -581,6 +581,12 @@ public struct LayoutEngine: Equatable, Sendable {
         return CGRect(x: notch.minX - 10 - slop, y: 0, width: notch.width + 20 + 2 * slop, height: topOffset + notch.maxY + 3 + slop)
     }
 
+    /// AppKit mouse positions are in points and may stop one point inside the screen.
+    func touchesVirtualNotchEdge(_ point: CGPoint) -> Bool {
+        isVirtualNotch && (0...1).contains(point.y)
+            && point.x >= notchHoverRect.minX && point.x < notchHoverRect.maxX
+    }
+
     /// Where the pointer counts as on the second activity's bubble: the bubble and the gap
     /// beside it, so the shape's edge belongs to the shape and the gap to the bubble.
     public func bubbleHitRect(_ layout: IslandLayout) -> CGRect {

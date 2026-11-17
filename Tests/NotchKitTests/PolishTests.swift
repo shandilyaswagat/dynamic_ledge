@@ -190,11 +190,26 @@ struct StatsMathTests {
     @Test func labelsReadNaturally() {
         #expect(StatsMath.percent(0.624) == "62%")
         #expect(StatsMath.percent(1.7) == "100%")
-        #expect(StatsMath.rate(12) == "0 KB/s")
+        #expect(StatsMath.rate(12) == "12 B/s")
+        #expect(StatsMath.rate(12_900) == "\(12.9.formatted(.number)) KB/s")
         #expect(StatsMath.rate(2_500_000).hasSuffix("MB/s"))
         #expect(StatsMath.level(0.5) == .normal && StatsMath.level(0.8) == .busy && StatsMath.level(0.95) == .high)
         let snapshot = SystemSnapshot(memoryUsed: 8, memoryTotal: 16, diskFree: 25, diskTotal: 100)
         #expect(snapshot.memory == 0.5 && snapshot.disk == 0.75)
+    }
+
+    @Test func newAndDisconnectedInterfacesDoNotChangeTheDelta() {
+        let before: [UInt16: StatsMath.InterfaceBytes] = [
+            1: .init(received: 5_000_000_000, sent: 2_000),
+            2: .init(received: 9_000_000, sent: 9_000_000),
+        ]
+        let after: [UInt16: StatsMath.InterfaceBytes] = [
+            1: .init(received: 5_000_025_800, sent: 2_024),
+            3: .init(received: 9_000_000_000, sent: 9_000_000_000),
+        ]
+        let rates = StatsMath.networkRates(from: before, to: after, seconds: 2)
+        #expect(rates.download == 12_900)
+        #expect(rates.upload == 12)
     }
 }
 

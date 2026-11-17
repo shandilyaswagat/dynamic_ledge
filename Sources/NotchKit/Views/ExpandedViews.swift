@@ -55,7 +55,7 @@ struct NowPlayingExpandedView: View {
             // the progress bar.
             let showsLyrics = model.showsLyrics
             if showsLyrics, let lyrics = model.lyrics.current {
-                LyricsLine(lyrics: lyrics, service: service, size: 14 * s)
+                LyricsLine(lyrics: lyrics, service: service, size: 14 * s, timingAdjustment: model.lyricTimingAdjustment)
                     .frame(height: 26 * s)
                     .padding(.top, 8 * s)
                     .transition(.opacity)
@@ -119,13 +119,14 @@ struct LyricsLine: View {
     let lyrics: SyncedLyrics
     let service: NowPlayingService
     var size: CGFloat
+    var timingAdjustment: TimeInterval = 0
     var alignment: Alignment = .center
 
     var body: some View {
         let info = service.info
         TimelineView(.animation(minimumInterval: 0.2, paused: info?.isPlaying != true)) { context in
             // A touch early, so a line appears as it's sung rather than just after.
-            let index = info?.elapsed(at: context.date).flatMap { lyrics.index(at: $0 + 0.3) }
+            let index = info?.elapsed(at: context.date).flatMap { lyrics.index(at: $0 + 0.3 + timingAdjustment) }
             let text = index.map { lyrics.lines[$0].text } ?? ""
             ZStack {
                 Text(text.isEmpty ? "♪" : text)
@@ -143,9 +144,10 @@ struct LyricsLine: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             .clipped()
             .animation(.smooth(duration: 0.35), value: index)
+            .accessibilityElement()
+            .accessibilityLabel("Lyrics")
+            .accessibilityValue(text)
         }
-        .accessibilityElement()
-        .accessibilityLabel(Text("Lyrics"))
     }
 }
 

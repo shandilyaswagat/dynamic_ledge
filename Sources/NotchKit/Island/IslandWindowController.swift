@@ -56,11 +56,11 @@ public final class IslandWindowController {
         hostingView.onDraggingExited = { [weak self] in self?.endNativeDrag() }
         hostingView.onPerformDrag = { [weak self] sender in
             guard let self else { return false }
-            let urls = FileDropReader.urls(from: sender.draggingPasteboard)
+            let pasteboard = sender.draggingPasteboard
             let destination = self.dropDestination(at: self.windowPoint())
             self.endNativeDrag()
             guard let destination else { return false }
-            return self.model.acceptDrop(urls, into: destination)
+            return self.model.acceptDrop(pasteboard, into: destination)
         }
         panel.contentView = hostingView
         updateScreen()
@@ -294,9 +294,8 @@ public final class IslandWindowController {
         // something still needs to be switched off.
         let location = NSEvent.mouseLocation
         let nearWindow = panel.frame.insetBy(dx: -8, dy: -8).contains(location)
-        // A pending reveal still needs to hear that the pointer left, however fast it went.
         if !nearWindow, !isFileDragging, !model.isDocumentWindowDrag, panel.ignoresMouseEvents, !model.isHoveringPill,
-           !model.isHoveringNotch, !model.isRevealPending {
+           !model.isHoveringNotch {
             return
         }
         let wantsMouse = model.pointerMoved(to: windowPoint())
@@ -350,15 +349,16 @@ public final class IslandWindowController {
 
     private func updateNativeDrag(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard isActive || activateIfPointerHere() else { return [] }
-        let urls = FileDropReader.urls(from: sender.draggingPasteboard)
-        guard model.acceptsFileDrops, !model.isDraggingFromTray, !urls.isEmpty else { return [] }
+        let pasteboard = sender.draggingPasteboard
+        guard model.acceptsFileDrops, !model.isDraggingFromTray,
+              FileDropReader.canReadFiles(from: pasteboard) else { return [] }
         cancelDocumentDrag()
         if !isFileDragging { isFileDragging = true; watchForDragEnd() }
         model.fileDragChanged(isDragging: true, at: windowPoint())
         let destination = dropDestination(at: windowPoint())
         model.setTargeted(destination, destination != nil)
         pointerChanged()
-        if destination == .airDrop, !urls.contains(where: \.isFileURL) { return [] }
+        if destination == .airDrop, !FileDropReader.urls(from: pasteboard).contains(where: \.isFileURL) { return [] }
         return destination == nil ? [] : .copy
     }
 
@@ -376,7 +376,7 @@ public final class IslandWindowController {
         guard isActive else { return }
         let pasteboard = NSPasteboard(name: .drag)
         guard pasteboard.changeCount != dragChangeCount,
-              !FileDropReader.urls(from: pasteboard).isEmpty, !model.isDraggingFromTray else { return }
+              FileDropReader.canReadFiles(from: pasteboard), !model.isDraggingFromTray else { return }
         cancelDocumentDrag()
         if !isFileDragging { isFileDragging = true; watchForDragEnd() }
         model.fileDragChanged(isDragging: true, at: windowPoint())

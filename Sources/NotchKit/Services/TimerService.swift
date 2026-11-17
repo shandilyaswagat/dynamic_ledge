@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 public final class TimerService {
-    public private(set) var timer: CountdownTimer?
+    public private(set) var timer: CountdownTimer? { didSet { saveActiveTimer() } }
     /// Duration of the last timer started, used by "Repeat".
     public private(set) var lastDuration: TimeInterval?
 
@@ -18,10 +18,27 @@ public final class TimerService {
     @ObservationIgnored private var completionTask: Task<Void, Never>?
     @ObservationIgnored private var activity: NSObjectProtocol?
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
+    private static let timerKey = "timer.active"
+    private static let focusCountKey = "timer.completedFocusInCycle"
+    private static let focusCycleLength = 4
+    private var completedFocusInCycle = 0
 
-    public init(now: @escaping () -> Date = Date.init) {
+    public init(defaults: UserDefaults? = nil, now: @escaping () -> Date = Date.init) {
+        self.defaults = defaults
         self.now = now
+        let count = defaults?.integer(forKey: Self.focusCountKey) ?? 0
+        if (0..<Self.focusCycleLength).contains(count) { completedFocusInCycle = count }
+        if let data = defaults?.data(forKey: Self.timerKey),
+           let saved = try? JSONDecoder().decode(CountdownTimer.self, from: data),
+           saved.canRestore(at: now()) {
+            timer = saved
+            if saved.mode == .plain { lastDuration = saved.duration }
+            scheduleCompletion()
+        } else {
+            defaults?.removeObject(forKey: Self.timerKey)
+        }
         // A timer that ran out while the Mac slept should ring as soon as it wakes.
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -36,6 +53,10 @@ public final class TimerService {
     public var isActive: Bool {
         guard let timer else { return false }
         return !timer.isFinished
+    }
+
+    var shouldOfferLongBreak: Bool {
+        timer?.mode == .focus && timer?.isFinished == true && completedFocusInCycle == 0
     }
 
     /// Focus sessions and breaks are started on their own and never become "Repeat".
@@ -81,9 +102,22 @@ public final class TimerService {
     /// Checks the clock; called by the scheduled task and safe to call at any time.
     public func checkCompletion() {
         guard var current = timer, current.finishIfDue(now: now()) else { return }
+        if current.mode == .focus {
+            completedFocusInCycle = (completedFocusInCycle + 1) % Self.focusCycleLength
+            defaults?.set(completedFocusInCycle, forKey: Self.focusCountKey)
+        }
         timer = current
         scheduleCompletion()
         onFinish?()
+    }
+
+    private func saveActiveTimer() {
+        guard let defaults else { return }
+        if let timer, !timer.isFinished, let data = try? JSONEncoder().encode(timer) {
+            defaults.set(data, forKey: Self.timerKey)
+        } else {
+            defaults.removeObject(forKey: Self.timerKey)
+        }
     }
 
     private func scheduleCompletion() {

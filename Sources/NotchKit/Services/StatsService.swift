@@ -2,28 +2,34 @@ import AppKit
 import Darwin
 import Observation
 
-/// Reads CPU, memory, disk and network every couple of seconds, only while Stats is switched on.
-/// Every reading is a handful of cheap kernel calls; nothing is stored or sent anywhere.
+/// Reads CPU, memory, disk and network every couple of seconds when a Stats view needs them.
+/// A rolling minute of readings stays in memory for the charts.
 @MainActor
 @Observable
 public final class StatsService {
+    struct NetworkSample {
+        let time: Date
+        let download: Double
+        let upload: Double
+    }
+
+    struct CPUSample {
+        let time: Date
+        let load: Double
+    }
+
     public private(set) var snapshot = SystemSnapshot()
     /// False until two readings exist, since CPU and network need a difference to measure.
     public private(set) var hasReading = false
     private(set) var hasNetworkReading = false
-    private(set) var cpuHistory: [Double] = []
+    private(set) var cpuHistory: [CPUSample] = []
+    private(set) var networkHistory: [NetworkSample] = []
+    private(set) var sampledAt = Date()
     private(set) var panelMemoryPressure: StatsMath.Level?
-
-    /// A rolling minute of CPU samples for the Stats panel and Home tile.
-    @ObservationIgnored var recordsCPUHistory = false {
-        didSet {
-            if !recordsCPUHistory, oldValue { cpuHistory.removeAll() }
-        }
-    }
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var lastTicks: StatsMath.CPUTicks?
-    @ObservationIgnored private var lastNetwork: (received: UInt64, sent: UInt64, at: Date)?
+    @ObservationIgnored private var lastNetwork: (counters: [UInt16: StatsMath.InterfaceBytes], at: TimeInterval)?
     @ObservationIgnored private var lastDiskCheck = Date.distantPast
     /// Something is showing Stats; the timer runs only while this is true and the screen is on.
     @ObservationIgnored private var wanted = false
@@ -41,7 +47,8 @@ public final class StatsService {
     }
 
     nonisolated static let interval: TimeInterval = 2
-    nonisolated static let cpuHistoryLimit = Int(60 / interval)
+    nonisolated static let historyDuration: TimeInterval = 60
+    nonisolated static let cpuHistoryLimit = Int(historyDuration / interval)
     /// Asked for once: every `mach_host_self()` call hands out a port right that must be released.
     private static let host = mach_host_self()
     private static let pageSize = UInt64(getpagesize())
@@ -65,9 +72,13 @@ public final class StatsService {
         schedule()
     }
 
-    /// Stops reading for a while (something else is in the notch) but keeps the last counters,
-    /// so the first reading after resuming is already a real one.
+    /// Stops reading while Stats is hidden and retains the chart samples.
     public func pause() {
+        if wanted {
+            lastTicks = nil
+            lastNetwork = nil
+            hasNetworkReading = false
+        }
         wanted = false
         schedule()
     }
@@ -79,12 +90,12 @@ public final class StatsService {
         hasReading = false
         hasNetworkReading = false
         cpuHistory.removeAll()
+        networkHistory.removeAll()
     }
 
     private func setScreenAsleep(_ asleep: Bool) {
         screenAsleep = asleep
-        if asleep, recordsCPUHistory {
-            cpuHistory.removeAll()
+        if asleep {
             lastTicks = nil
             hasReading = false
             lastNetwork = nil
@@ -113,15 +124,17 @@ public final class StatsService {
     private func sample() {
         var next = snapshot
         let now = Date()
+        let cutoff = now.addingTimeInterval(-Self.historyDuration)
+        cpuHistory.removeAll { $0.time < cutoff || $0.time > now }
+        networkHistory.removeAll { $0.time < cutoff || $0.time > now }
+        sampledAt = now
         var measuredChange = false
         if let ticks = Self.cpuTicks() {
             if let lastTicks {
                 next.cpu = StatsMath.cpuUsage(from: lastTicks, to: ticks)
                 measuredChange = true
-                if recordsCPUHistory {
-                    if cpuHistory.count == Self.cpuHistoryLimit { cpuHistory.removeFirst() }
-                    cpuHistory.append(next.cpu)
-                }
+                if cpuHistory.count == Self.cpuHistoryLimit { cpuHistory.removeFirst() }
+                cpuHistory.append(CPUSample(time: now, load: next.cpu))
             }
             lastTicks = ticks
         }
@@ -130,22 +143,9 @@ public final class StatsService {
         }
         let pressure = Self.memoryPressure()
         next.memoryPressure = pressure ?? .normal
-        if detailed || recordsCPUHistory { panelMemoryPressure = pressure }
+        panelMemoryPressure = pressure
         next.memoryTotal = Self.memoryTotal
-        if detailed {
-            if let network = Self.networkBytes() {
-                if let last = lastNetwork {
-                    let seconds = now.timeIntervalSince(last.at)
-                    next.networkIn = StatsMath.rate(from: last.received, to: network.received, seconds: seconds)
-                    next.networkOut = StatsMath.rate(from: last.sent, to: network.sent, seconds: seconds)
-                    hasNetworkReading = seconds > 0
-                }
-                lastNetwork = (network.received, network.sent, now)
-            } else {
-                lastNetwork = nil
-                hasNetworkReading = false
-            }
-        }
+        if detailed { sampleNetwork(into: &next, time: now) }
         // Free space barely moves; once a minute is plenty.
         if detailed, now.timeIntervalSince(lastDiskCheck) > 60, let disk = Self.disk() {
             next.diskFree = disk.free
@@ -154,6 +154,25 @@ public final class StatsService {
         }
         if next != snapshot { snapshot = next }
         if measuredChange, !hasReading { hasReading = true }
+    }
+
+    private func sampleNetwork(into next: inout SystemSnapshot, time: Date) {
+        let uptime = ProcessInfo.processInfo.systemUptime
+        // Opening Stats can request a reading just before the existing timer fires.
+        if let lastNetwork, uptime - lastNetwork.at < 0.5 { return }
+        guard let counters = Self.networkBytes() else {
+            lastNetwork = nil
+            hasNetworkReading = false
+            return
+        }
+        defer { lastNetwork = (counters, uptime) }
+        guard let lastNetwork else { return }
+        let rates = StatsMath.networkRates(from: lastNetwork.counters, to: counters, seconds: uptime - lastNetwork.at)
+        next.networkIn = rates.download
+        next.networkOut = rates.upload
+        hasNetworkReading = true
+        if networkHistory.count == Self.cpuHistoryLimit { networkHistory.removeFirst() }
+        networkHistory.append(NetworkSample(time: time, download: rates.download, upload: rates.upload))
     }
 
     // MARK: System calls
@@ -191,24 +210,37 @@ public final class StatsService {
         return (app + UInt64(info.wire_count) + UInt64(info.compressor_page_count)) * page
     }
 
-    /// Total bytes in and out across the network interfaces that are up, loopback excluded.
-    private static func networkBytes() -> (received: UInt64, sent: UInt64)? {
-        var list: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&list) == 0, let first = list else { return nil }
-        defer { freeifaddrs(list) }
-        var received: UInt64 = 0
-        var sent: UInt64 = 0
-        for pointer in sequence(first: first, next: { $0.pointee.ifa_next }) {
-            let entry = pointer.pointee
-            let flags = Int32(entry.ifa_flags)
-            guard StatsMath.countsTraffic(interface: String(cString: entry.ifa_name)),
-                  entry.ifa_addr?.pointee.sa_family == UInt8(AF_LINK),
-                  flags & IFF_UP != 0, flags & IFF_LOOPBACK == 0,
-                  let data = entry.ifa_data?.assumingMemoryBound(to: if_data.self) else { continue }
-            received += UInt64(data.pointee.ifi_ibytes)
-            sent += UInt64(data.pointee.ifi_obytes)
+    /// Route interface messages expose 64-bit counters. The getifaddrs counters wrap at 4 GiB.
+    private static func networkBytes() -> [UInt16: StatsMath.InterfaceBytes]? {
+        var query: [Int32] = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
+        let queryCount = UInt32(query.count)
+        var length = 0
+        guard sysctl(&query, queryCount, nil, &length, nil, 0) == 0, length > 0 else { return nil }
+        var messages = Data(count: length)
+        let status = messages.withUnsafeMutableBytes { buffer in
+            sysctl(&query, queryCount, buffer.baseAddress, &length, nil, 0)
         }
-        return (received, sent)
+        guard status == 0 else { return nil }
+        return messages.withUnsafeBytes { buffer in
+            var counters: [UInt16: StatsMath.InterfaceBytes] = [:]
+            var offset = 0
+            var name = [CChar](repeating: 0, count: Int(IF_NAMESIZE))
+            while offset + 4 <= length {
+                let size = Int(buffer.loadUnaligned(fromByteOffset: offset, as: UInt16.self))
+                guard size >= 4, size <= length - offset else { break }
+                let start = offset
+                offset += size
+                guard buffer[start + 2] == UInt8(RTM_VERSION), buffer[start + 3] == UInt8(RTM_IFINFO2),
+                      size >= MemoryLayout<if_msghdr2>.size else { continue }
+                let entry = buffer.loadUnaligned(fromByteOffset: start, as: if_msghdr2.self)
+                guard entry.ifm_flags & IFF_UP != 0, entry.ifm_flags & IFF_LOOPBACK == 0,
+                      let interface = if_indextoname(UInt32(entry.ifm_index), &name),
+                      StatsMath.countsTraffic(interface: String(cString: interface)) else { continue }
+                counters[entry.ifm_index] = StatsMath.InterfaceBytes(received: entry.ifm_data.ifi_ibytes,
+                                                                    sent: entry.ifm_data.ifi_obytes)
+            }
+            return counters
+        }
     }
 
     private static func memoryPressure() -> StatsMath.Level? {

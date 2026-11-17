@@ -21,6 +21,13 @@ struct AlertView: View {
                 BatteryLabel(level: level, isCharging: true, tint: tint)
             }
             .accessibilityElement(children: .combine)
+        case .batteryFull:
+            AlertRow(cameraGap: cameraGap) {
+                Text("Battery Full")
+            } trailing: {
+                BatteryLabel(level: 100, isCharging: false, tint: NotchColor.green)
+            }
+            .accessibilityElement(children: .combine)
         case .lowBattery(let level):
             AlertRow(cameraGap: cameraGap) {
                 Text("Low Battery")
@@ -41,6 +48,16 @@ struct AlertView: View {
             } trailing: {
                 Text("Connected")
                     .foregroundStyle(NotchColor.green)
+            }
+            .accessibilityElement(children: .combine)
+        case .trackChanged(let title, let artist):
+            AlertRow(cameraGap: cameraGap) {
+                Label("Now Playing", systemImage: "music.note")
+                    .foregroundStyle(.pink)
+            } trailing: {
+                Text(artist.isEmpty ? title : "\(title) · \(artist)")
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
             .accessibilityElement(children: .combine)
         case .timerFinished:
@@ -257,7 +274,10 @@ private struct TimerFinishedView: View {
             Spacer(minLength: 8 * s)
             if let next = mode.next {
                 // Focus offers the break, and the break offers the next focus session.
-                CircleButton(symbol: next.symbol, size: 48 * s, foreground: next.tint, background: next.tint.opacity(0.25), label: next == .rest ? "Start Break" : "Focus Again") {
+                let label: LocalizedStringKey = next == .rest
+                    ? (model.timer.shouldOfferLongBreak ? "Start Long Break" : "Start Break")
+                    : "Focus Again"
+                CircleButton(symbol: next.symbol, size: 48 * s, foreground: next.tint, background: next.tint.opacity(0.25), label: label) {
                     model.startSession(next)
                 }
             } else {

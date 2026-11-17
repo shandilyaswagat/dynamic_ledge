@@ -332,6 +332,10 @@ struct IslandContextMenu: View {
         if let info = model.nowPlaying.info, info.hasContent {
             Button(info.isPlaying ? "Pause" : "Play") { model.nowPlaying.togglePlayPause() }
             Button("Next Track") { model.nowPlaying.nextTrack() }
+            if let duration = info.duration, duration > 0, info.elapsed != nil {
+                Button("Back 15 Seconds") { model.nowPlaying.seek(by: -15) }
+                Button("Forward 15 Seconds") { model.nowPlaying.seek(by: 15) }
+            }
             Divider()
         }
         if model.stopwatch.isActive {
@@ -348,7 +352,7 @@ struct IslandContextMenu: View {
         }
         Button("Open Home") { model.showTab(.home) }
         Button("All Features") { model.showTab(.launcher) }
-        Button(model.keepAwake.isOn ? "Stop Keeping Awake" : "Keep Mac Awake") { model.keepAwake.toggle() }
+        Button(model.keepAwake.isOn ? "Stop Keeping Awake" : "Keep Mac Awake") { model.toggleKeepAwake() }
         Button("Settings…") { model.onOpenSettings?() }
         Button("Quit Dynamic Ledge") { NSApp.terminate(nil) }
     }

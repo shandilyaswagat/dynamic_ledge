@@ -155,8 +155,9 @@ struct NotchLayoutTests {
         #expect(compact.pill.height == 32)
         #expect(compact.cameraGap == IslandMetrics.virtualNotchWidth, "laid out like a MacBook's notch")
         #expect(abs(compact.pill.midX + engine.windowOriginX - 960) < 0.001)
-        let spot = engine.interactiveRects(for: .hidden(peek: false), layout: hidden)
-        #expect(spot.contains { $0.contains(CGPoint(x: 960, y: 10)) }, "resting the pointer there can reveal it")
+        #expect(engine.touchesVirtualNotchEdge(CGPoint(x: engine.anchorX, y: 1)))
+        #expect(!engine.touchesVirtualNotchEdge(CGPoint(x: engine.anchorX, y: 10)))
+        #expect(!engine.touchesVirtualNotchEdge(CGPoint(x: engine.notchHoverRect.maxX + 1, y: 1)))
     }
 
     @Test func notchIsClickableWhenHidden() throws {

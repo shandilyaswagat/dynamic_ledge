@@ -728,6 +728,9 @@ struct TrayItemView: View {
             Button("Open") { model.tray.open(item) }
             Button("Show in Finder") { model.tray.revealInFinder(item) }
             Button("Copy") { model.tray.copy(item) }
+            if TrayStore.sharedURL(for: item).isFileURL {
+                Button("Copy path") { model.tray.copyPath(item) }
+            }
             Button("Send with AirDrop") { model.airDrop([item.url]) }
             Button(item.isPinned ? "Unpin" : "Pin") { model.tray.togglePin(item.id) }
             if item.sourceURL?.isFileURL != false {

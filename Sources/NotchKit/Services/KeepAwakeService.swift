@@ -11,8 +11,8 @@ public final class KeepAwakeService {
     /// When it turns itself off; nil means until the user turns it off.
     public private(set) var until: Date?
 
-    /// The lengths offered: one hour, two hours, until turned off.
-    public static let choices: [TimeInterval?] = [3600, 7200, nil]
+    /// Zero keeps the assertion active until it is turned off.
+    static let minuteChoices = [0, 30, 60, 120, 480]
 
     @ObservationIgnored private var assertion: IOPMAssertionID = 0
     @ObservationIgnored private var endTask: Task<Void, Never>?
@@ -55,7 +55,7 @@ public final class KeepAwakeService {
         until = nil
     }
 
-    public func toggle() {
-        if isOn { turnOff() } else { turnOn() }
+    public func toggle(for duration: TimeInterval? = nil) {
+        if isOn { turnOff() } else { turnOn(for: duration) }
     }
 }

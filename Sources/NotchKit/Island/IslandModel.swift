@@ -308,6 +308,18 @@ public final class IslandModel {
         if screen != metrics { screen = metrics }
     }
 
+    /// The edge can be far from the notch. Wait for the pointer to reach Home before
+    /// applying the normal pointer-exit collapse behavior.
+    @discardableResult
+    func openHomeFromEdge(on displayID: UInt32, metrics: ScreenMetrics) -> Bool {
+        guard expandTarget == nil, !presentation.isExpandedFamily,
+              !isFileDragNear, !isDropTargeted, !isDocumentWindowDrag,
+              activate(display: displayID, metrics: metrics) else { return false }
+        pointerMoved(to: nil)
+        expand(.home)
+        return true
+    }
+
     /// What a display shows: everything on the one you're using; on the others the same
     /// activities and alerts, but nothing opened, dragged or hovered.
     public func presentation(onDisplay id: UInt32) -> IslandPresentation {
@@ -421,10 +433,36 @@ public final class IslandModel {
         settings.homeTiles.filter { isAvailable($0.item) }
     }
 
+    var elongatedHomeTiles: [HomeTile] {
+        settings.elongatedHomeTiles.filter { tile in
+            guard canAddElongatedTile(tile.item) else { return false }
+            if isEditingHome { return true }
+            switch tile.item {
+            case .nowPlaying: return homeHasMedia
+            case .aiUsage: return !aiUsage.visibleUsages(selected: settings.selectedAIProviders).isEmpty
+            default: return true
+            }
+        }
+    }
+
     /// Features that can be added to Home while editing: switched on and not there yet.
     public var addableHomeItems: [HomeTileItem] {
+        if settings.appearance.nookLayout == .elongated {
+            let saved = Set(settings.elongatedHomeTiles.map(\.item))
+            return HomeTileItem.allCases.filter { canAddElongatedTile($0) && !saved.contains($0) }
+        }
         let shown = Set(settings.homeTiles.map(\.item))
-        return HomeTileItem.allCases.filter { isAvailable($0) && !shown.contains($0) }
+        return HomeTileItem.standardItems.filter { isAvailable($0) && !shown.contains($0) }
+    }
+
+    private func canAddElongatedTile(_ item: HomeTileItem) -> Bool {
+        switch item {
+        case .nowPlaying: settings.nowPlayingEnabled
+        case .reminders: true // Elongated has the local to-do list.
+        case .stats: settings.statsEnabled
+        case .aiUsage: settings.aiUsageLive && settings.aiUsageShowHomeWidget
+        default: isAvailable(item)
+        }
     }
 
     /// A tile's feature is switched on (Shortcuts: in Settings › Home).
@@ -475,35 +513,42 @@ public final class IslandModel {
     }
 
     public func addHomeTile(_ item: HomeTileItem) {
-        var grid = HomeGrid(tiles: settings.homeTiles)
-        guard grid.add(item) else { return }
-        settings.homeTiles = grid.tiles
-        syncStatsSampling()
+        let elongated = settings.appearance.nookLayout == .elongated
+        guard elongated ? canAddElongatedTile(item) : item != .nowPlaying && isAvailable(item) else { return }
+        editHomeGrid {
+            if $0.add(item), elongated { $0.resize(item, to: .wide) }
+        }
     }
 
     public func removeHomeTile(_ item: HomeTileItem) {
-        var grid = HomeGrid(tiles: settings.homeTiles)
-        guard grid.remove(item) else { return }
-        settings.homeTiles = grid.tiles
-        syncStatsSampling()
+        editHomeGrid { $0.remove(item) }
     }
 
     public func resizeHomeTile(_ item: HomeTileItem, to size: HomeTileSize) {
-        var grid = HomeGrid(tiles: settings.homeTiles)
-        grid.resize(item, to: size)
-        settings.homeTiles = grid.tiles
-        syncStatsSampling()
+        editHomeGrid { $0.resize(item, to: size) }
     }
 
     public func moveHomeTile(_ item: HomeTileItem, to target: HomeTileItem) {
-        var grid = HomeGrid(tiles: settings.homeTiles)
-        grid.move(item, to: target)
-        settings.homeTiles = grid.tiles
+        editHomeGrid { $0.move(item, to: target) }
     }
 
     /// Back to the tiles Home starts with.
     public func resetHomeTiles() {
-        settings.homeTiles = HomeGrid.defaultTiles
+        let layout = settings.appearance.nookLayout
+        editHomeGrid {
+            $0 = HomeGrid(tiles: layout == .elongated ? HomeGrid.defaultElongatedTiles : HomeGrid.defaultTiles, layout: layout)
+        }
+    }
+
+    private func editHomeGrid(_ update: (inout HomeGrid) -> Void) {
+        let layout = settings.appearance.nookLayout
+        let elongated = layout == .elongated
+        let saved = elongated ? settings.elongatedHomeTiles : settings.homeTiles
+        var grid = HomeGrid(tiles: saved, layout: layout)
+        update(&grid)
+        guard grid.tiles != saved else { return }
+        if elongated { settings.elongatedHomeTiles = grid.tiles }
+        else { settings.homeTiles = grid.tiles }
         syncStatsSampling()
     }
 
@@ -603,7 +648,7 @@ public final class IslandModel {
             syncStatsSampling()
             Haptics.perform(enabled: settings.hapticsEnabled)
         case .aiUsage:
-            // A switch like Stats: the limit left beside the camera, and the checks behind it.
+            // Match Stats: toggle the compact readout and its automatic checks.
             settings.aiUsageInNotch.toggle()
             syncAIUsageRefreshes()
             Haptics.perform(enabled: settings.hapticsEnabled)
@@ -697,8 +742,10 @@ public final class IslandModel {
     public func tapPill() {
         switch presentation {
         case .hidden, .idle:
+            guard settings.notchOpenMode.edge == nil else { return }
             expand(.home)
         case .compact(let primary, _):
+            guard settings.notchOpenMode.edge == nil else { return }
             expand(.activity(primary))
         case .alert(.download(let url)):
             NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -717,6 +764,7 @@ public final class IslandModel {
     }
 
     public func tapBubble() {
+        guard settings.notchOpenMode.edge == nil else { return }
         if case .compact(_, let secondary?) = presentation {
             expand(.activity(secondary))
         }
@@ -1068,19 +1116,25 @@ public final class IslandModel {
     func acceptDrop(_ pasteboard: NSPasteboard, into destination: DropZone) -> Bool {
         let urls = FileDropReader.urls(from: pasteboard)
         if destination == .tray, settings.trayEnabled {
+            if urls.contains(where: \.isFileURL) { return acceptDrop(urls, into: destination) }
+            if let file = FileDropReader.promisedBytes(from: pasteboard, source: urls.first)
+                ?? FileDropReader.image(from: pasteboard, source: urls.first) {
+                let saved = tray.saveDroppedImage(file)
+                expand(.tray)
+                pointerEnteredExpanded = true
+                return saved
+            }
             let promises = FileDropReader.promises(from: pasteboard)
             if !promises.isEmpty {
-                let accepted = tray.receive(promises)
+                let accepted = tray.receive(promises, fallback: urls)
                 expand(.tray)
                 pointerEnteredExpanded = true
                 return accepted
             }
-            if !urls.contains(where: \.isFileURL),
-               let image = FileDropReader.image(from: pasteboard, source: urls.first) {
-                let saved = tray.saveDroppedImage(image)
+            if tray.receiveWebLinks(urls) {
                 expand(.tray)
                 pointerEnteredExpanded = true
-                return saved
+                return true
             }
         }
         return acceptDrop(urls, into: destination)
@@ -1182,11 +1236,12 @@ public final class IslandModel {
             return
         }
         let showsIdleStats = activeActivities.contains(.stats)
-        let detailed = panelSelected || elongatedHome || gridStats == .large
+        let showsElongatedStats = elongatedHome && elongatedHomeTiles.contains { $0.item == .stats }
+        let detailed = panelSelected || showsElongatedStats || gridStats == .large
         stats.detailed = detailed
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
         // shows it in its Stats tile, or beside the grid.
-        if detailed || gridShowsReadings || (showsIdleStats && (expandTarget == nil || homeOpen)) {
+        if detailed || gridShowsReadings || (showsIdleStats && (expandTarget == nil || (homeOpen && !elongatedHome))) {
             stats.start()
         } else {
             stats.pause()

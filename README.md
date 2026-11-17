@@ -52,6 +52,8 @@ Free, no account, nothing about you collected.
 
 Make it small, medium or large, black or **Glass**, springy or calm, or stretch Home across the
 top with **Elongated**. No notch on your Mac or second screen? You still get one, or a floating **Pill**.
+Hold an Elongated widget to edit the horizontal row. Drag to reorder, use the corner handle to
+resize, or add controls below the row. Reset restores the original widgets and widths.
 
 <a id="installing-it"></a>
 
@@ -86,9 +88,11 @@ Done. The notch waves hi, and a capsule icon appears in your menu bar.
 ## Use it
 
 - **Click the notch** to open it. Move away or click anywhere else to close it.
+- In **Settings → General → Open Notch With**, choose Click, Hover, Top center, either top corner,
+  or Bottom center. One opening method is selected at a time. Edge choices open Home.
 - **Grid button** (top right) opens everything else.
 - **Drag files** onto the notch to drop them in Tray or AirDrop.
-- **Drag an image from a web page** onto the Tray to save it to Downloads and add it to the Tray.
+- **Drag a web file or direct download link** onto the Tray to save it to Downloads. Ordinary web pages stay as links.
 - **Right-click** the notch for quick controls.
 - **Settings:** click the capsule icon in the menu bar, then **Settings…**
 
@@ -127,6 +131,7 @@ All the code is here, so anyone can check.
 | What | Why | What's sent |
 |---|---|---|
 | GitHub | Checking for updates, once a day | Nothing about you |
+| Dropped web addresses | Download a file you drop into the Tray | A request to the dropped address without browser cookies or saved credentials |
 | [TelemetryDeck](https://telemetrydeck.com) | Counting how many Macs use and update the app, once a day, and spotting broken updates and crashes | A random ID (hashed, not tied to you), the app version (and the one before, after an update), macOS version and the kind of Mac (its model code, like "Mac14,2"). If an update fails, which step failed; if the app didn't quit properly last time, that version. No crash logs |
 | [lrclib.net](https://lrclib.net) | Lyrics, only if Lyrics is on | The song's name, artist, album and length |
 
@@ -151,7 +156,7 @@ everything else keeps working.
   other clip. The separate **Image history** option keeps up to six recent pictures in memory,
   within a 32 MiB image budget and up to 2560 pixels on the longest side. Pictures clear when
   you quit or turn off Image history.
-- **Tray:** links to your files, never copies. Your original files are never changed. Clears when
+- **Tray:** references to local files, plus saved copies of web files you drop. Your original files are never changed. Clears when
   you quit, except pinned items.
 - **Notes and settings:** saved on your Mac only.
 
@@ -162,7 +167,8 @@ Requests stay on your Mac. Switch it off and the hook is removed.
 **AI Agent Usage** is off until you switch it on. It shows how much of your Codex and Antigravity
 limits you've used, with the lowest limit left beside the camera when nothing else is on, or
 beside music and video. Its
-launcher tile switches that and the checks off and on, like Stats. It asks the Codex app on your Mac, which checks with OpenAI using your own
+launcher tile switches the notch readout and automatic checks on or off, just like Stats.
+Click the compact usage readout to open the full usage panel. It asks the Codex app on your Mac, which checks with OpenAI using your own
 Codex sign-in. For Antigravity it reads its files in `~/.gemini` and asks the Antigravity app
 running on your Mac, using the local key Antigravity hands its own background service; that
 request never leaves your Mac. Dynamic Ledge never stores your passwords, tokens or API keys,

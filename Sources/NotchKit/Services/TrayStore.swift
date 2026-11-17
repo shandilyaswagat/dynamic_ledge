@@ -44,6 +44,7 @@ public final class TrayStore {
     @ObservationIgnored private let sessionFolder: URL
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let dropFolder: URL?
+    @ObservationIgnored private var webDrops: [URL: URLSessionDataTask] = [:]
     @ObservationIgnored private let dropQueue: OperationQueue = {
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 2
@@ -87,7 +88,7 @@ public final class TrayStore {
     public func reportFailure(_ message: String) { statusMessage = message }
 
     /// The source app writes promised files, including browser images, only after a drop.
-    func receive(_ promises: [NSFilePromiseReceiver]) -> Bool {
+    func receive(_ promises: [NSFilePromiseReceiver], fallback: [URL] = []) -> Bool {
         pruneMissing()
         let available = Self.capacity - items.count
         guard available > 0 else {
@@ -99,14 +100,18 @@ public final class TrayStore {
             return false
         }
         statusMessage = "Receiving dropped files…"
+        let canFallBack = promises.count == 1 && !fallback.isEmpty
         // AppKit requires all promises from one drag to share a destination.
+        // Its completion runs on dropQueue; only the inner Task may touch main-actor state.
         for promise in promises.prefix(available) {
-            promise.receivePromisedFiles(atDestination: staging, options: [:], operationQueue: dropQueue) { [weak self] url, error in
+            promise.receivePromisedFiles(atDestination: staging, options: [:], operationQueue: dropQueue) { @Sendable [weak self] url, error in
                 let failed = error != nil
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     if failed {
-                        self.statusMessage = "The source app couldn’t provide the dropped file."
+                        if !canFallBack || !self.receiveWebLinks(fallback) {
+                            self.statusMessage = "The source app couldn’t provide the dropped file."
+                        }
                     } else {
                         self.finishDrop(url, from: staging)
                     }
@@ -126,19 +131,58 @@ public final class TrayStore {
             statusMessage = "Couldn’t prepare the dropped image."
             return false
         }
-        let url = staging.appendingPathComponent(image.name).appendingPathExtension(image.ext)
+        let url = staging.appendingPathComponent(WebDropDownload.safeName(image.name + "." + image.ext))
         let data = image.data
-        statusMessage = "Saving dropped image…"
+        statusMessage = "Saving dropped file…"
         dropQueue.addOperation { [weak self] in
             let saved = (try? data.write(to: url, options: .atomic)) != nil
             Task { @MainActor [weak self] in
                 defer { try? FileManager.default.removeItem(at: staging) }
                 guard let self else { return }
-                if saved { self.finishDrop(url, from: staging) }
+                if saved { self.finishDrop(url, from: staging, quarantine: true) }
                 else { self.statusMessage = "Couldn’t save the dropped image." }
             }
         }
         return true
+    }
+
+    /// Native file data takes priority. When a browser offers only an address, inspect its response
+    /// to save a direct file or retain the address as a standard web shortcut.
+    func receiveWebLinks(_ urls: [URL]) -> Bool {
+        var accepted = false
+        for url in urls where WebDropDownload.canFetch(url) {
+            if webDrops[url] != nil { accepted = true; continue }
+            if webDrops.count >= 2 {
+                accepted = add([url]) > 0 || accepted
+                continue
+            }
+            pruneMissing()
+            guard items.count + webDrops.count < Self.capacity else {
+                statusMessage = "Tray full — remove an item to add another."
+                break
+            }
+            guard let staging = try? makeDropFolder() else {
+                accepted = add([url]) > 0 || accepted
+                continue
+            }
+            statusMessage = "Checking dropped link…"
+            webDrops[url] = WebDropDownload.fetch(url, into: staging) { [weak self] result in
+                Task { @MainActor [weak self] in
+                    defer { try? FileManager.default.removeItem(at: staging) }
+                    guard let self, self.webDrops.removeValue(forKey: url) != nil else { return }
+                    switch result {
+                    case .file(let file): self.finishDrop(file, from: staging, quarantine: true)
+                    case .link: self.add([url])
+                    case .failed:
+                        if self.add([url]) > 0 {
+                            self.statusMessage = "Couldn’t download the file. Saved its link instead."
+                        }
+                    }
+                }
+            }
+            accepted = true
+        }
+        return accepted
     }
 
     private func makeDropFolder() throws -> URL {
@@ -148,7 +192,7 @@ public final class TrayStore {
         return folder
     }
 
-    private func finishDrop(_ input: URL, from staging: URL) {
+    private func finishDrop(_ input: URL, from staging: URL, quarantine: Bool = false) {
         pruneMissing()
         guard items.count < Self.capacity else {
             statusMessage = "Tray full — remove an item to add another."
@@ -162,6 +206,12 @@ public final class TrayStore {
             }
             let target = TrayActions.unique(in: dropFolder, name: input.deletingPathExtension().lastPathComponent,
                                             extension: input.pathExtension, fileManager: fileManager)
+            if quarantine {
+                try (input as NSURL).setResourceValue([
+                    "LSQuarantineType": "LSQuarantineTypeWebDownload",
+                    "LSQuarantineAgentName": "Dynamic Ledge",
+                ], forKey: .quarantinePropertiesKey)
+            }
             try fileManager.moveItem(at: input, to: target)
             add([target])
         } catch {
@@ -271,6 +321,9 @@ public final class TrayStore {
     /// The app is quitting: the shortcuts it made go. Pinned items are already saved and are
     /// rebuilt on the next launch.
     public func endSession() {
+        let downloads = webDrops.values
+        webDrops.removeAll()
+        for task in downloads { task.cancel() }
         try? fileManager.removeItem(at: sessionFolder)
     }
 

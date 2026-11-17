@@ -32,7 +32,7 @@ struct HomeGridTests {
     }
 
     @Test func moreTilesMakeMorePagesAndNeverSplitATile() {
-        let tiles = HomeTileItem.allCases.map { HomeTile($0, .large) }
+        let tiles = HomeTileItem.standardItems.map { HomeTile($0, .large) }
         let placements = place(tiles)
         #expect(HomeGridLayout.pageCount(placements) == 4, "three large tiles a page")
         for placement in placements {
@@ -165,8 +165,55 @@ struct HomeGridModelTests {
         var elongated = NotchAppearance.standard
         elongated.nookLayout = .elongated
         let wide = LayoutEngine(screen: .sample, appearance: elongated)
-        #expect(wide.layout(for: .home, home: HomeContent(hasLiveTile: true, isEditingHome: true), hovering: false).pill.height
-                == wide.layout(for: .tray, home: HomeContent(), hovering: false).pill.height, "the elongated layout is unchanged")
+        let wideHome = wide.layout(for: .home, home: HomeContent(), hovering: false)
+        let wideEditing = wide.layout(for: .home, home: HomeContent(isEditingHome: true), hovering: false)
+        #expect(wideHome.pill.height == wide.layout(for: .tray, home: HomeContent(), hovering: false).pill.height)
+        #expect(wideEditing.pill.height == wideHome.pill.height + IslandMetrics.Nook.homeEditExtra)
+        #expect(wideEditing.pill.width == wideHome.pill.width)
+        #expect(wide.windowSize.height >= wideEditing.pill.height)
+    }
+
+    @Test func elongatedEditsPersistAndResetSeparatelyFromStandard() {
+        let model = makeModel()
+        let defaults = model.settings.defaults
+        let original = model.settings.homeTiles
+        #expect(!model.addableHomeItems.contains(.nowPlaying))
+        model.settings.appearance.nookLayout = .elongated
+        #expect(model.settings.elongatedHomeTiles == HomeGrid.defaultElongatedTiles)
+        #expect(model.settings.elongatedHomeTiles.map(\.size) == Array(repeating: .wide, count: 8))
+        model.removeHomeTile(.calendar)
+        #expect(model.addableHomeItems.contains(.calendar))
+        model.addHomeTile(.calendar)
+        model.resizeHomeTile(.calendar, to: .large)
+        model.moveHomeTile(.calendar, to: .mirror)
+        #expect(model.settings.elongatedHomeTiles[1] == HomeTile(.calendar, .large))
+        #expect(SettingsStore(defaults: defaults).elongatedHomeTiles == model.settings.elongatedHomeTiles)
+        #expect(model.settings.homeTiles == original)
+        model.resetHomeTiles()
+        #expect(model.settings.elongatedHomeTiles == HomeGrid.defaultElongatedTiles)
+        #expect(model.settings.homeTiles == original)
+    }
+
+    @Test func elongatedResizeSnapsToThreeWidthsAndWideMatchesTheOriginal() {
+        let original: CGFloat = 250
+        #expect(HomeTileSize.wide.elongatedWidthMultiplier * original == original)
+        #expect(HomeTileSize.fitting(elongatedWidth: 194, originalWidth: original) == .small)
+        #expect(HomeTileSize.fitting(elongatedWidth: 254, originalWidth: original) == .wide)
+        #expect(HomeTileSize.fitting(elongatedWidth: 320, originalWidth: original) == .large)
+    }
+
+    @Test func removedElongatedStatsTileStopsDetailedSampling() {
+        let model = makeModel()
+        model.settings.appearance.nookLayout = .elongated
+        model.settings.statsEnabled = true
+        model.showTab(.home)
+        #expect(model.stats.detailed)
+        model.removeHomeTile(.stats)
+        #expect(!model.stats.isRunning)
+        #expect(!model.stats.detailed)
+        model.addHomeTile(.stats)
+        #expect(model.stats.isRunning)
+        #expect(model.stats.detailed)
     }
 
     @Test func musicShowsBesideTheGrid() {

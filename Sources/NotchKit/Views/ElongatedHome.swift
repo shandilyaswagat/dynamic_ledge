@@ -10,29 +10,51 @@ import SwiftUI
 struct ElongatedHomeBody: View {
     let model: IslandModel
     @Environment(\.notchScale) private var s
+    @State private var tileFrames: [HomeTileItem: CGRect] = [:]
+    @State private var dragging: HomeTileItem?
+    @State private var dragOffset: CGSize = .zero
+    private let rowCoordinates = "elongated-home-row"
 
     var body: some View {
-        let widgets = Self.widgets(for: model)
-        ScrollView(.horizontal, showsIndicators: false) {
+        VStack(alignment: .leading, spacing: 8 * s) {
+            widgetRow
+                .frame(height: (IslandMetrics.Nook.body * s).rounded())
+            if model.isEditingHome {
+                AddHomeControls(model: model)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .animation(.smooth(duration: 0.25), value: model.isEditingHome)
+        .onChange(of: model.isEditingHome) { _, editing in
+            if !editing { dragging = nil; dragOffset = .zero }
+        }
+    }
+
+    private var widgetRow: some View {
+        let tiles = model.elongatedHomeTiles
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 0) {
-                ForEach(Array(widgets.enumerated()), id: \.element) { index, widget in
+                ForEach(Array(tiles.enumerated()), id: \.element.item) { index, tile in
                     if index > 0 {
                         Rectangle()
                             .fill(Color.white.opacity(0.1))
                             .frame(width: 1)
                             .padding(.vertical, 10 * s)
                     }
-                    view(for: widget)
-                        .frame(width: widget.width * s)
-                        .frame(maxHeight: .infinity)
+                    widget(tile)
                         .padding(.leading, index == 0 ? 0 : 16 * s)
-                        .padding(.trailing, index == widgets.count - 1 ? 0 : 16 * s)
+                        .padding(.trailing, index == tiles.count - 1 ? 0 : 16 * s)
+                        .zIndex(dragging == tile.item ? 1 : 0)
                         .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 }
             }
             .scrollTargetLayout()
-            .animation(.smooth(duration: 0.3), value: widgets)
+            .animation(.smooth(duration: 0.3), value: tiles)
         }
+        .coordinateSpace(name: rowCoordinates)
+        .onPreferenceChange(ElongatedTileFrames.self) { tileFrames = $0 }
+        .scrollDisabled(dragging != nil)
         .scrollIndicators(.never)
         // Settles on a widget's edge instead of stopping halfway through one.
         .scrollTargetBehavior(.viewAligned)
@@ -44,58 +66,116 @@ struct ElongatedHomeBody: View {
         .mask(EdgeFade(width: 14 * s))
         .padding(.bottom, 2 * s)
         .overlay {
-            if widgets.isEmpty {
-                Text("Nothing live right now")
+            if tiles.isEmpty {
+                Text(model.isEditingHome ? "Add controls from the list below" : "Nothing live right now")
                     .font(.system(size: 13 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .accessibilityIdentifier("elongated-home-row")
+    }
+
+    static func originalWidth(for item: HomeTileItem) -> CGFloat {
+        switch item {
+        case .nowPlaying: 290
+        case .mirror: 96
+        case .calendar: 300
+        case .scratchpad, .reminders: 230
+        case .timer: 250
+        case .stats: 210
+        case .aiUsage: 220
+        default: 144
         }
     }
 
-    enum Widget: Hashable {
-        case music, mirror, calendar, notes, timer, todos, stats, aiUsage
-
-        /// Width before Small / Medium / Large scaling.
-        var width: CGFloat {
-            switch self {
-            case .music: 290
-            case .mirror: 96
-            case .calendar: 300
-            case .notes: 230
-            case .timer: 250
-            case .todos: 230
-            case .stats: 210
-            case .aiUsage: 220
+    private func widget(_ tile: HomeTile) -> some View {
+        let originalWidth = Self.originalWidth(for: tile.item) * s
+        let width = originalWidth * tile.size.elongatedWidthMultiplier
+        let editing = model.isEditingHome
+        return view(for: tile)
+            .frame(width: width)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .allowsHitTesting(!editing)
+            .overlay {
+                if editing {
+                    RoundedRectangle(cornerRadius: 12 * s)
+                        .strokeBorder(.white.opacity(0.16))
+                        .contentShape(Rectangle())
+                        .gesture(reorder(tile.item))
+                }
             }
-        }
+            .overlay(alignment: .topLeading) {
+                if editing {
+                    EditBadge(symbol: "minus", label: "Remove \(tile.item.title)") { model.removeHomeTile(tile.item) }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if editing {
+                    ResizeHandle(model: model, tile: tile) { delta in
+                        HomeTileSize.fitting(elongatedWidth: width + delta.width, originalWidth: originalWidth)
+                    }
+                }
+            }
+            .offset(dragging == tile.item ? dragOffset : .zero)
+            .background {
+                if editing {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: ElongatedTileFrames.self,
+                            value: [tile.item: geometry.frame(in: .named(rowCoordinates))])
+                    }
+                }
+            }
     }
 
-    /// The widgets that are switched on, in reading order.
-    static func widgets(for model: IslandModel) -> [Widget] {
-        var widgets: [Widget] = []
-        if model.homeHasMedia { widgets.append(.music) }
-        if model.settings.mirrorEnabled { widgets.append(.mirror) }
-        if model.settings.calendarEnabled { widgets.append(.calendar) }
-        if model.settings.notesEnabled { widgets.append(.notes) }
-        if model.settings.timerEnabled { widgets.append(.timer) }
-        widgets.append(.todos)
-        if model.settings.statsEnabled { widgets.append(.stats) }
-        if model.settings.aiUsageLive && model.settings.aiUsageShowHomeWidget && !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty { widgets.append(.aiUsage) }
-        return widgets
+    private func reorder(_ item: HomeTileItem) -> some Gesture {
+        DragGesture(minimumDistance: 4 * s, coordinateSpace: .named(rowCoordinates))
+            .onChanged { value in
+                dragging = item
+                dragOffset = value.translation
+            }
+            .onEnded { value in
+                if let target = tileFrames.first(where: { $0.key != item && $0.value.contains(value.location) })?.key {
+                    model.moveHomeTile(item, to: target)
+                    Haptics.perform(enabled: model.settings.hapticsEnabled)
+                }
+                withAnimation(.smooth(duration: 0.2)) { dragging = nil; dragOffset = .zero }
+            }
     }
 
     @ViewBuilder
-    private func view(for widget: Widget) -> some View {
-        switch widget {
-        case .music: MusicWidget(service: model.nowPlaying)
+    private func view(for tile: HomeTile) -> some View {
+        switch tile.item {
+        case .nowPlaying where model.homeHasMedia: MusicWidget(service: model.nowPlaying)
         case .mirror: MirrorWidget(model: model)
         case .calendar: CalendarWidget(model: model)
-        case .notes: NotesWidget(model: model)
+        case .scratchpad: NotesWidget(model: model)
         case .timer: TimerWidget(model: model)
-        case .todos: TodosWidget(model: model)
+        case .reminders: TodosWidget(model: model)
         case .stats: StatsWidget(model: model)
-        case .aiUsage: AIUsageElongatedWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
+        case .aiUsage where !model.aiUsage.visibleUsages(selected: model.settings.selectedAIProviders).isEmpty:
+            AIUsageElongatedWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
+        case .shortcuts where tile.size != .small:
+            HomeTileContent(model: model, tile: tile)
+                .padding(10 * s)
+        default:
+            Button { model.openTile(tile.item) } label: {
+                HomeTileContent(model: model, tile: tile)
+                    .padding(10 * s)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel(Text(tile.item.title))
         }
+    }
+}
+
+private struct ElongatedTileFrames: PreferenceKey {
+    static let defaultValue: [HomeTileItem: CGRect] = [:]
+    static func reduce(value: inout [HomeTileItem: CGRect], nextValue: () -> [HomeTileItem: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 

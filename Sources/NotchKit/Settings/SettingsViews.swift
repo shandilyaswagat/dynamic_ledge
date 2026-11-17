@@ -182,9 +182,13 @@ struct GeneralSettingsView: View {
             }
 
             Section {
-                HStack(spacing: 16) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 76, maximum: 140), spacing: 10), count: 3)) {
                     openModeCard(mode: .click, title: "Click", isSelected: settings.notchOpenMode == .click)
                     openModeCard(mode: .hover, title: "Hover", isSelected: settings.notchOpenMode == .hover)
+                    edgeModeCard(mode: .topCenter, edge: .topCenter, title: "Top center")
+                    edgeModeCard(mode: .topLeft, edge: .topLeft, title: "Top-left corner")
+                    edgeModeCard(mode: .topRight, edge: .topRight, title: "Top-right corner")
+                    edgeModeCard(mode: .bottomCenter, edge: .bottomCenter, title: "Bottom center")
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
@@ -199,9 +203,7 @@ struct GeneralSettingsView: View {
             } header: {
                 Text("Open Notch With")
             } footer: {
-                Text(settings.notchOpenMode == .click
-                    ? "Click the notch to open it."
-                    : "Hold the pointer over the notch briefly to open it. Clicking still opens it immediately.")
+                Text("Choose one opening method. Edge choices open Home when the pointer reaches that edge on a display that shows the notch.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -225,31 +227,36 @@ struct GeneralSettingsView: View {
         .onAppear { syncLaunchAtLogin() }
     }
 
+    private func edgeModeCard(mode: NotchOpenMode, edge: HomeEdgeTrigger.Edge, title: LocalizedStringKey) -> some View {
+        Button {
+            settings.notchOpenMode = mode
+            Haptics.perform(enabled: settings.hapticsEnabled)
+        } label: {
+            VStack(spacing: 8) {
+                EdgeTriggerIllustration(edge: edge, isEnabled: settings.notchOpenMode == mode)
+                openingChoiceLabel(title, isSelected: settings.notchOpenMode == mode)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(settings.notchOpenMode == mode ? .isSelected : [])
+    }
+
     private func openModeCard(mode: NotchOpenMode, title: LocalizedStringKey, isSelected: Bool) -> some View {
         Button {
             settings.notchOpenMode = mode
             Haptics.perform(enabled: settings.hapticsEnabled)
         } label: {
             VStack(spacing: 8) {
-                ZStack(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
-                        .frame(width: 140, height: 86)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
-                        )
-                        .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : .clear, radius: 4)
+                NotchOpeningPreview(isSelected: isSelected) {
+                    VStack(spacing: 0) {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(Color.primary.opacity(0.85))
+                            .frame(width: mode == .click ? 45 : 56, height: mode == .click ? 14 : 18)
+                        Spacer(minLength: 0)
 
-                    // Notch representation
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(Color.primary.opacity(0.85))
-                        .frame(width: mode == .click ? 64 : 80, height: mode == .click ? 20 : 26)
-
-                    // Interaction diagram
-                    if mode == .click {
-                        VStack(spacing: 0) {
-                            Spacer()
+                        if mode == .click {
                             ZStack {
                                 Circle()
                                     .strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.5)
@@ -259,11 +266,7 @@ struct GeneralSettingsView: View {
                                     .foregroundStyle(Color.accentColor)
                                     .offset(x: 4, y: 4)
                             }
-                            .offset(y: -14)
-                        }
-                    } else {
-                        VStack(spacing: 0) {
-                            Spacer()
+                        } else {
                             ZStack {
                                 HStack(spacing: 3) {
                                     ForEach(0..<3, id: \.self) { _ in
@@ -272,33 +275,39 @@ struct GeneralSettingsView: View {
                                             .frame(width: 3, height: 3)
                                     }
                                 }
-                                .offset(y: -14)
+                                .offset(y: -12)
 
                                 Image(systemName: "cursorarrow.motionlines")
                                     .font(.system(size: 18, weight: .medium))
                                     .foregroundStyle(Color.accentColor)
                                     .offset(x: 2, y: 2)
                             }
-                            .offset(y: -14)
                         }
                     }
+                    .padding(.bottom, 9)
                 }
 
-                HStack(spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundStyle(isSelected ? .primary : .secondary)
-                }
+                openingChoiceLabel(title, isSelected: isSelected)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func openingChoiceLabel(_ title: LocalizedStringKey, isSelected: Bool) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.6), lineWidth: isSelected ? 4.5 : 1.2)
+                .frame(width: 14, height: 14)
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
     }
 
 
@@ -750,7 +759,7 @@ private struct AIUsageSettingsSection: View {
                 Toggle(isOn: $settings.aiUsageInNotch) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Show in the notch")
-                        Text("The lowest limit left stays available alongside music and video. Off stops the checks. The AI Agent Usage tile turns this on and off too.")
+                        Text("The lowest limit left stays available alongside music and video. Off stops automatic checks. The AI Agent Usage tile toggles this, just like Stats.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

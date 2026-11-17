@@ -374,8 +374,9 @@ public struct LayoutEngine: Equatable, Sendable {
         case .expanded(.stats): IslandMetrics.Nook.statsBody
         case .nook(.stats): IslandMetrics.Nook.statsBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.calendar): IslandMetrics.Nook.calendarBody + IslandMetrics.Nook.bodyTopInset
-        case .nook(.home) where appearance.nookLayout == .standard:
-            IslandMetrics.Nook.homeBody + IslandMetrics.Nook.bodyTopInset + (home.isEditingHome ? IslandMetrics.Nook.homeEditExtra : 0)
+        case .nook(.home):
+            (appearance.nookLayout == .elongated ? IslandMetrics.Nook.body : IslandMetrics.Nook.homeBody)
+                + IslandMetrics.Nook.bodyTopInset + (home.isEditingHome ? IslandMetrics.Nook.homeEditExtra : 0)
         case .nook(.clipboard):
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset

@@ -8,10 +8,13 @@ last one.
 ## [Unreleased]
 
 ### Added
-- **Drop files straight from a web page.** Drag a browser image or another file the source app
-  provides to the Tray. Dynamic Ledge saves a copy in Downloads and adds it to the Tray.
+- **Drop files straight from a web page.** Drag browser files, images, or direct download links
+  to the Tray. Files are saved to Downloads; ordinary web pages stay as links.
 - **Top-edge reveal on displays without a notch.** Touch the middle of the top edge to reveal the
   notch or pill right away. Click it to open, or stay at the edge in Hover mode.
+- **Open Home from the screen edge.** Choose Top center, either top corner, or Bottom center
+  beside Click and Hover in General settings. One opening method is selected at a time.
+  The triggers work on the displays selected for the notch.
 - **Copy path in the Tray.** Right-click a file to copy its path as plain text.
 - **Timed Keep Awake.** Choose 30 minutes, 1 hour, 2 hours, 8 hours, or until you turn it off.
 - **Collapse delay.** Choose how long the notch stays open after the pointer leaves.
@@ -32,8 +35,10 @@ last one.
   Reminders, Keep Awake, AI Agent Usage, Timer and Stopwatch to start. Hold any tile to edit:
   remove it, drag it somewhere else, drag or press its corner to make it small, wide or large,
   or add Clipboard, Files, Scratchpad, Camera Mirror or Shortcuts. Reset puts the usual tiles
-  back. Music and calls show up beside the tiles while they're live. The elongated layout is
-  unchanged.
+  back. Music and calls show up beside the tiles while they're live.
+- **Edit Elongated Home.** Hold a widget in the horizontal row to remove, resize, or move it.
+  Add controls below the row or reset to the original widgets and widths. Elongated saves its
+  layout separately from Standard.
 - **A new Stats panel.** The last minute of CPU as a chart, with memory pressure, network,
   battery and storage beside it. Battery shows the time left to full or empty when macOS has
   an estimate, and storage shows how full the disk is.
@@ -43,6 +48,8 @@ last one.
   missing data is never shown as zero. Claude usage remains excluded.
 
 ### Fixed
+- AI Agent Usage follows the Stats menu behavior: toggle the compact readout, then click it
+  to open usage details.
 - Network speeds use the full interface counters and show slow transfers in bytes per second.
 - The compact AI usage counter shows the full percentage, including 100%.
 - AI usage stays accessible beside playing music or video, in Home and the activity switcher.

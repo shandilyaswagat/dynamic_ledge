@@ -220,6 +220,28 @@ struct TrayTests {
         #expect(FileManager.default.fileExists(atPath: imported.url.path))
     }
 
+    @Test func chromiumPromisedBytesWinOverTheWebAddress() async throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let tray = TrayStore(folder: folder, defaults: nil, dropFolder: folder)
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        let model = IslandModel(settings: SettingsStore(defaults: defaults), tray: tray)
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let contents = Data("browser file contents".utf8)
+        let item = NSPasteboardItem()
+        item.setString("https://example.invalid/report.txt", forType: .string)
+        item.setString("public.plain-text", forType: .init("com.apple.pasteboard.promised-file-content-type"))
+        item.setData(contents, forType: .init("public.plain-text"))
+        #expect(pasteboard.writeObjects([item]))
+        #expect(FileDropReader.canReadFiles(from: pasteboard))
+        #expect(model.acceptDrop(pasteboard, into: .tray))
+        for _ in 0..<100 where tray.items.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+        let imported = try #require(tray.items.first)
+        #expect(imported.name == "report.txt")
+        #expect(try Data(contentsOf: imported.url) == contents)
+    }
+
     @Test func documentReleaseAcceptsNotchEdgeAndExpandedTarget() {
         let activation = CGRect(x: 100, y: 0, width: 200, height: 100)
         let pill = CGRect(x: 80, y: 20, width: 240, height: 150)

@@ -30,6 +30,7 @@ enum SettingsSearch {
         .init(title: "Lock Screen", path: "General", page: .general, keywords: "locked screen"),
         .init(title: "Collapse delay", path: "General", page: .general, keywords: "pointer exit close"),
         .init(title: "Keyboard shortcuts", path: "General", page: .general, keywords: "hotkeys keyboard"),
+        .init(title: "Edge Triggers", path: "General", page: .general, keywords: "top left right corner bottom center open notch home external monitor"),
         .init(title: "Appearance", path: "Appearance", page: .appearance, keywords: "theme look black glass"),
         .init(title: "Motion", path: "Appearance", page: .appearance, keywords: "animation springy calm bounce speed liquid"),
         .init(title: "Home layout", path: "Appearance", page: .appearance, keywords: "standard elongated wide size"),

@@ -291,14 +291,24 @@ struct AIUsageNotchTests {
         #expect(model.presentation == .compact(primary: .aiUsage, secondary: nil))
     }
 
-    @Test func theTileIsASwitch() {
+    @Test func theTileTogglesUsageLikeStats() {
         let model = makeModel()
         model.settings.aiUsageEnabled = true
+        model.settings.aiUsageInNotch = false
         model.open(.aiUsage)
-        #expect(!model.isLive(.aiUsage) && model.activeActivities.isEmpty)
-        #expect(model.launcherItems.contains(.aiUsage), "the tile stays, to turn it back on")
+        #expect(model.settings.aiUsageInNotch && model.isLive(.aiUsage))
+        #expect(model.presentation == .compact(primary: .aiUsage, secondary: nil))
         model.open(.aiUsage)
-        #expect(model.isLive(.aiUsage) && model.activeActivities == [.aiUsage])
+        #expect(!model.settings.aiUsageInNotch)
+        #expect(!model.isLive(.aiUsage))
+        #expect(model.settings.aiUsageEnabled)
+    }
+
+    @Test func clickingCompactUsageOpensDetailsLikeStats() {
+        let model = makeModel()
+        model.settings.aiUsageEnabled = true
+        model.tapPill()
+        #expect(model.presentation == .nook(.aiUsage))
     }
 
     @Test func onlyMusicOrVideoKeepsIt() {

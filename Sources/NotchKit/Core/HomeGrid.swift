@@ -24,11 +24,25 @@ public enum HomeTileSize: String, CaseIterable, Sendable, Codable {
         if columns >= 2, rows >= 2 { return .large }
         return columns >= 2 ? .wide : .small
     }
+
+    /// Elongated keeps one row. The wide size preserves each widget's original width.
+    var elongatedWidthMultiplier: CGFloat {
+        switch self {
+        case .small: 0.8
+        case .wide: 1
+        case .large: 1.25
+        }
+    }
+
+    static func fitting(elongatedWidth: CGFloat, originalWidth: CGFloat) -> HomeTileSize {
+        allCases.min { abs($0.elongatedWidthMultiplier * originalWidth - elongatedWidth)
+                      < abs($1.elongatedWidthMultiplier * originalWidth - elongatedWidth) } ?? .wide
+    }
 }
 
-/// What a Home tile shows: a feature from the launcher (but music, which shows up beside the
-/// grid while it plays), or the favourite Shortcuts.
+/// What a Home tile shows: a launcher feature or the favourite Shortcuts.
 public enum HomeTileItem: String, CaseIterable, Sendable, Identifiable {
+    case nowPlaying
     case timer
     case stopwatch
     case calendar
@@ -43,6 +57,7 @@ public enum HomeTileItem: String, CaseIterable, Sendable, Identifiable {
     case shortcuts
 
     public var id: String { rawValue }
+    static var standardItems: [Self] { allCases.filter { $0 != .nowPlaying } }
 
     /// The launcher feature it opens; nil for Shortcuts, which runs the favourites instead.
     public var launcherItem: LauncherItem? { LauncherItem(rawValue: rawValue) }
@@ -87,16 +102,23 @@ public struct HomeGrid: Equatable, Sendable {
         HomeTile(.stopwatch),
     ]
 
+    /// The original inline widgets, in their original order and widths.
+    public static let defaultElongatedTiles: [HomeTile] = [
+        .nowPlaying, .mirror, .calendar, .scratchpad, .timer, .reminders, .stats, .aiUsage,
+    ].map { HomeTile($0, .wide) }
+
     public private(set) var tiles: [HomeTile]
+    private let layout: NookLayout
 
     /// Drops unknown values and repeats, so an old or malformed preference is harmless.
-    public init(rawValues: [String]) {
-        self.init(tiles: rawValues.compactMap(HomeTile.init(rawValue:)))
+    public init(rawValues: [String], layout: NookLayout = .standard) {
+        self.init(tiles: rawValues.compactMap(HomeTile.init(rawValue:)), layout: layout)
     }
 
-    public init(tiles: [HomeTile] = Self.defaultTiles) {
+    public init(tiles: [HomeTile] = Self.defaultTiles, layout: NookLayout = .standard) {
+        self.layout = layout
         var seen = Set<HomeTileItem>()
-        self.tiles = tiles.filter { seen.insert($0.item).inserted }
+        self.tiles = tiles.filter { (layout == .elongated || $0.item != .nowPlaying) && seen.insert($0.item).inserted }
     }
 
     public var rawValues: [String] { tiles.map(\.rawValue) }
@@ -112,7 +134,7 @@ public struct HomeGrid: Equatable, Sendable {
     /// Adds a feature at the end as a small tile, once.
     @discardableResult
     public mutating func add(_ item: HomeTileItem) -> Bool {
-        guard !contains(item) else { return false }
+        guard (layout == .elongated || item != .nowPlaying), !contains(item) else { return false }
         tiles.append(HomeTile(item))
         return true
     }

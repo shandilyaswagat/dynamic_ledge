@@ -135,6 +135,11 @@ over the standard nook minimum.
 Typing: the panel may take the keyboard while the elongated Home is open, but only takes it when
 you click into Notes or a new task, and it doesn't close on pointer exit while you type.
 
+Hold an Elongated widget for 0.4 seconds to edit the row. The corner badges remove or resize it.
+Small is 80% of the original width, Wide is the original width, and Large is 125%. Drag a widget
+onto another to reorder it. Editing adds 104 pt below the original row for the add-control chips.
+Reset restores the original widget order and widths. Elongated preferences are saved separately.
+
 ## Lock Screen (1.4.0)
 
 Off by default (Settings › General). While the Mac is locked, the notch looks exactly as it does

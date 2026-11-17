@@ -44,6 +44,20 @@ public enum DisplayChoice: Hashable, Sendable, Identifiable {
 public enum NotchOpenMode: String, CaseIterable, Sendable, Identifiable {
     case click
     case hover
+    case topLeft
+    case topCenter
+    case topRight
+    case bottomCenter
+
+    var edge: HomeEdgeTrigger.Edge? {
+        switch self {
+        case .click, .hover: nil
+        case .topLeft: .topLeft
+        case .topCenter: .topCenter
+        case .topRight: .topRight
+        case .bottomCenter: .bottomCenter
+        }
+    }
 
     public var id: String { rawValue }
 }
@@ -70,7 +84,9 @@ public final class SettingsStore {
     }
 
     public var showWhenIdle: Bool { didSet { defaults.set(showWhenIdle, forKey: Key.showWhenIdle) } }
-    public var notchOpenMode: NotchOpenMode { didSet { defaults.set(notchOpenMode.rawValue, forKey: Key.notchOpenMode) } }
+    public var notchOpenMode: NotchOpenMode {
+        didSet { defaults.set(notchOpenMode.rawValue, forKey: Key.notchOpenMode) }
+    }
     public var hoverDelay: Double {
         didSet {
             let clamped = max(0.1, min(0.5, (hoverDelay * 100).rounded() / 100))
@@ -203,6 +219,14 @@ public final class SettingsStore {
             }
         }
     }
+    /// Elongated keeps its own widget order and widths.
+    public var elongatedHomeTiles: [HomeTile] {
+        didSet {
+            let normalized = HomeGrid(tiles: elongatedHomeTiles, layout: .elongated).tiles
+            if normalized != elongatedHomeTiles { elongatedHomeTiles = normalized }
+            defaults.set(normalized.map(\.rawValue), forKey: Key.elongatedHomeTiles)
+        }
+    }
     /// Show volume and brightness changes in the notch.
     public var volumeAlertsEnabled: Bool { didSet { defaults.set(volumeAlertsEnabled, forKey: Key.volumeAlerts) } }
     public var brightnessAlertsEnabled: Bool { didSet { defaults.set(brightnessAlertsEnabled, forKey: Key.brightnessAlerts) } }
@@ -254,10 +278,20 @@ public final class SettingsStore {
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
         // explicit interaction mode. New installations use click-to-open.
+        var openingMode: NotchOpenMode
         if let stored = defaults.string(forKey: Key.notchOpenMode), let mode = NotchOpenMode(rawValue: stored) {
-            notchOpenMode = mode
+            openingMode = mode
         } else {
-            notchOpenMode = (defaults.object(forKey: Key.expandOnHover) as? Bool) == true ? .hover : .click
+            openingMode = (defaults.object(forKey: Key.expandOnHover) as? Bool) == true ? .hover : .click
+        }
+        // Carry the earlier independent switches into one saved opening choice.
+        if defaults.bool(forKey: Key.topLeftHomeTrigger) { openingMode = .topLeft }
+        else if defaults.bool(forKey: Key.topRightHomeTrigger) { openingMode = .topRight }
+        else if defaults.bool(forKey: Key.bottomCenterHomeTrigger) { openingMode = .bottomCenter }
+        notchOpenMode = openingMode
+        defaults.set(openingMode.rawValue, forKey: Key.notchOpenMode)
+        for key in [Key.topLeftHomeTrigger, Key.topRightHomeTrigger, Key.bottomCenterHomeTrigger] {
+            defaults.removeObject(forKey: key)
         }
         let delay = defaults.object(forKey: Key.hoverDelay) as? Double ?? 0.4
         hoverDelay = max(0.1, min(0.5, (delay * 100).rounded() / 100))
@@ -340,6 +374,8 @@ public final class SettingsStore {
             featureShortcuts = Self.defaultFeatureShortcuts
         }
         homeTiles = (defaults.stringArray(forKey: Key.homeTiles)).map { HomeGrid(rawValues: $0).tiles } ?? HomeGrid.defaultTiles
+        elongatedHomeTiles = defaults.stringArray(forKey: Key.elongatedHomeTiles)
+            .map { HomeGrid(rawValues: $0, layout: .elongated).tiles } ?? HomeGrid.defaultElongatedTiles
         let levelsEnabled = defaults.object(forKey: Key.levels) as? Bool ?? true
         volumeAlertsEnabled = defaults.object(forKey: Key.volumeAlerts) as? Bool ?? levelsEnabled
         brightnessAlertsEnabled = defaults.object(forKey: Key.brightnessAlerts) as? Bool ?? levelsEnabled
@@ -417,6 +453,9 @@ public final class SettingsStore {
         static let height = "shape.height"
         static let showWhenIdle = "behavior.showWhenIdle"
         static let notchOpenMode = "behavior.notchOpenMode"
+        static let topLeftHomeTrigger = "behavior.topLeftHomeTrigger"
+        static let topRightHomeTrigger = "behavior.topRightHomeTrigger"
+        static let bottomCenterHomeTrigger = "behavior.bottomCenterHomeTrigger"
         static let hoverDelay = "behavior.hoverDelay"
         /// Legacy boolean retained only to migrate versions that shipped before interaction modes.
         static let expandOnHover = "behavior.expandOnHover"
@@ -481,6 +520,7 @@ public final class SettingsStore {
         static let favoriteShortcuts = "home.favoriteShortcuts"
         static let featureShortcuts = "home.featureShortcuts"
         static let homeTiles = "home.tiles"
+        static let elongatedHomeTiles = "home.elongatedTiles"
         static let levels = "alert.levels"
         static let volumeAlerts = "alert.volume"
         static let brightnessAlerts = "alert.brightness"

@@ -253,7 +253,11 @@ private struct HomeTileView: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 if isEditing {
-                    ResizeHandle(model: model, tile: tile, metrics: metrics)
+                    ResizeHandle(model: model, tile: tile) { delta in
+                        let columns = tile.size.columns + Int((delta.width / (metrics.columnWidth + metrics.gap)).rounded())
+                        let rows = tile.size.rows + Int((delta.height / (metrics.rowHeight + metrics.gap)).rounded())
+                        return HomeTileSize.fitting(columns: columns, rows: rows)
+                    }
                         .offset(x: HomeTileGrid.badgeInset * s, y: HomeTileGrid.badgeInset * s)
                         .transition(.scale.combined(with: .opacity))
                 }
@@ -282,7 +286,7 @@ private struct TileTap: ViewModifier {
 }
 
 /// A small round button on a tile's corner while editing.
-private struct EditBadge: View {
+struct EditBadge: View {
     let symbol: String
     let label: LocalizedStringKey
     let action: () -> Void
@@ -304,10 +308,10 @@ private struct EditBadge: View {
 }
 
 /// Drag it to pick a size, or press it to step through small, wide and large.
-private struct ResizeHandle: View {
+struct ResizeHandle: View {
     let model: IslandModel
     let tile: HomeTile
-    let metrics: GridMetrics
+    let sizeForDrag: (CGSize) -> HomeTileSize
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -322,14 +326,7 @@ private struct ResizeHandle: View {
                 DragGesture(minimumDistance: 0)
                     .onEnded { value in
                         let moved = abs(value.translation.width) + abs(value.translation.height)
-                        let size: HomeTileSize
-                        if moved < 4 * s {
-                            size = tile.size.next
-                        } else {
-                            let columns = tile.size.columns + Int((value.translation.width / (metrics.columnWidth + metrics.gap)).rounded())
-                            let rows = tile.size.rows + Int((value.translation.height / (metrics.rowHeight + metrics.gap)).rounded())
-                            size = HomeTileSize.fitting(columns: columns, rows: rows)
-                        }
+                        let size = moved < 4 * s ? tile.size.next : sizeForDrag(value.translation)
                         guard size != tile.size else { return }
                         model.resizeHomeTile(tile.item, to: size)
                         Haptics.perform(enabled: model.settings.hapticsEnabled)
@@ -345,7 +342,7 @@ private struct ResizeHandle: View {
 // MARK: Add controls
 
 /// Below the grid while editing: the features that aren't on Home yet. Click one to add it.
-private struct AddHomeControls: View {
+struct AddHomeControls: View {
     let model: IslandModel
     @Environment(\.notchScale) private var s
 
@@ -445,7 +442,7 @@ private struct FlowLayout: Layout {
 
 /// What a tile shows at its size. Small is the feature's symbol and name, like the launcher;
 /// wide and large show what's going on (readings, the next event, the to-dos, the presets).
-private struct HomeTileContent: View {
+struct HomeTileContent: View {
     let model: IslandModel
     let tile: HomeTile
     @Environment(\.notchScale) private var s

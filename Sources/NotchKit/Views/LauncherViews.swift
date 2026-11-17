@@ -207,7 +207,7 @@ struct LauncherTile: View {
         switch item {
         case .keepAwake: live ? String(localized: "Your Mac won't sleep. Click to turn off.") : String(localized: "Stop your Mac from going to sleep")
         case .stats: live ? String(localized: "Memory and CPU are showing in the notch. Click to turn off.") : String(localized: "Show memory and CPU in the notch")
-        case .aiUsage: live ? String(localized: "AI agent usage is showing in the notch. Click to turn off.") : String(localized: "Show AI agent usage in the notch")
+        case .aiUsage: live ? String(localized: "AI usage is showing in the notch. Click to turn off.") : String(localized: "Show AI usage in the notch")
         default: ""
         }
     }

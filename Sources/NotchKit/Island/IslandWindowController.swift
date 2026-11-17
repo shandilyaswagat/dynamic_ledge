@@ -34,6 +34,10 @@ public final class IslandWindowController {
     private var documentGestureStart: CGPoint?
     private var dragActivationTask: Task<Void, Never>?
     private var nativeDragTask: Task<Void, Never>?
+    private var homeEdgeTrigger = HomeEdgeTrigger()
+    private var elongatedHoldTask: Task<Void, Never>?
+    private var elongatedHoldStart: CGPoint?
+    private var suppressElongatedRelease = false
     private var lastIdleDragChangeCount = NSPasteboard(name: .drag).changeCount
     private var scrollTotal: CGSize = .zero
     private var scrollHandled = false
@@ -85,6 +89,7 @@ public final class IslandWindowController {
         dragActivationTask = nil
         nativeDragTask?.cancel()
         nativeDragTask = nil
+        cancelElongatedHold()
         cancelDocumentDrag()
         monitors.forEach(NSEvent.removeMonitor)
         monitors.removeAll()
@@ -132,7 +137,10 @@ public final class IslandWindowController {
         screen = chosen
         let metrics = ScreenMetrics(screen: chosen)
         let id = Self.displayID(chosen)
-        if context.id != id { context.id = id }
+        if context.id != id {
+            context.id = id
+            homeEdgeTrigger = HomeEdgeTrigger()
+        }
         if context.metrics != metrics { context.metrics = metrics }
         if fixedDisplayID == nil {
             model.useOnly(display: id, metrics: metrics)
@@ -258,8 +266,9 @@ public final class IslandWindowController {
                 if event.type == .scrollWheel {
                     return self.handleScroll(event)
                 }
+                let consumed = self.handleElongatedHold(event)
                 self.handle(event, isLocal: true)
-                return false
+                return consumed
             }
             return consumed ? nil : event
         }) {
@@ -270,6 +279,55 @@ public final class IslandWindowController {
     private func windowPoint() -> CGPoint {
         let location = NSEvent.mouseLocation
         return CGPoint(x: location.x - panel.frame.minX, y: panel.frame.maxY - location.y)
+    }
+
+    /// Inline widgets include native text fields and nested scroll views. Watch for a stationary
+    /// press on the row while leaving clicks, text selection and wheel input with the widgets.
+    private func handleElongatedHold(_ event: NSEvent) -> Bool {
+        switch event.type {
+        case .leftMouseDown:
+            cancelElongatedHold()
+            suppressElongatedRelease = false
+            let point = windowPoint()
+            guard event.window === panel, isOverElongatedRow(point) else { return false }
+            elongatedHoldStart = point
+            elongatedHoldTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled, let self, NSEvent.pressedMouseButtons & 1 != 0 else { return }
+                let current = self.windowPoint()
+                guard self.isOverElongatedRow(current), hypot(current.x - point.x, current.y - point.y) <= 8 else { return }
+                self.suppressElongatedRelease = true
+                self.model.startEditingHome()
+            }
+        case .leftMouseDragged:
+            if let start = elongatedHoldStart {
+                let point = windowPoint()
+                if hypot(point.x - start.x, point.y - start.y) > 8 { cancelElongatedHold() }
+            }
+        case .leftMouseUp:
+            cancelElongatedHold()
+            let consumed = suppressElongatedRelease
+            suppressElongatedRelease = false
+            return consumed
+        default: break
+        }
+        return false
+    }
+
+    private func isOverElongatedRow(_ point: CGPoint) -> Bool {
+        guard isActive, model.presentation == .home, model.settings.appearance.nookLayout == .elongated,
+              !model.isEditingHome else { return false }
+        let layout = model.layout
+        let top = layout.content.minY + layout.stripHeight + IslandMetrics.notchContentGap
+            + (IslandMetrics.Nook.bodyTopInset * layout.contentScale).rounded()
+        return CGRect(x: layout.content.minX, y: top, width: layout.content.width,
+                      height: (IslandMetrics.Nook.body * layout.contentScale).rounded()).contains(point)
+    }
+
+    private func cancelElongatedHold() {
+        elongatedHoldTask?.cancel()
+        elongatedHoldTask = nil
+        elongatedHoldStart = nil
     }
 
     /// With "follow the pointer", hop to the display the pointer moved to, but never while
@@ -285,6 +343,7 @@ public final class IslandWindowController {
 
     private func pointerChanged() {
         followPointerIfNeeded()
+        if openHomeAtEdge() { return }
         // Another screen is in use: this window just mirrors it, unless the pointer arrives here.
         guard isActive || activateIfPointerHere() else {
             if !panel.ignoresMouseEvents { panel.ignoresMouseEvents = true }
@@ -312,6 +371,11 @@ public final class IslandWindowController {
     }
 
     private func handle(_ event: NSEvent, isLocal: Bool) {
+        if event.type == .mouseMoved {
+            // The bottom edge is outside the notch window, even on an inactive display.
+            pointerChanged()
+            return
+        }
         guard isActive || activateIfPointerHere() else { return }
         switch event.type {
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
@@ -339,6 +403,20 @@ public final class IslandWindowController {
             break
         }
         pointerChanged()
+    }
+
+    private func openHomeAtEdge() -> Bool {
+        let settings = model.settings
+        guard let selected = settings.notchOpenMode.edge, let screen else {
+            homeEdgeTrigger = HomeEdgeTrigger()
+            return false
+        }
+        let bounds = screen.frame
+        let cursor = NSEvent.mouseLocation
+        let point = CGPoint(x: cursor.x - bounds.minX, y: bounds.maxY - cursor.y)
+        guard let edge = homeEdgeTrigger.enter(at: point, on: bounds.size),
+              NSEvent.pressedMouseButtons == 0, !isFileDragging, documentDragTask == nil else { return false }
+        return edge == selected && model.openHomeFromEdge(on: context.id, metrics: context.metrics)
     }
 
     private func dropDestination(at point: CGPoint) -> IslandModel.DropZone? {

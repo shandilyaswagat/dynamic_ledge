@@ -48,10 +48,11 @@ public struct DownloadSummary: Equatable, Sendable {
     /// Bytes done over bytes expected, for the downloads whose size is known.
     public var fraction: Double? {
         let sized = items.filter { $0.total > 0 }
-        let total = sized.reduce(Int64(0)) { $0 + $1.total }
+        // Browser counts can reach Int64.max; summing several must not overflow.
+        let total = sized.reduce(0.0) { $0 + Double($1.total) }
         guard total > 0 else { return nil }
-        let done = sized.reduce(Int64(0)) { $0 + min($1.completed, $1.total) }
-        return min(max(Double(done) / Double(total), 0), 1)
+        let done = sized.reduce(0.0) { $0 + Double(min(max(0, $1.completed), $1.total)) }
+        return min(max(done / total, 0), 1)
     }
 
     /// The longest wait among the downloads, since the activity lasts until the last one ends.
@@ -71,17 +72,28 @@ public struct DownloadRate: Sendable {
     public init() {}
 
     public mutating func add(bytes: Int64, at time: Date) {
-        defer { last = (bytes, time) }
-        guard let last else { return }
+        let bytes = max(0, bytes)
+        guard let last else {
+            self.last = (bytes, time)
+            return
+        }
         let elapsed = time.timeIntervalSince(last.time)
-        guard elapsed > 0.05, bytes >= last.bytes else { return }
+        guard elapsed.isFinite, elapsed > 0 else { return }
+        if bytes < last.bytes {
+            self.last = (bytes, time)
+            return
+        }
+        // Keep the baseline until enough time has passed, including for rapid samples.
+        guard elapsed > 0.05 else { return }
+        self.last = (bytes, time)
         let speed = Double(bytes - last.bytes) / elapsed
         bytesPerSecond = bytesPerSecond.map { $0 + Self.weight * (speed - $0) } ?? speed
     }
 
     public func secondsLeft(completed: Int64, total: Int64) -> TimeInterval? {
         guard total > 0, let speed = bytesPerSecond, speed > 1 else { return nil }
-        return max(0, Double(total - completed) / speed)
+        let remaining = total - min(max(0, completed), total)
+        return Double(remaining) / speed
     }
 }
 

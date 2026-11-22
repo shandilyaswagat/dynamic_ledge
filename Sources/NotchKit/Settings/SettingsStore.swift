@@ -66,6 +66,7 @@ public final class SettingsStore {
             defaults.set(value.theme.rawValue, forKey: Key.theme)
             defaults.set(value.glassTint, forKey: Key.glassTint)
             defaults.set(value.externalStyle.rawValue, forKey: Key.externalStyle)
+            defaults.set(value.glassLevelBar, forKey: Key.glassLevelBar)
         }
     }
 
@@ -222,7 +223,8 @@ public final class SettingsStore {
             nookLayout: defaults.string(forKey: Key.nookLayout).flatMap(NookLayout.init(rawValue:)) ?? standard.nookLayout,
             theme: defaults.string(forKey: Key.theme).flatMap(NotchTheme.init(rawValue:)) ?? standard.theme,
             glassTint: defaults.object(forKey: Key.glassTint) as? Double ?? standard.glassTint,
-            externalStyle: defaults.string(forKey: Key.externalStyle).flatMap(ExternalDisplayStyle.init(rawValue:)) ?? standard.externalStyle
+            externalStyle: defaults.string(forKey: Key.externalStyle).flatMap(ExternalDisplayStyle.init(rawValue:)) ?? standard.externalStyle,
+            glassLevelBar: defaults.object(forKey: Key.glassLevelBar) as? Bool ?? standard.glassLevelBar
         ).clamped()
         showWhenIdle = defaults.object(forKey: Key.showWhenIdle) as? Bool ?? false
         // Keep the behaviour of existing installations after replacing the old toggle with an
@@ -368,6 +370,7 @@ public final class SettingsStore {
         static let theme = "shape.theme"
         static let glassTint = "shape.glassTint"
         static let externalStyle = "shape.externalStyle"
+        static let glassLevelBar = "shape.glassLevelBar"
         static let width = "shape.width"
         static let height = "shape.height"
         static let showWhenIdle = "behavior.showWhenIdle"

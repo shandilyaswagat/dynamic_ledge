@@ -17,6 +17,30 @@ struct GlassThemeTests {
         #expect(NotchAppearance(width: 200, height: 32, glassTint: .nan).clamped().glassTint == NotchAppearance.defaultGlassTint)
     }
 
+    @Test func theGlassLevelBarIsOptInAndSaved() {
+        let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
+        let settings = SettingsStore(defaults: defaults)
+        #expect(!settings.appearance.glassLevelBar, "the black bar stays the default")
+        settings.appearance.glassLevelBar = true
+        #expect(SettingsStore(defaults: defaults).appearance.glassLevelBar)
+    }
+
+    @Test func onlyAVolumeOrBrightnessBarCanBeGlass() {
+        let screen = ScreenMetrics(size: CGSize(width: 1470, height: 956), notch: CGRect(x: 645, y: 0, width: 180, height: 32), menuBarHeight: 32)
+        var appearance = NotchAppearance.standard
+        appearance.theme = .glass
+        appearance.glassLevelBar = true
+        let bar = IslandPresentation.alert(.level(.volume, value: 0.5, muted: false))
+        let engine = LayoutEngine(screen: screen, appearance: appearance)
+        #expect(engine.layout(for: bar, home: HomeContent(), hovering: false).glassBar)
+        #expect(!engine.layout(for: .alert(.charging(level: 80, isCharging: true)), home: HomeContent(), hovering: false).glassBar, "other alerts stay black")
+        appearance.glassLevelBar = false
+        #expect(!LayoutEngine(screen: screen, appearance: appearance).layout(for: bar, home: HomeContent(), hovering: false).glassBar, "off means black")
+        appearance.glassLevelBar = true
+        appearance.theme = .black
+        #expect(!LayoutEngine(screen: screen, appearance: appearance).layout(for: bar, home: HomeContent(), hovering: false).glassBar, "the Black theme never uses glass")
+    }
+
     @Test func glassKeepsTheNotchBandAndDropsTheShadow() {
         let screen = ScreenMetrics(size: CGSize(width: 1470, height: 956), notch: CGRect(x: 645, y: 0, width: 180, height: 32), menuBarHeight: 32)
         var appearance = NotchAppearance.standard

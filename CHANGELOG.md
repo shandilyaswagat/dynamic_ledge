@@ -7,6 +7,20 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- In Settings › Appearance › Look, with the Glass theme, the volume and brightness bar can be glass
+  too. Pick **Glass** under Volume & brightness bar; **Black** keeps it as it was. It stays black
+  unless you change it, and only that bar changes.
+
+### Changed
+- On macOS 26 and later the Glass theme is real Liquid Glass: see-through and picking up the
+  colours behind it, all the way up to the top edge, with soft dark fades in the two top corners
+  where the notch's shoulders curve out. The Clear to Tinted slider now darkens the glass, so it
+  can be set for bright windows.
+- To show real glass (clear, with what is behind it bending at the edges) the Glass theme's
+  panel becomes the key window as it opens, and keeps that while it is open.
+  The app you were in stays in front. The first key pressed meanwhile is handed back to that app.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added

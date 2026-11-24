@@ -78,6 +78,7 @@ struct IslandContentLayer: View {
         ZStack(alignment: .topLeading) {
             pill
             bubble
+            lyricsPreview
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height, alignment: .topLeading)
         .onChange(of: presentation.homeTab != nil, initial: true) { _, isOpen in nookWasOpen = isOpen }
@@ -101,6 +102,19 @@ struct IslandContentLayer: View {
     /// True from the very render that changes the size, before `onChange` has run.
     private var resizesInPlace: Bool {
         isResizing || (resizeKey != nil && resizeKey != currentResizeKey)
+    }
+
+    @ViewBuilder
+    private var lyricsPreview: some View {
+        if case .compact(.nowPlaying, _) = presentation, let lyrics = model.compactLyrics {
+            let below = model.settings.lyricsPreviewMode == .below
+            let frame = layout.compactLyricsFrame(below: below)
+            LyricsLine(lyrics: lyrics, service: model.nowPlaying, size: (below ? 14 : 12) * layout.contentScale, showsInstrumentalNote: false)
+                .frame(width: frame.width, height: frame.height)
+                .shadow(color: below ? .black : .clear, radius: 4, y: 1)
+                .position(x: frame.midX, y: frame.midY)
+                .allowsHitTesting(false)
+        }
     }
 
     private var pillShape: IslandShape {

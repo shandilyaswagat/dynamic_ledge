@@ -20,6 +20,7 @@ enum SettingsSearch {
         .init(title: "Software Update", path: "General", page: .update, keywords: "version update install automatically github"),
         .init(title: "Now Playing", path: "General", page: .media, keywords: "music podcasts video audio playback player"),
         .init(title: "Lyrics", path: "General › Now Playing", page: .media, keywords: "songs music subtitles"),
+        .init(title: "Lyrics preview", path: "General › Now Playing", page: .media, keywords: "compact notch subtitles"),
         .init(title: "Live music bars", path: "General › Now Playing", page: .media, keywords: "spectrum equalizer visualizer waveform audio levels"),
         .init(title: "Music apps", path: "General › Now Playing", page: .media, keywords: "media browser spotify youtube filter"),
         .init(title: "Coding Assistants", path: "General", page: .coding, keywords: "claude codex copilot cursor antigravity approval"),

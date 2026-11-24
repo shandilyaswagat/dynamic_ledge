@@ -48,6 +48,12 @@ public enum NotchOpenMode: String, CaseIterable, Sendable, Identifiable {
     public var id: String { rawValue }
 }
 
+public enum LyricsPreviewMode: String, Sendable {
+    case off
+    case inside
+    case below
+}
+
 /// User preferences, saved to UserDefaults as soon as they change.
 @MainActor
 @Observable
@@ -112,6 +118,9 @@ public final class SettingsStore {
     public var agentApprovalsEnabled: Bool { !agentApprovals.isEmpty }
     /// Timed lyrics under the song, looked up on LRCLIB.
     public var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyrics) } }
+    public var lyricsPreviewMode: LyricsPreviewMode {
+        didSet { defaults.set(lyricsPreviewMode.rawValue, forKey: Key.lyricsPreview) }
+    }
     /// The music bars follow what's playing, measured from the Mac's sound. Off by default.
     public var liveMusicBars: Bool { didSet { defaults.set(liveMusicBars, forKey: Key.liveMusicBars) } }
     public var timerEnabled: Bool { didSet { defaults.set(timerEnabled, forKey: Key.timer) } }
@@ -247,6 +256,7 @@ public final class SettingsStore {
         nowPlayingApps = (defaults.stringArray(forKey: Key.nowPlayingApps) ?? []).filter { !$0.isEmpty && seenApps.insert($0).inserted }
         recentMediaApps = RecentMediaApps(defaults.stringArray(forKey: Key.recentMediaApps) ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyrics) as? Bool ?? true
+        lyricsPreviewMode = defaults.string(forKey: Key.lyricsPreview).flatMap(LyricsPreviewMode.init(rawValue:)) ?? .off
         liveMusicBars = defaults.object(forKey: Key.liveMusicBars) as? Bool ?? false
         if let saved = defaults.stringArray(forKey: Key.agentApprovalKinds) {
             agentApprovals = Set(saved.compactMap(AgentKind.init(rawValue:)))
@@ -384,6 +394,7 @@ public final class SettingsStore {
         static let timerSound = "timer.sound"
         static let nowPlaying = "activity.nowPlaying"
         static let lyrics = "activity.lyrics"
+        static let lyricsPreview = "activity.lyricsPreview"
         static let liveMusicBars = "activity.liveMusicBars"
         /// The single Claude Code switch from earlier builds, read once to carry it over.
         static let agentApprovals = "activity.agentApprovals"

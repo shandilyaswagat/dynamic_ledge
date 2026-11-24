@@ -312,7 +312,7 @@ public final class IslandModel {
 
     public func layout(onDisplay id: UInt32, metrics: ScreenMetrics) -> IslandLayout {
         if id == activeDisplayID { return layout }
-        return engine(for: metrics).layout(for: presentation(onDisplay: id), home: homeContent, hovering: false)
+        return layout(for: presentation(onDisplay: id), using: engine(for: metrics), hovering: false)
     }
 
     public var activeActivities: Set<ActivityKind> {
@@ -358,6 +358,12 @@ public final class IslandModel {
     /// rather than on another app that's playing.
     public var showsLyrics: Bool {
         settings.nowPlayingEnabled && settings.lyricsEnabled && lyrics.current != nil && nowPlaying.selectedSource == nil
+    }
+
+    var compactLyrics: SyncedLyrics? {
+        guard settings.lyricsPreviewMode != .off, showsLyrics,
+              let info = nowPlaying.info, info.isPlaying, info.elapsed != nil else { return nil }
+        return lyrics.current(for: info)
     }
 
     public var homeHasMedia: Bool {
@@ -496,7 +502,12 @@ public final class IslandModel {
     }
 
     public var layout: IslandLayout {
-        engine.layout(for: presentation, home: homeContent, hovering: isHoveringPill)
+        layout(for: presentation, using: engine, hovering: isHoveringPill)
+    }
+
+    private func layout(for presentation: IslandPresentation, using engine: LayoutEngine, hovering: Bool) -> IslandLayout {
+        let lyricsInside = settings.lyricsPreviewMode == .inside && compactLyrics != nil
+        return engine.layout(for: presentation, home: homeContent, hovering: hovering, lyricsInside: lyricsInside)
     }
 
     // MARK: Pointer
@@ -513,7 +524,7 @@ public final class IslandModel {
             // The usual state: no layout to work out, just the notch's spot.
             inside = point.map(engine.notchHoverRect.contains) ?? false
         } else {
-            let resting = engine.layout(for: current, home: homeContent, hovering: false)
+            let resting = layout(for: current, using: engine, hovering: false)
             inside = point.map { point in
                 engine.interactiveRects(for: current, layout: resting).contains { $0.contains(point) }
             } ?? false

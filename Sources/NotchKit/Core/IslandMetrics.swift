@@ -93,6 +93,7 @@ public enum IslandMetrics {
     public static let alertExpandedRadius: CGFloat = 30
     /// Concave shoulders where the shape meets the top edge, like the real notch.
     public static let compactFlare: CGFloat = 6
+    static let compactLyricsHeight: CGFloat = 20
     public static let expandedFlare: CGFloat = 10
     /// The bottom corners of a MacBook's notch, for the shape at rest on it.
     public static let restingNotchRadius: CGFloat = 9

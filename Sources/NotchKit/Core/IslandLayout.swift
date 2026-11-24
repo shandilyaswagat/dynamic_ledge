@@ -31,6 +31,23 @@ public struct IslandLayout: Equatable, Sendable {
     /// the shape's current one, so it bounces with it. Not animated.
     public var restingPill: CGRect
 
+    func compactLyricsFrame(below: Bool) -> CGRect {
+        let height = IslandMetrics.compactLyricsHeight * contentScale
+        let width: CGFloat
+        let centerY: CGFloat
+        if below {
+            width = min(canvasSize.width, max(pill.width, 340 * contentScale))
+            centerY = pill.maxY + 4 + height / 2
+        } else if notchBand > 0 {
+            width = max(1, content.width - 32 * contentScale)
+            centerY = (notchBand + restingPill.maxY) / 2
+        } else {
+            width = cameraGap
+            centerY = pill.midY
+        }
+        return CGRect(x: pill.midX - width / 2, y: centerY - height / 2, width: width, height: height)
+    }
+
     public init(
         canvasSize: CGSize,
         pill: CGRect,
@@ -376,7 +393,11 @@ public struct LayoutEngine: Equatable, Sendable {
     }
 
     public func layout(for presentation: IslandPresentation, home: HomeContent, hovering: Bool) -> IslandLayout {
-        var layout = notchLayout(for: presentation, home: home)
+        layout(for: presentation, home: home, hovering: hovering, lyricsInside: false)
+    }
+
+    func layout(for presentation: IslandPresentation, home: HomeContent, hovering: Bool, lyricsInside: Bool) -> IslandLayout {
+        var layout = notchLayout(for: presentation, home: home, lyricsInside: lyricsInside)
         layout.contentScale = scale
         layout.notchBand = isVirtualNotch ? 0 : notch.maxY
 
@@ -423,7 +444,7 @@ public struct LayoutEngine: Equatable, Sendable {
         return layout
     }
 
-    private func notchLayout(for presentation: IslandPresentation, home: HomeContent) -> IslandLayout {
+    private func notchLayout(for presentation: IslandPresentation, home: HomeContent, lyricsInside: Bool) -> IslandLayout {
         let centerX = anchorX
         let notch = notchInWindow
         let height = compactHeight
@@ -480,6 +501,10 @@ public struct LayoutEngine: Equatable, Sendable {
             layout.pill = shape(body: compactBodyWidth(for: primary), height: height, flare: IslandMetrics.compactFlare)
             layout.shadow = 0.3
             layout.content = layout.pill.insetBy(dx: IslandMetrics.compactFlare, dy: 0)
+            if primary == .nowPlaying, lyricsInside, !isVirtualNotch {
+                layout.pill.size.height = max(height, notch.maxY + (IslandMetrics.compactLyricsHeight * scale).rounded(.up))
+                layout.bottomRadius = min(layout.pill.height * 0.42, 16)
+            }
             layout.cameraGap = cameraGap
             if secondary != nil {
                 let diameter = bubbleDiameter

@@ -69,6 +69,39 @@ struct NotchLayoutTests {
         #expect(LayoutEngine(screen: screen, appearance: thin).compactHeight == 44)
     }
 
+    @Test func lyricsInsideExtendOnlyThePrimaryMusicShape() {
+        let music = IslandPresentation.compact(primary: .nowPlaying, secondary: .timer)
+        let standard = layout(music)
+        let home = HomeContent()
+        let preview = engine.layout(for: music, home: home, hovering: false, lyricsInside: true)
+        #expect(preview.pill.height == standard.pill.height + (IslandMetrics.compactLyricsHeight * engine.scale).rounded(.up))
+        #expect(preview.pill.width == standard.pill.width)
+        #expect(preview.content == standard.content)
+        #expect(preview.bubble == standard.bubble)
+        let lyrics = preview.compactLyricsFrame(below: false)
+        #expect(lyrics.minY >= preview.notchBand)
+        #expect(lyrics.midX == preview.pill.midX)
+
+        let timer = IslandPresentation.compact(primary: .timer, secondary: .nowPlaying)
+        #expect(engine.layout(for: timer, home: home, hovering: false, lyricsInside: true) == layout(timer))
+    }
+
+    @Test func lyricsLineIsCenteredInTheVirtualNotch() {
+        let external = ScreenMetrics(size: screen.size, notch: nil, menuBarHeight: screen.menuBarHeight)
+        let engine = LayoutEngine(screen: external, appearance: .standard)
+        let music = IslandPresentation.compact(primary: .nowPlaying, secondary: nil)
+        for hovering in [false, true] {
+            let preview = engine.layout(for: music, home: HomeContent(), hovering: hovering, lyricsInside: true)
+            #expect(preview == engine.layout(for: music, home: HomeContent(), hovering: hovering))
+            let lyrics = preview.compactLyricsFrame(below: false)
+            #expect(lyrics.midX == preview.pill.midX)
+            #expect(lyrics.midY == preview.pill.midY)
+            let subtitle = preview.compactLyricsFrame(below: true)
+            #expect(subtitle.midX == preview.pill.midX)
+            #expect(subtitle.minY == preview.pill.maxY + 4)
+        }
+    }
+
     @Test func widthSettingWidensTheEars() {
         var narrow = NotchAppearance.standard
         narrow.width = 120

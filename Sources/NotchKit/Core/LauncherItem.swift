@@ -14,6 +14,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
     case keepAwake
     case stats
     case aiUsage
+    case bluetooth
 
     public var id: String { rawValue }
 
@@ -32,6 +33,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .keepAwake: "Keep Awake"
         case .stats: "Stats"
         case .aiUsage: "AI Agent Usage"
+        case .bluetooth: "Bluetooth"
         }
     }
 
@@ -50,6 +52,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .keepAwake: "cup.and.saucer"
         case .stats: "gauge.with.dots.needle.33percent"
         case .aiUsage: "sparkles"
+        case .bluetooth: "battery.75percent"
         }
     }
 
@@ -69,6 +72,7 @@ public enum LauncherItem: String, CaseIterable, Sendable, Identifiable {
         case .keepAwake: "Z"
         case .stats: "P"
         case .aiUsage: "U"
+        case .bluetooth: "Y"
         }
     }
 

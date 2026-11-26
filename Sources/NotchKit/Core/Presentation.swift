@@ -157,6 +157,7 @@ public enum HomeTab: String, CaseIterable, Sendable, Codable, Hashable {
     case stats
     /// AI agent subscription and rate limit usage tracking.
     case aiUsage
+    case bluetooth
     /// The grid of everything the notch can do. Its Edit button picks the shortcuts beside Home.
     case launcher
 

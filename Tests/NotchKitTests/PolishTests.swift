@@ -231,6 +231,22 @@ struct StatsModelTests {
         #expect(model.presentation == .nook(.stats))
     }
 
+    @Test func homeShortcutOpensStatsOnDemand() {
+        let model = makeModel()
+        model.startTimer(60)
+        model.showTab(.home)
+        #expect(!model.settings.statsEnabled && !model.stats.isRunning)
+
+        model.openHomeShortcut(.stats)
+        #expect(model.presentation == .nook(.stats))
+        #expect(model.stats.detailed && model.stats.isRunning)
+        #expect(!model.settings.statsEnabled && model.timer.isActive)
+
+        model.showTab(.home)
+        #expect(!model.stats.detailed && !model.stats.isRunning)
+        model.cancelTimer()
+    }
+
     @Test func pausesBehindAnotherOpenView() {
         let model = makeModel()
         model.settings.statsEnabled = true

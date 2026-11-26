@@ -303,7 +303,7 @@ private struct FeatureShortcutBar: View {
                     isEditing: isEditing,
                     badge: item == .files && !isEditing ? model.tray.items.count : 0,
                     onTap: {
-                        if isEditing { remove(item) } else { model.open(item) }
+                        if isEditing { remove(item) } else { model.openHomeShortcut(item) }
                     },
                     onRemove: { remove(item) }
                 )

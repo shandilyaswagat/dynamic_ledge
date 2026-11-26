@@ -156,6 +156,7 @@ struct LauncherModelTests {
         }
         let reordered: [HomeDashboardWidget?] = [.calendar, .bluetooth, nil, nil, .stats, nil]
         #expect(settings.homeDashboard?.slots == reordered)
+        #expect(settings.homeDashboard?.populatedRows == [[.calendar, .bluetooth], [.stats]])
         #expect(model.homeContent.isEditingDashboard)
         model.finishEditingHomeDashboard()
         #expect(model.stats.isRunning && !settings.statsEnabled)
@@ -165,6 +166,13 @@ struct LauncherModelTests {
         model.showTab(.clipboard)
         #expect(!model.stats.isRunning)
         model.showTab(.home)
+        model.editHomeDashboard()
+        model.updateHomeDashboard {
+            $0 = HomeDashboardLayout(slots: [nil, nil, nil, nil, .calendar])
+        }
+        #expect(model.homeContent.dashboardRows == 2)
+        model.finishEditingHomeDashboard()
+        #expect(model.homeContent.dashboardRows == 1)
         model.editHomeDashboard()
         model.updateHomeDashboard { $0 = HomeDashboardLayout(slots: []) }
         #expect(SettingsStore(defaults: defaults).homeDashboard?.widgets == [])

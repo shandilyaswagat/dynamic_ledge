@@ -34,6 +34,11 @@ struct HomeDashboardLayout: Equatable {
     var rawValues: [String] { slots.map { $0?.rawValue ?? "" } }
     var widgets: [HomeDashboardWidget] { slots.compactMap { $0 } }
     var visibleRows: Int { slots.dropFirst(Self.columns).contains { $0 != nil } ? Self.rows : 1 }
+    var populatedRows: [[HomeDashboardWidget]] {
+        stride(from: 0, to: slots.count, by: Self.columns)
+            .map { slots[$0..<($0 + Self.columns)].compactMap { $0 } }
+            .filter { !$0.isEmpty }
+    }
 
     mutating func set(_ widget: HomeDashboardWidget?, at index: Int) {
         guard slots.indices.contains(index), widget == nil || !slots.contains(widget) else { return }

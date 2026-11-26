@@ -149,22 +149,22 @@ struct StandardHomeBody: View {
 
     private func customDashboard(_ layout: HomeDashboardLayout) -> some View {
         let gap = IslandMetrics.Nook.dashboardGap * s
-        let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: HomeDashboardLayout.columns)
-        return LazyVGrid(columns: columns, spacing: gap) {
-            ForEach(0..<(layout.visibleRows * HomeDashboardLayout.columns), id: \.self) { index in
-                Group {
-                    if let widget = layout.slots[index] {
+        let rows = layout.populatedRows
+        return VStack(spacing: gap) {
+            ForEach(rows.indices, id: \.self) { index in
+                let widgets = rows[index]
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: gap), count: widgets.count), spacing: gap) {
+                    ForEach(widgets) { widget in
                         dashboardCard(widget)
-                    } else {
-                        Color.clear.accessibilityHidden(true)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: IslandMetrics.Nook.body * s)
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: IslandMetrics.Nook.body * s)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .overlay {
-            if layout.widgets.isEmpty {
+            if rows.isEmpty {
                 Text("Add cards from Edit Home")
                     .font(.system(size: 13 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)

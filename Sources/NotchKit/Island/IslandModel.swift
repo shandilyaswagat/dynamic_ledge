@@ -396,7 +396,9 @@ public final class IslandModel {
     }
 
     var homeDashboardRows: Int {
-        guard let draft = homeDashboardDraft else { return settings.homeDashboard?.visibleRows ?? 1 }
+        guard let draft = homeDashboardDraft else {
+            return max(1, settings.homeDashboard?.populatedRows.count ?? 0)
+        }
         return homeDashboardEditorMode == .arranging ? draft.visibleRows : HomeDashboardLayout.rows
     }
 

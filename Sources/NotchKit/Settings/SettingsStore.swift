@@ -177,6 +177,16 @@ public final class SettingsStore {
     public var shortcutsEnabled: Bool { didSet { defaults.set(shortcutsEnabled, forKey: Key.shortcuts) } }
     /// Shortcut names pinned to the Home tab, in order.
     public var favoriteShortcuts: [String] { didSet { defaults.set(favoriteShortcuts, forKey: Key.favoriteShortcuts) } }
+    /// Nil uses the automatic Home layout. A layout can intentionally have empty slots.
+    var homeDashboard: HomeDashboardLayout? {
+        didSet {
+            if let homeDashboard {
+                defaults.set(homeDashboard.rawValues, forKey: Key.homeDashboard)
+            } else {
+                defaults.removeObject(forKey: Key.homeDashboard)
+            }
+        }
+    }
     /// Optional feature shortcuts beside the permanent Home shortcut, in display order.
     public var featureShortcuts: [LauncherItem] {
         didSet {
@@ -302,6 +312,7 @@ public final class SettingsStore {
         calendarEnabled = defaults.object(forKey: Key.calendar) as? Bool ?? true
         shortcutsEnabled = defaults.object(forKey: Key.shortcuts) as? Bool ?? true
         favoriteShortcuts = Array((defaults.stringArray(forKey: Key.favoriteShortcuts) ?? []).prefix(Self.maximumFavoriteShortcuts))
+        homeDashboard = defaults.stringArray(forKey: Key.homeDashboard).map(HomeDashboardLayout.init(rawValues:))
         if let saved = defaults.object(forKey: Key.featureShortcuts) as? [String] {
             featureShortcuts = FeatureShortcutSelection(rawValues: saved).items
         } else {
@@ -435,6 +446,7 @@ public final class SettingsStore {
         static let calendar = "home.calendar"
         static let shortcuts = "home.shortcuts"
         static let favoriteShortcuts = "home.favoriteShortcuts"
+        static let homeDashboard = "home.dashboardWidgets"
         static let featureShortcuts = "home.featureShortcuts"
         static let levels = "alert.levels"
     }

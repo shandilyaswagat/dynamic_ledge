@@ -53,7 +53,7 @@ public enum IslandMetrics {
         /// The line of lyrics in the music view, for songs that have timed lyrics.
         public static let lyrics: CGFloat = 30
         /// Tallest expanded content; sizes the window.
-        public static let maximum: CGFloat = max(agentRequest(lines: agentRequestLines), max(nowPlaying + lyrics + mediaSwitcher, max(Nook.launcherBody + Nook.bodyTopInset, Nook.aiUsageBody + Nook.bodyTopInset)))
+        public static let maximum: CGFloat = max(agentRequest(lines: agentRequestLines), nowPlaying + lyrics + mediaSwitcher, Nook.dashboardEditorBody + Nook.bodyTopInset)
     }
 
     /// The Home, Tray and Mirror tabs share one fixed-size "nook", like the paid notch apps:
@@ -62,6 +62,9 @@ public enum IslandMetrics {
         public static let width: CGFloat = 560
         /// Area below the tab header, which sits in the strip beside the camera.
         public static let body: CGFloat = 120
+        static let dashboardGap: CGFloat = 8
+        static let dashboardGridBody: CGFloat = 2 * body + dashboardGap
+        static let dashboardEditorBody: CGFloat = dashboardGridBody + 28
         /// Extra room between the strip and the body, so the body sits as far below
         /// the strip as it does above the bottom edge.
         public static let bodyTopInset: CGFloat = 10
@@ -146,8 +149,10 @@ public struct HomeContent: Equatable, Sendable {
     public var hasLyrics: Bool
     /// Clipboard's search bar is open below the clips.
     public var hasClipboardSearch: Bool
+    public var dashboardRows: Int
+    public var isEditingDashboard: Bool
 
-    public init(hasMedia: Bool = false, hasEvent: Bool = false, hasTimer: Bool = true, hasShortcuts: Bool = false, hasMediaSwitcher: Bool = false, hasLyrics: Bool = false, hasClipboardSearch: Bool = false) {
+    public init(hasMedia: Bool = false, hasEvent: Bool = false, hasTimer: Bool = true, hasShortcuts: Bool = false, hasMediaSwitcher: Bool = false, hasLyrics: Bool = false, hasClipboardSearch: Bool = false, dashboardRows: Int = 1, isEditingDashboard: Bool = false) {
         self.hasMedia = hasMedia
         self.hasEvent = hasEvent
         self.hasTimer = hasTimer
@@ -155,6 +160,8 @@ public struct HomeContent: Equatable, Sendable {
         self.hasMediaSwitcher = hasMediaSwitcher
         self.hasLyrics = hasLyrics
         self.hasClipboardSearch = hasClipboardSearch
+        self.dashboardRows = dashboardRows
+        self.isEditingDashboard = isEditingDashboard
     }
 
     /// Rows in the widget column (calendar, timer, shortcuts).

@@ -375,6 +375,10 @@ public struct LayoutEngine: Equatable, Sendable {
         case .nook(.launcher): IslandMetrics.Nook.launcherBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.aiUsage): IslandMetrics.Nook.aiUsageBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.calendar): IslandMetrics.Nook.calendarBody + IslandMetrics.Nook.bodyTopInset
+        case .nook(.home) where appearance.nookLayout != .elongated && home.isEditingDashboard:
+            IslandMetrics.Nook.dashboardEditorBody + IslandMetrics.Nook.bodyTopInset
+        case .nook(.home) where appearance.nookLayout != .elongated && home.dashboardRows > 1:
+            IslandMetrics.Nook.dashboardGridBody + IslandMetrics.Nook.bodyTopInset
         case .nook(.clipboard):
             IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset + (home.hasClipboardSearch ? IslandMetrics.Nook.searchBar : 0)
         case .nook: IslandMetrics.Nook.body + IslandMetrics.Nook.bodyTopInset

@@ -79,6 +79,30 @@ enum HomeSection: Hashable, Identifiable {
         }
         return Array(sections.prefix(maximum))
     }
+
+    @MainActor static func dashboardDefaults(for model: IslandModel) -> HomeDashboardLayout {
+        let widgets: [HomeDashboardWidget] = sections(for: model).flatMap { section in
+            switch section {
+            case .live(let items):
+                return items.compactMap { item -> HomeDashboardWidget? in
+                    switch item {
+                    case .music, .call: .music
+                    case .stats: .stats
+                    case .aiUsage: .aiUsage
+                    case .timer, .stopwatch: nil
+                    }
+                }
+            case .calendar: return [.calendar]
+            case .timer: return [.timer]
+            case .shortcuts: return [.shortcuts]
+            case .timerAndShortcuts: return [.timer, .shortcuts]
+            case .aiUsage: return [.aiUsage]
+            }
+        }
+        var seen = Set<HomeDashboardWidget>()
+        return HomeDashboardLayout(slots: widgets.filter { seen.insert($0).inserted }
+            .prefix(HomeDashboardLayout.columns).map(Optional.some))
+    }
 }
 
 struct StandardHomeBody: View {
@@ -86,8 +110,18 @@ struct StandardHomeBody: View {
     @Environment(\.notchScale) private var s
 
     var body: some View {
+        if let draft = model.homeDashboardDraft {
+            HomeDashboardEditor(model: model, layout: draft, preview: dashboardCard)
+        } else if let dashboard = model.settings.homeDashboard {
+            customDashboard(dashboard)
+        } else {
+            automaticLayout
+        }
+    }
+
+    private var automaticLayout: some View {
         let sections = HomeSection.sections(for: model)
-        HStack(alignment: .top, spacing: 0) {
+        return HStack(alignment: .top, spacing: 0) {
             ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                 if index > 0, case .live = sections[index - 1] {
                     Color.clear.frame(width: 14 * s)
@@ -111,6 +145,95 @@ struct StandardHomeBody: View {
             }
         }
         .animation(.spring(duration: 0.35, bounce: 0.15), value: sections)
+    }
+
+    private func customDashboard(_ layout: HomeDashboardLayout) -> some View {
+        let gap = IslandMetrics.Nook.dashboardGap * s
+        let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: HomeDashboardLayout.columns)
+        return LazyVGrid(columns: columns, spacing: gap) {
+            ForEach(0..<(layout.visibleRows * HomeDashboardLayout.columns), id: \.self) { index in
+                Group {
+                    if let widget = layout.slots[index] {
+                        dashboardCard(widget)
+                    } else {
+                        Color.clear.accessibilityHidden(true)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: IslandMetrics.Nook.body * s)
+            }
+        }
+        .overlay {
+            if layout.widgets.isEmpty {
+                Text("Add cards from Edit Home")
+                    .font(.system(size: 13 * s, weight: .medium))
+                    .foregroundStyle(NotchColor.secondaryText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dashboardCard(_ widget: HomeDashboardWidget) -> some View {
+        switch widget {
+        case .music where model.calls.session != nil && model.settings.callsEnabled:
+            LiveCard(model: model, item: .call, compact: false)
+        case .music where model.homeHasMedia:
+            LiveCard(model: model, item: .music, compact: false)
+        case .music:
+            dashboardMessage(widget, "Nothing playing")
+        case .calendar where model.showsCalendarRow:
+            dashboardSurface {
+                CalendarSection(model: model, calendar: model.calendar)
+            }
+        case .timer where model.settings.timerEnabled:
+            let active = model.activeActivities
+            let clocks: [HomeSection.LiveItem] = [.timer, .stopwatch].filter { active.contains($0.activity) }
+            dashboardSurface {
+                view(for: .timer(running: clocks))
+            }
+        case .shortcuts where !model.favoriteShortcuts.isEmpty:
+            dashboardSurface {
+                ShortcutsSection(model: model, compact: false)
+            }
+        case .stats:
+            LiveCard(model: model, item: .stats, compact: false)
+        case .bluetooth:
+            dashboardSurface {
+                VStack(alignment: .leading, spacing: 4 * s) {
+                    Button { model.showTab(.bluetooth) } label: {
+                        SectionHeader(symbol: widget.symbol, tint: NotchColor.blue, title: widget.title, showsChevron: true)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    BluetoothPanelBody(compact: true)
+                }
+            }
+        case .aiUsage where model.settings.aiUsageLive:
+            dashboardSurface {
+                view(for: .aiUsage)
+            }
+        case .shortcuts:
+            dashboardMessage(widget, "No favourite shortcuts")
+        case .calendar, .timer, .aiUsage:
+            dashboardMessage(widget, "Turn on in Settings")
+        }
+    }
+
+    private func dashboardMessage(_ widget: HomeDashboardWidget, _ message: LocalizedStringKey) -> some View {
+        dashboardSurface {
+            VStack(alignment: .leading, spacing: 8 * s) {
+                SectionHeader(symbol: widget.symbol, tint: NotchColor.blue, title: widget.title)
+                Text(message)
+                    .font(.system(size: 11 * s))
+                    .foregroundStyle(NotchColor.secondaryText)
+            }
+        }
+    }
+
+    private func dashboardSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(9 * s)
+            .sectionFrame()
+            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 16 * s))
     }
 
     @ViewBuilder
@@ -240,7 +363,7 @@ private struct LiveCard: View {
 
     /// Paused music can stay on Home after its own view has gone.
     private var opensFullView: Bool {
-        model.activeActivities.contains(item.activity)
+        item == .stats || model.activeActivities.contains(item.activity)
     }
 }
 

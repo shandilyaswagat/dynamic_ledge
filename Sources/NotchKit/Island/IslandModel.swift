@@ -42,6 +42,7 @@ public final class IslandModel {
     /// The grid is picking the shortcuts beside Home (started by holding a tile). Ends when
     /// anything else opens or the notch closes.
     public var isEditingShortcuts = false
+    private(set) var homeDashboardDraft: HomeDashboardLayout?
     public let hotKeys = HotKeys()
     public let updater = Updater()
     let usage = UsageReporter()
@@ -60,7 +61,11 @@ public final class IslandModel {
     public private(set) var expandTarget: ExpandTarget? {
         // Stats reads more while its panel is open, and starts reading when it's opened from the
         // grid while something else is in the notch.
-        didSet { if expandTarget != oldValue { syncStatsSampling() } }
+        didSet {
+            guard expandTarget != oldValue else { return }
+            if expandTarget != .home { homeDashboardDraft = nil }
+            syncStatsSampling()
+        }
     }
     public private(set) var preferredPrimary: ActivityKind?
     public private(set) var isHoveringPill = false
@@ -394,8 +399,34 @@ public final class IslandModel {
             hasShortcuts: !favoriteShortcuts.isEmpty,
             hasMediaSwitcher: !nowPlaying.otherSources.isEmpty,
             hasLyrics: showsLyrics,
-            hasClipboardSearch: isSearchingClipboard
+            hasClipboardSearch: isSearchingClipboard,
+            dashboardRows: settings.homeDashboard?.visibleRows ?? 1,
+            isEditingDashboard: homeDashboardDraft != nil
         )
+    }
+
+    func editHomeDashboard() {
+        homeDashboardDraft = settings.homeDashboard ?? HomeSection.dashboardDefaults(for: self)
+        syncStatsSampling()
+    }
+
+    func updateHomeDashboard(_ update: (inout HomeDashboardLayout) -> Void) {
+        guard var layout = homeDashboardDraft else { return }
+        update(&layout)
+        guard layout != homeDashboardDraft else { return }
+        homeDashboardDraft = layout
+        settings.homeDashboard = layout
+        syncStatsSampling()
+    }
+
+    func resetHomeDashboard() {
+        settings.homeDashboard = nil
+        editHomeDashboard()
+    }
+
+    func finishEditingHomeDashboard() {
+        homeDashboardDraft = nil
+        syncStatsSampling()
     }
 
     /// The saved shortcuts beside Home whose feature is switched on, in order. One switched off
@@ -563,7 +594,7 @@ public final class IslandModel {
                 pointerEnteredExpanded = true
                 collapseTask?.cancel()
                 collapseTask = nil
-            } else if pointerEnteredExpanded, settings.collapseOnPointerExit, expandTarget != nil, expandTarget != .notes {
+            } else if pointerEnteredExpanded, settings.collapseOnPointerExit, expandTarget != nil, expandTarget != .notes, homeDashboardDraft == nil {
                 scheduleCollapse()
             }
         }
@@ -1067,16 +1098,20 @@ public final class IslandModel {
     /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
     /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
+        let dashboardShowsStats = expandTarget == .home
+            && settings.appearance.nookLayout != .elongated
+            && (homeDashboardDraft != nil || settings.homeDashboard?.widgets.contains(.stats) == true)
         let detailed = expandTarget == .nook(.stats)
             || (settings.statsEnabled && expandTarget == .home && settings.appearance.nookLayout == .elongated)
         stats.detailed = detailed
-        guard settings.statsEnabled || detailed else {
+        guard settings.statsEnabled || detailed || dashboardShowsStats else {
             stats.stop()
             return
         }
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
         // shows it in its live section.
-        if detailed || (activeActivities.contains(.stats) && (expandTarget == nil || expandTarget == .home)) {
+        let automaticShowsStats = expandTarget == .home && (settings.homeDashboard == nil || settings.appearance.nookLayout == .elongated)
+        if detailed || dashboardShowsStats || (activeActivities.contains(.stats) && (expandTarget == nil || automaticShowsStats)) {
             stats.start()
         } else {
             stats.pause()

@@ -124,6 +124,42 @@ struct LauncherModelTests {
         model.keepAwake.turnOff()
     }
 
+    @Test func homeDashboardPersistsCardOrderAndSamplesStatsOnlyWhenShown() throws {
+        let defaults = try #require(UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)"))
+        let settings = SettingsStore(defaults: defaults)
+        let model = IslandModel(settings: settings, tray: TrayStore(folder: nil))
+
+        model.showTab(.home)
+        model.editHomeDashboard()
+        model.finishEditingHomeDashboard()
+        #expect(settings.homeDashboard == nil)
+
+        model.editHomeDashboard()
+        model.updateHomeDashboard {
+            $0 = HomeDashboardLayout(slots: [.stats, .bluetooth, nil, nil, .calendar])
+            $0.move(from: 0, horizontal: 1, vertical: 1)
+            $0.set(.stats, at: 5)
+        }
+        let reordered: [HomeDashboardWidget?] = [.calendar, .bluetooth, nil, nil, .stats, nil]
+        #expect(settings.homeDashboard?.slots == reordered)
+        #expect(model.homeContent.isEditingDashboard)
+        model.finishEditingHomeDashboard()
+        #expect(model.stats.isRunning && !settings.statsEnabled)
+        #expect(model.homeContent.dashboardRows == 2)
+        #expect(SettingsStore(defaults: defaults).homeDashboard?.slots == reordered)
+
+        model.showTab(.clipboard)
+        #expect(!model.stats.isRunning)
+        model.showTab(.home)
+        model.editHomeDashboard()
+        model.updateHomeDashboard { $0 = HomeDashboardLayout(slots: []) }
+        #expect(SettingsStore(defaults: defaults).homeDashboard?.widgets == [])
+        model.resetHomeDashboard()
+        #expect(SettingsStore(defaults: defaults).homeDashboard == nil)
+        model.collapse()
+        #expect(model.homeDashboardDraft == nil)
+    }
+
     @Test func featureShortcutsPersistAndOpenTheSameFeatures() {
         let defaults = UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)")!
         let settings = SettingsStore(defaults: defaults)

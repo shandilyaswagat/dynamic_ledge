@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BluetoothPanelBody: View {
+    var compact = false
     @Environment(\.notchScale) private var s
     @State private var snapshot: BluetoothBatterySnapshot?
 
@@ -20,9 +21,13 @@ struct BluetoothPanelBody: View {
                     emptyState("No connected Bluetooth devices")
                 } else {
                     ScrollView {
-                        VStack(spacing: 5 * s) {
+                        VStack(spacing: (compact ? 3 : 5) * s) {
                             ForEach(devices.indices, id: \.self) { index in
-                                deviceRow(devices[index])
+                                if compact {
+                                    compactRow(devices[index])
+                                } else {
+                                    deviceRow(devices[index])
+                                }
                             }
                         }
                     }
@@ -43,6 +48,28 @@ struct BluetoothPanelBody: View {
                 }
             }
         }
+    }
+
+    private func compactRow(_ device: BluetoothBatteryDevice) -> some View {
+        let name = device.name.isEmpty ? Text("Unnamed device") : Text(device.name)
+        let earpieces = [device.left, device.right].compactMap { $0 }
+        return HStack(spacing: 4 * s) {
+            name
+                .font(.system(size: 11 * s, weight: .medium))
+                .lineLimit(1)
+                .help(name)
+            Spacer(minLength: 0)
+            if let main = device.main {
+                batteryLevel(main, showsIcon: false)
+            } else if let lowest = earpieces.min() {
+                batteryLevel(lowest, label: "Earbuds", showsIcon: false)
+            } else if let chargingCase = device.chargingCase {
+                batteryLevel(chargingCase, label: "Case", showsIcon: false)
+            } else {
+                batteryLevel(nil, showsIcon: false)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func emptyState(_ title: LocalizedStringKey) -> some View {
@@ -90,13 +117,15 @@ struct BluetoothPanelBody: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func batteryLevel(_ level: Int?, label: LocalizedStringKey? = nil) -> some View {
+    private func batteryLevel(_ level: Int?, label: LocalizedStringKey? = nil, showsIcon: Bool = true) -> some View {
         VStack(alignment: .trailing, spacing: 3 * s) {
             if let level {
                 HStack(spacing: 5 * s) {
-                    Image(systemName: batterySymbol(at: level))
-                        .font(.system(size: 15 * s, weight: .medium))
-                        .accessibilityHidden(true)
+                    if showsIcon {
+                        Image(systemName: batterySymbol(at: level))
+                            .font(.system(size: 15 * s, weight: .medium))
+                            .accessibilityHidden(true)
+                    }
                     Text(Double(level) / 100, format: .percent.precision(.fractionLength(0)))
                         .font(.system(size: 13 * s, weight: .semibold).monospacedDigit())
                 }

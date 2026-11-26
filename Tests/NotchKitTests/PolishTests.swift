@@ -231,6 +231,22 @@ struct StatsModelTests {
         #expect(model.presentation == .nook(.stats))
     }
 
+    @Test func homeShortcutOpensStatsOnDemand() {
+        let model = makeModel()
+        model.startTimer(60)
+        model.showTab(.home)
+        #expect(!model.settings.statsEnabled && !model.stats.isRunning)
+
+        model.openHomeShortcut(.stats)
+        #expect(model.presentation == .nook(.stats))
+        #expect(model.stats.detailed && model.stats.isRunning)
+        #expect(!model.settings.statsEnabled && model.timer.isActive)
+
+        model.showTab(.home)
+        #expect(!model.stats.detailed && !model.stats.isRunning)
+        model.cancelTimer()
+    }
+
     @Test func pausesBehindAnotherOpenView() {
         let model = makeModel()
         model.settings.statsEnabled = true
@@ -525,7 +541,7 @@ struct GridPageTests {
         let pages = LauncherBody.pages(LauncherItem.allCases)
         #expect(LauncherBody.columns == 5)
         #expect(pages.count == 2)
-        #expect(pages[0].count == 10 && pages[1] == [.stats, .aiUsage])
+        #expect(pages[0].count == 10 && pages[1] == [.stats, .aiUsage, .bluetooth])
         #expect(LauncherBody.pages(Array(LauncherItem.allCases.prefix(4))).count == 1)
         #expect(LauncherBody.pages([]).count == 1, "an empty grid still has its page")
     }

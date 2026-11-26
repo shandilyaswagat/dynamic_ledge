@@ -441,7 +441,7 @@ public final class IslandModel {
             case .files: settings.trayEnabled
             case .scratchpad: settings.notesEnabled
             case .mirror: settings.mirrorEnabled
-            case .keepAwake, .stats: true
+            case .keepAwake, .stats, .bluetooth: true
             case .aiUsage: settings.aiUsageEnabled
             }
         }
@@ -460,7 +460,16 @@ public final class IslandModel {
         }
     }
 
-    /// A tile was clicked or its shortcut pressed.
+    /// Opens a pinned Home shortcut.
+    func openHomeShortcut(_ item: LauncherItem) {
+        if item == .stats {
+            showTab(.stats)
+        } else {
+            open(item)
+        }
+    }
+
+    /// A tile was clicked or its keyboard shortcut pressed.
     public func open(_ item: LauncherItem) {
         switch item {
         case .nowPlaying:
@@ -485,6 +494,7 @@ public final class IslandModel {
         case .files: showTab(.tray)
         case .scratchpad: showTab(.notes)
         case .mirror: showTab(.mirror)
+        case .bluetooth: showTab(.bluetooth)
         case .keepAwake:
             keepAwake.toggle()
             Haptics.perform(enabled: settings.hapticsEnabled)
@@ -1057,12 +1067,13 @@ public final class IslandModel {
     /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
     /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
-        guard settings.statsEnabled else {
+        let detailed = expandTarget == .nook(.stats)
+            || (settings.statsEnabled && expandTarget == .home && settings.appearance.nookLayout == .elongated)
+        stats.detailed = detailed
+        guard settings.statsEnabled || detailed else {
             stats.stop()
             return
         }
-        let detailed = expandTarget == .nook(.stats) || (expandTarget == .home && settings.appearance.nookLayout == .elongated)
-        stats.detailed = detailed
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
         // shows it in its live section.
         if detailed || (activeActivities.contains(.stats) && (expandTarget == nil || expandTarget == .home)) {
@@ -1175,7 +1186,6 @@ public final class IslandModel {
                 if case .notes = self.expandTarget, !self.settings.notesEnabled { self.collapse() }
                 if self.settings.remindersEnabled { self.reminders.start() } else { self.reminders.stop() }
                 self.syncStatsSampling()
-                if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
                 self.updater.installsAutomatically = self.settings.checksForUpdates && self.settings.installsUpdatesAutomatically
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }

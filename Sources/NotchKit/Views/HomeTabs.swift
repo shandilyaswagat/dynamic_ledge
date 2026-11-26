@@ -76,6 +76,7 @@ struct NookContainer<Content: View>: View {
         case .mirror: "Camera Mirror"
         case .stats: "Stats"
         case .aiUsage: "AI Agent Usage"
+        case .bluetooth: "Bluetooth"
         default: "Timer"
         }
     }
@@ -303,7 +304,7 @@ private struct FeatureShortcutBar: View {
                     isEditing: isEditing,
                     badge: item == .files && !isEditing ? model.tray.items.count : 0,
                     onTap: {
-                        if isEditing { remove(item) } else { model.open(item) }
+                        if isEditing { remove(item) } else { model.openHomeShortcut(item) }
                     },
                     onRemove: { remove(item) }
                 )
@@ -335,6 +336,7 @@ private struct FeatureShortcutBar: View {
         case .keepAwake: model.keepAwake.isOn
         case .stats: selectedTab == .stats
         case .aiUsage: selectedTab == .aiUsage
+        case .bluetooth: selectedTab == .bluetooth
         }
     }
 }

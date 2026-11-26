@@ -6,6 +6,12 @@ enum HomeDashboardWidget: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum HomeDashboardEditorMode: Equatable {
+    case arranging
+    case dragging
+    case choosing(slot: Int)
+}
+
 struct HomeDashboardLayout: Equatable {
     static let columns = 3
     static let rows = 2

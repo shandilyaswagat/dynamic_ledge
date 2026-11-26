@@ -5,36 +5,42 @@ struct HomeDashboardEditor<Preview: View>: View {
     let layout: HomeDashboardLayout
     let preview: (HomeDashboardWidget) -> Preview
     @Environment(\.notchScale) private var s
-    @State private var targetSlot: Int?
 
     private var gap: CGFloat { IslandMetrics.Nook.dashboardGap * s }
     private var cardHeight: CGFloat { IslandMetrics.Nook.body * s }
 
     @ViewBuilder
     var body: some View {
-        if let targetSlot {
-            cardPicker(for: targetSlot)
+        if case .choosing(let slot) = model.homeDashboardEditorMode {
+            cardPicker(for: slot)
         } else {
             editor
         }
     }
 
     private var editor: some View {
-        VStack(spacing: 7 * s) {
+        let rows = model.homeDashboardRows
+        return VStack(spacing: 7 * s) {
             GeometryReader { geometry in
                 let width = max(1, (geometry.size.width - 2 * gap) / CGFloat(HomeDashboardLayout.columns))
                 let columns = Array(repeating: GridItem(.fixed(width), spacing: gap), count: HomeDashboardLayout.columns)
                 LazyVGrid(columns: columns, spacing: gap) {
-                    ForEach(layout.slots.indices, id: \.self) { index in
+                    ForEach(0..<(rows * HomeDashboardLayout.columns), id: \.self) { index in
                         slot(at: index, width: width)
                     }
                 }
                 .animation(.smooth(duration: 0.22), value: layout)
             }
-            .frame(height: 2 * cardHeight + gap)
+            .frame(height: CGFloat(rows) * cardHeight + CGFloat(rows - 1) * gap)
             HStack {
-                Text("Drag cards between slots")
-                    .foregroundStyle(NotchColor.secondaryText)
+                if let firstEmpty = layout.slots.firstIndex(of: nil) {
+                    Button {
+                        model.setHomeDashboardEditorMode(.choosing(slot: firstEmpty))
+                    } label: {
+                        Label("Add Card", systemImage: "plus")
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
                 Spacer()
                 Button("Reset to Automatic") { model.resetHomeDashboard() }
                     .buttonStyle(PressableButtonStyle())
@@ -50,6 +56,7 @@ struct HomeDashboardEditor<Preview: View>: View {
             HomeDashboardDraggableCard(
                 widget: widget,
                 step: CGSize(width: width + gap, height: cardHeight + gap),
+                onDragChange: { model.setHomeDashboardDragging($0) },
                 onRemove: { model.updateHomeDashboard { $0.set(nil, at: index) } },
                 onMove: { horizontal, vertical in
                     model.updateHomeDashboard { $0.move(from: index, horizontal: horizontal, vertical: vertical) }
@@ -59,23 +66,16 @@ struct HomeDashboardEditor<Preview: View>: View {
             }
             .frame(width: width, height: cardHeight)
         } else {
-            Button {
-                targetSlot = index
-            } label: {
-                Label("Add Card", systemImage: "plus")
-                    .font(.system(size: 12 * s, weight: .semibold))
-                    .frame(width: width, height: cardHeight)
-                    .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 14 * s))
-                    .overlay {
+            Color.clear
+                .overlay {
+                    if model.homeDashboardEditorMode == .dragging {
                         RoundedRectangle(cornerRadius: 14 * s)
                             .strokeBorder(Color.white.opacity(0.20), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                            .allowsHitTesting(false)
                     }
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(PressableButtonStyle())
-            .accessibilityLabel(Text("Add Card"))
-            .accessibilityHint(Text("Row \(index / HomeDashboardLayout.columns + 1), column \(index % HomeDashboardLayout.columns + 1)"))
+                }
+                .frame(width: width, height: cardHeight)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 
@@ -86,7 +86,7 @@ struct HomeDashboardEditor<Preview: View>: View {
                 Text("Choose a card")
                     .font(.system(size: 12 * s, weight: .semibold))
                 Spacer()
-                Button("Cancel") { targetSlot = nil }
+                Button("Cancel") { model.setHomeDashboardEditorMode(.arranging) }
                     .buttonStyle(PressableButtonStyle())
                     .font(.system(size: 11 * s))
             }
@@ -95,7 +95,7 @@ struct HomeDashboardEditor<Preview: View>: View {
                     ForEach(HomeDashboardWidget.allCases.filter { !layout.widgets.contains($0) }) { widget in
                         Button {
                             model.updateHomeDashboard { $0.set(widget, at: index) }
-                            targetSlot = nil
+                            model.setHomeDashboardEditorMode(.arranging)
                         } label: {
                             preview(widget)
                                 .allowsHitTesting(false)
@@ -123,11 +123,12 @@ struct HomeDashboardEditor<Preview: View>: View {
 private struct HomeDashboardDraggableCard<Preview: View>: View {
     let widget: HomeDashboardWidget
     let step: CGSize
+    let onDragChange: (Bool) -> Void
     let onRemove: () -> Void
     let onMove: (Int, Int) -> Void
     @ViewBuilder let preview: () -> Preview
     @Environment(\.notchScale) private var s
-    @GestureState private var translation: CGSize = .zero
+    @GestureState private var translation: CGSize?
 
     var body: some View {
         preview()
@@ -135,7 +136,7 @@ private struct HomeDashboardDraggableCard<Preview: View>: View {
             .accessibilityHidden(true)
             .overlay {
                 RoundedRectangle(cornerRadius: 14 * s)
-                    .strokeBorder(Color.white.opacity(translation == .zero ? 0.14 : 0.50), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(translation == nil ? 0.14 : 0.50), lineWidth: 1)
                     .allowsHitTesting(false)
             }
             .overlay {
@@ -145,6 +146,7 @@ private struct HomeDashboardDraggableCard<Preview: View>: View {
                         DragGesture(minimumDistance: 5, coordinateSpace: .global)
                             .updating($translation) { value, offset, _ in offset = value.translation }
                             .onEnded { value in
+                                onDragChange(false)
                                 onMove(Int((value.translation.width / step.width).rounded()),
                                        Int((value.translation.height / step.height).rounded()))
                             }
@@ -168,8 +170,9 @@ private struct HomeDashboardDraggableCard<Preview: View>: View {
             .accessibilityAction(named: Text("Move right")) { onMove(1, 0) }
             .accessibilityAction(named: Text("Move up")) { onMove(0, -1) }
             .accessibilityAction(named: Text("Move down")) { onMove(0, 1) }
-            .offset(x: translation.width, y: translation.height)
-            .zIndex(translation == .zero ? 0 : 1)
+            .offset(x: translation?.width ?? 0, y: translation?.height ?? 0)
+            .zIndex(translation == nil ? 0 : 1)
+            .onChange(of: translation != nil) { _, isDragging in onDragChange(isDragging) }
     }
 }
 

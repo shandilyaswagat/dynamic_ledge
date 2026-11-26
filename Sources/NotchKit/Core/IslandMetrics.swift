@@ -64,7 +64,8 @@ public enum IslandMetrics {
         public static let body: CGFloat = 120
         static let dashboardGap: CGFloat = 8
         static let dashboardGridBody: CGFloat = 2 * body + dashboardGap
-        static let dashboardEditorBody: CGFloat = dashboardGridBody + 28
+        static let dashboardEditorControls: CGFloat = 28
+        static let dashboardEditorBody: CGFloat = dashboardGridBody + dashboardEditorControls
         /// Extra room between the strip and the body, so the body sits as far below
         /// the strip as it does above the bottom edge.
         public static let bodyTopInset: CGFloat = 10

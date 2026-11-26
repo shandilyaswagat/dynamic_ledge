@@ -43,6 +43,7 @@ public final class IslandModel {
     /// anything else opens or the notch closes.
     public var isEditingShortcuts = false
     private(set) var homeDashboardDraft: HomeDashboardLayout?
+    private(set) var homeDashboardEditorMode: HomeDashboardEditorMode = .arranging
     public let hotKeys = HotKeys()
     public let updater = Updater()
     let usage = UsageReporter()
@@ -63,7 +64,10 @@ public final class IslandModel {
         // grid while something else is in the notch.
         didSet {
             guard expandTarget != oldValue else { return }
-            if expandTarget != .home { homeDashboardDraft = nil }
+            if expandTarget != .home {
+                homeDashboardDraft = nil
+                homeDashboardEditorMode = .arranging
+            }
             syncStatsSampling()
         }
     }
@@ -391,6 +395,11 @@ public final class IslandModel {
         return settings.favoriteShortcuts
     }
 
+    var homeDashboardRows: Int {
+        guard let draft = homeDashboardDraft else { return settings.homeDashboard?.visibleRows ?? 1 }
+        return homeDashboardEditorMode == .arranging ? draft.visibleRows : HomeDashboardLayout.rows
+    }
+
     public var homeContent: HomeContent {
         HomeContent(
             hasMedia: homeHasMedia,
@@ -400,14 +409,25 @@ public final class IslandModel {
             hasMediaSwitcher: !nowPlaying.otherSources.isEmpty,
             hasLyrics: showsLyrics,
             hasClipboardSearch: isSearchingClipboard,
-            dashboardRows: settings.homeDashboard?.visibleRows ?? 1,
+            dashboardRows: homeDashboardRows,
             isEditingDashboard: homeDashboardDraft != nil
         )
     }
 
     func editHomeDashboard() {
         homeDashboardDraft = settings.homeDashboard ?? HomeSection.dashboardDefaults(for: self)
+        homeDashboardEditorMode = .arranging
         syncStatsSampling()
+    }
+
+    func setHomeDashboardEditorMode(_ mode: HomeDashboardEditorMode) {
+        guard homeDashboardDraft != nil else { return }
+        homeDashboardEditorMode = mode
+    }
+
+    func setHomeDashboardDragging(_ isDragging: Bool) {
+        guard homeDashboardEditorMode == (isDragging ? .arranging : .dragging) else { return }
+        setHomeDashboardEditorMode(isDragging ? .dragging : .arranging)
     }
 
     func updateHomeDashboard(_ update: (inout HomeDashboardLayout) -> Void) {
@@ -426,6 +446,7 @@ public final class IslandModel {
 
     func finishEditingHomeDashboard() {
         homeDashboardDraft = nil
+        homeDashboardEditorMode = .arranging
         syncStatsSampling()
     }
 

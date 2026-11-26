@@ -131,7 +131,21 @@ struct LauncherModelTests {
 
         model.showTab(.home)
         model.editHomeDashboard()
+        let engine = LayoutEngine(screen: .sample, appearance: .standard)
+        let compactHeight = engine.expandedContentHeight(for: .nook(.home), home: model.homeContent)
+        #expect(model.homeContent.dashboardRows == 1)
+        model.setHomeDashboardDragging(true)
+        #expect(model.homeContent.dashboardRows == 2)
+        let dragHeight = try #require(engine.expandedContentHeight(for: .nook(.home), home: model.homeContent))
+        #expect(dragHeight > (compactHeight ?? 0))
+        model.setHomeDashboardDragging(false)
+        #expect(engine.expandedContentHeight(for: .nook(.home), home: model.homeContent) == compactHeight)
+        model.setHomeDashboardEditorMode(.choosing(slot: 0))
+        #expect(model.homeContent.dashboardRows == 2)
+        model.setHomeDashboardDragging(false)
+        #expect(model.homeDashboardEditorMode == .choosing(slot: 0))
         model.finishEditingHomeDashboard()
+        #expect(model.homeDashboardEditorMode == .arranging)
         #expect(settings.homeDashboard == nil)
 
         model.editHomeDashboard()
@@ -156,8 +170,10 @@ struct LauncherModelTests {
         #expect(SettingsStore(defaults: defaults).homeDashboard?.widgets == [])
         model.resetHomeDashboard()
         #expect(SettingsStore(defaults: defaults).homeDashboard == nil)
+        model.setHomeDashboardDragging(true)
         model.collapse()
         #expect(model.homeDashboardDraft == nil)
+        #expect(model.homeDashboardEditorMode == .arranging)
     }
 
     @Test func featureShortcutsPersistAndOpenTheSameFeatures() {

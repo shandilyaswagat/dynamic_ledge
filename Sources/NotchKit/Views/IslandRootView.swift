@@ -308,6 +308,7 @@ struct NotchContent: View {
                 case .reminders: RemindersPanelBody(model: model)
                 case .stats: StatsPanelBody(model: model)
                 case .aiUsage: AIUsagePanelBody(model: model)
+                case .bluetooth: BluetoothPanelBody()
                 case .launcher: LauncherBody(model: model)
                 }
             }

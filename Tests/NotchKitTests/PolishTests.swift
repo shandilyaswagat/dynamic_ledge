@@ -525,7 +525,7 @@ struct GridPageTests {
         let pages = LauncherBody.pages(LauncherItem.allCases)
         #expect(LauncherBody.columns == 5)
         #expect(pages.count == 2)
-        #expect(pages[0].count == 10 && pages[1] == [.stats, .aiUsage])
+        #expect(pages[0].count == 10 && pages[1] == [.stats, .aiUsage, .bluetooth])
         #expect(LauncherBody.pages(Array(LauncherItem.allCases.prefix(4))).count == 1)
         #expect(LauncherBody.pages([]).count == 1, "an empty grid still has its page")
     }

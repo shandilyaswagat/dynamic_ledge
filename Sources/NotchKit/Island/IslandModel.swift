@@ -435,7 +435,7 @@ public final class IslandModel {
             case .files: settings.trayEnabled
             case .scratchpad: settings.notesEnabled
             case .mirror: settings.mirrorEnabled
-            case .keepAwake, .stats: true
+            case .keepAwake, .stats, .bluetooth: true
             case .aiUsage: settings.aiUsageEnabled
             }
         }
@@ -479,6 +479,7 @@ public final class IslandModel {
         case .files: showTab(.tray)
         case .scratchpad: showTab(.notes)
         case .mirror: showTab(.mirror)
+        case .bluetooth: showTab(.bluetooth)
         case .keepAwake:
             keepAwake.toggle()
             Haptics.perform(enabled: settings.hapticsEnabled)

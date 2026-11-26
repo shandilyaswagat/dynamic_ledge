@@ -2,7 +2,7 @@ import AppKit
 import Darwin
 import Observation
 
-/// Reads CPU, memory, disk and network every couple of seconds, only while Stats is switched on.
+/// Reads CPU, memory, disk and network every couple of seconds while Stats is visible.
 /// Every reading is a handful of cheap kernel calls; nothing is stored or sent anywhere.
 @MainActor
 @Observable

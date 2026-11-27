@@ -519,6 +519,13 @@ struct NowPlayingSettingsView: View {
                 IconToggle(title: "Now Playing", detail: "Music, podcasts and video from any app, or just the ones you pick", symbol: "music.note", color: .pink, isOn: $settings.nowPlayingEnabled)
                 if settings.nowPlayingEnabled {
                     IconToggle(title: "Lyrics", detail: "Timed lyrics under the song, when available. The song name and artist are looked up on lrclib.net", symbol: "quote.bubble.fill", color: .pink, isOn: $settings.lyricsEnabled)
+                    if settings.lyricsEnabled {
+                        Picker("Lyrics preview", selection: $settings.lyricsPreviewMode) {
+                            Text("Off").tag(LyricsPreviewMode.off)
+                            Text("Inside notch").tag(LyricsPreviewMode.inside)
+                            Text("Below notch").tag(LyricsPreviewMode.below)
+                        }
+                    }
                     if SystemAudioTap.isSupported {
                         IconToggle(title: "Live music bars", detail: "The bars move with the music. Dynamic Ledge measures your Mac's sound while something plays; nothing is recorded or sent. macOS asks for access once", symbol: "waveform", color: .pink, isOn: $settings.liveMusicBars)
                     }

@@ -120,6 +120,7 @@ struct LyricsLine: View {
     let service: NowPlayingService
     var size: CGFloat
     var alignment: Alignment = .center
+    var showsInstrumentalNote = true
 
     var body: some View {
         let info = service.info
@@ -128,7 +129,7 @@ struct LyricsLine: View {
             let index = info?.elapsed(at: context.date).flatMap { lyrics.index(at: $0 + 0.3) }
             let text = index.map { lyrics.lines[$0].text } ?? ""
             ZStack {
-                Text(text.isEmpty ? "♪" : text)
+                Text(text.isEmpty && showsInstrumentalNote ? "♪" : text)
                     .font(.system(size: size, weight: .semibold))
                     .foregroundStyle(text.isEmpty ? NotchColor.secondaryText : .white)
                     .lineLimit(1)

@@ -381,12 +381,21 @@ public struct AIUsageHomeWidget: View {
     let aiUsage: AIUsageService
     let settings: SettingsStore
     let onOpen: () -> Void
+    private var detailColumns = 1
+    private var detailRows = 0
     @Environment(\.notchScale) private var s
 
     public init(aiUsage: AIUsageService, settings: SettingsStore, onOpen: @escaping () -> Void) {
         self.aiUsage = aiUsage
         self.settings = settings
         self.onOpen = onOpen
+    }
+
+    func dashboardDetails(columns: Int, rows: Int) -> Self {
+        var widget = self
+        widget.detailColumns = columns
+        widget.detailRows = rows
+        return widget
     }
 
     public var body: some View {
@@ -440,12 +449,50 @@ public struct AIUsageHomeWidget: View {
                             .foregroundStyle(NotchColor.secondaryText)
                     }
                 }
+                .lineLimit(1)
+
+                if detailRows > 0 {
+                    quotaDetails(visible)
+                }
             }
             .padding(8 * s)
             .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8 * s))
             .overlay(RoundedRectangle(cornerRadius: 8 * s).strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
         }
         .buttonStyle(.plain)
+    }
+
+    private func quotaDetails(_ usages: [AIProviderUsage]) -> some View {
+        let quotas = usages.flatMap { usage in
+            usage.windows.compactMap { window in
+                window.remainingPercent.map {
+                    Quota(id: usage.id + ":" + window.id, title: "\(usage.provider.shortName) · \(window.name)", remaining: $0)
+                }
+            }
+        }
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: detailColumns),
+                         alignment: .leading, spacing: 6 * s) {
+            ForEach(quotas.prefix(detailColumns * detailRows)) { quota in
+                HStack(spacing: 4 * s) {
+                    Text(quota.title)
+                        .foregroundStyle(NotchColor.secondaryText)
+                    Spacer(minLength: 2 * s)
+                    Text("\(Int(quota.remaining.rounded()))%")
+                        .monospacedDigit()
+                        .foregroundStyle(quota.remaining > 25 ? NotchColor.green : NotchColor.yellow)
+                        .fixedSize()
+                }
+                .font(.system(size: 10 * s, weight: .medium))
+                .lineLimit(1)
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    private struct Quota: Identifiable {
+        let id: String
+        let title: String
+        let remaining: Double
     }
 }
 

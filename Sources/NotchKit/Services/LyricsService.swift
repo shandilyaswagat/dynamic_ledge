@@ -23,6 +23,12 @@ public final class LyricsService {
         self.session = session
     }
 
+    func current(for info: NowPlayingInfo) -> SyncedLyrics? {
+        // The new player info can arrive before the song-change observer clears the old lyrics.
+        guard let current, LyricsLookup.Key(info) == currentKey else { return nil }
+        return current
+    }
+
     /// Call when the song changes. Pass nil (or switch lyrics off) to clear.
     public func update(for info: NowPlayingInfo?, enabled: Bool) {
         let key = enabled ? info.flatMap(LyricsLookup.Key.init) : nil

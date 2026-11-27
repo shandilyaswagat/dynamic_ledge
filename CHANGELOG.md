@@ -7,6 +7,9 @@ last one.
 
 ## [Unreleased]
 
+### Added
+- **Lyrics preview.** Show synced lyrics inside or below the compact notch in Settings › General › Now Playing.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added

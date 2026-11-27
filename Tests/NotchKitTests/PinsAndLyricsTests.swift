@@ -118,6 +118,16 @@ struct TrayPinTests {
 
 @Suite("Lyrics")
 struct LyricsTests {
+    @MainActor @Test func compactLyricsPreviewDefaultsOffAndPersists() {
+        let defaults = isolatedDefaults()
+        let settings = SettingsStore(defaults: defaults)
+        #expect(settings.lyricsPreviewMode == .off)
+        settings.lyricsPreviewMode = .inside
+        #expect(SettingsStore(defaults: defaults).lyricsPreviewMode == .inside)
+        settings.lyricsPreviewMode = .below
+        #expect(SettingsStore(defaults: defaults).lyricsPreviewMode == .below)
+    }
+
     @Test func parsesTimedLines() throws {
         let lyrics = try #require(SyncedLyrics(lrc: """
         [ar:Someone]

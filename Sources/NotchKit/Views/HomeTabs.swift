@@ -37,7 +37,10 @@ struct NookContainer<Content: View>: View {
                 Color.clear
                     .frame(width: cameraGap + 12 * s)
                 HStack(spacing: 4 * s) {
-                    if model.isEditingShortcuts {
+                    if tab == .home, model.homeDashboardDraft != nil, isStandardHome {
+                        DoneButton { model.finishEditingHomeDashboard() }
+                            .accessibilityLabel(Text("Done editing Home"))
+                    } else if model.isEditingShortcuts {
                         // How many are picked, so the limit is clear before it's hit.
                         Text("\(model.featureShortcuts.count) of \(SettingsStore.maximumFeatureShortcuts)")
                             .font(.system(size: 11 * s, weight: .medium))
@@ -52,6 +55,20 @@ struct NookContainer<Content: View>: View {
                             ActivitySwitcher(model: model, current: current)
                         }
                         UpdatePill(model: model)
+                        if tab == .home, isStandardHome {
+                            Button {
+                                model.editHomeDashboard()
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 12 * s, weight: .semibold))
+                                    .foregroundStyle(NotchColor.secondaryText)
+                                    .frame(width: 26 * s, height: 22 * s)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            .help("Edit Home")
+                            .accessibilityLabel(Text("Edit Home"))
+                        }
                         LauncherButton(model: model, isOpen: tab == .launcher)
                         SettingsButton(model: model)
                     }
@@ -68,6 +85,8 @@ struct NookContainer<Content: View>: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
+    private var isStandardHome: Bool { model.settings.appearance.nookLayout != .elongated }
+
     private static func panelTitle(_ tab: HomeTab) -> LocalizedStringKey {
         switch tab {
         case .calendar: "Calendar"
@@ -76,6 +95,7 @@ struct NookContainer<Content: View>: View {
         case .mirror: "Camera Mirror"
         case .stats: "Stats"
         case .aiUsage: "AI Agent Usage"
+        case .bluetooth: "Bluetooth"
         default: "Timer"
         }
     }
@@ -303,7 +323,7 @@ private struct FeatureShortcutBar: View {
                     isEditing: isEditing,
                     badge: item == .files && !isEditing ? model.tray.items.count : 0,
                     onTap: {
-                        if isEditing { remove(item) } else { model.open(item) }
+                        if isEditing { remove(item) } else { model.openHomeShortcut(item) }
                     },
                     onRemove: { remove(item) }
                 )
@@ -335,6 +355,7 @@ private struct FeatureShortcutBar: View {
         case .keepAwake: model.keepAwake.isOn
         case .stats: selectedTab == .stats
         case .aiUsage: selectedTab == .aiUsage
+        case .bluetooth: selectedTab == .bluetooth
         }
     }
 }

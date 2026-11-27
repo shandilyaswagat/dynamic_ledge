@@ -42,6 +42,8 @@ public final class IslandModel {
     /// The grid is picking the shortcuts beside Home (started by holding a tile). Ends when
     /// anything else opens or the notch closes.
     public var isEditingShortcuts = false
+    private(set) var homeDashboardDraft: HomeDashboardLayout?
+    private(set) var homeDashboardEditorMode: HomeDashboardEditorMode = .arranging
     public let hotKeys = HotKeys()
     public let updater = Updater()
     let usage = UsageReporter()
@@ -60,7 +62,14 @@ public final class IslandModel {
     public private(set) var expandTarget: ExpandTarget? {
         // Stats reads more while its panel is open, and starts reading when it's opened from the
         // grid while something else is in the notch.
-        didSet { if expandTarget != oldValue { syncStatsSampling() } }
+        didSet {
+            guard expandTarget != oldValue else { return }
+            if expandTarget != .home {
+                homeDashboardDraft = nil
+                homeDashboardEditorMode = .arranging
+            }
+            syncStatsSampling()
+        }
     }
     public private(set) var preferredPrimary: ActivityKind?
     public private(set) var isHoveringPill = false
@@ -312,7 +321,7 @@ public final class IslandModel {
 
     public func layout(onDisplay id: UInt32, metrics: ScreenMetrics) -> IslandLayout {
         if id == activeDisplayID { return layout }
-        return engine(for: metrics).layout(for: presentation(onDisplay: id), home: homeContent, hovering: false)
+        return layout(for: presentation(onDisplay: id), using: engine(for: metrics), hovering: false)
     }
 
     public var activeActivities: Set<ActivityKind> {
@@ -360,6 +369,12 @@ public final class IslandModel {
         settings.nowPlayingEnabled && settings.lyricsEnabled && lyrics.current != nil && nowPlaying.selectedSource == nil
     }
 
+    var compactLyrics: SyncedLyrics? {
+        guard settings.lyricsPreviewMode != .off, showsLyrics,
+              let info = nowPlaying.info, info.isPlaying, info.elapsed != nil else { return nil }
+        return lyrics.current(for: info)
+    }
+
     public var homeHasMedia: Bool {
         settings.nowPlayingEnabled && nowPlaying.info?.hasContent == true
     }
@@ -380,6 +395,13 @@ public final class IslandModel {
         return settings.favoriteShortcuts
     }
 
+    var homeDashboardRows: Int {
+        guard let draft = homeDashboardDraft else {
+            return max(1, settings.homeDashboard?.occupiedRows ?? 0)
+        }
+        return homeDashboardEditorMode == .arranging ? max(1, draft.extentRows) : HomeDashboardLayout.rows
+    }
+
     public var homeContent: HomeContent {
         HomeContent(
             hasMedia: homeHasMedia,
@@ -388,8 +410,46 @@ public final class IslandModel {
             hasShortcuts: !favoriteShortcuts.isEmpty,
             hasMediaSwitcher: !nowPlaying.otherSources.isEmpty,
             hasLyrics: showsLyrics,
-            hasClipboardSearch: isSearchingClipboard
+            hasClipboardSearch: isSearchingClipboard,
+            dashboardRows: homeDashboardRows,
+            isEditingDashboard: homeDashboardDraft != nil
         )
+    }
+
+    func editHomeDashboard() {
+        homeDashboardDraft = settings.homeDashboard ?? HomeSection.dashboardDefaults(for: self)
+        homeDashboardEditorMode = .arranging
+        syncStatsSampling()
+    }
+
+    func setHomeDashboardEditorMode(_ mode: HomeDashboardEditorMode) {
+        guard homeDashboardDraft != nil else { return }
+        homeDashboardEditorMode = mode
+    }
+
+    func setHomeDashboardDragging(_ isDragging: Bool) {
+        guard homeDashboardEditorMode == (isDragging ? .arranging : .dragging) else { return }
+        setHomeDashboardEditorMode(isDragging ? .dragging : .arranging)
+    }
+
+    func updateHomeDashboard(_ update: (inout HomeDashboardLayout) -> Void) {
+        guard var layout = homeDashboardDraft else { return }
+        update(&layout)
+        guard layout != homeDashboardDraft else { return }
+        homeDashboardDraft = layout
+        settings.homeDashboard = layout
+        syncStatsSampling()
+    }
+
+    func resetHomeDashboard() {
+        settings.homeDashboard = nil
+        editHomeDashboard()
+    }
+
+    func finishEditingHomeDashboard() {
+        homeDashboardDraft = nil
+        homeDashboardEditorMode = .arranging
+        syncStatsSampling()
     }
 
     /// The saved shortcuts beside Home whose feature is switched on, in order. One switched off
@@ -435,7 +495,7 @@ public final class IslandModel {
             case .files: settings.trayEnabled
             case .scratchpad: settings.notesEnabled
             case .mirror: settings.mirrorEnabled
-            case .keepAwake, .stats: true
+            case .keepAwake, .stats, .bluetooth: true
             case .aiUsage: settings.aiUsageEnabled
             }
         }
@@ -454,7 +514,16 @@ public final class IslandModel {
         }
     }
 
-    /// A tile was clicked or its shortcut pressed.
+    /// Opens a pinned Home shortcut.
+    func openHomeShortcut(_ item: LauncherItem) {
+        if item == .stats {
+            showTab(.stats)
+        } else {
+            open(item)
+        }
+    }
+
+    /// A tile was clicked or its keyboard shortcut pressed.
     public func open(_ item: LauncherItem) {
         switch item {
         case .nowPlaying:
@@ -479,6 +548,7 @@ public final class IslandModel {
         case .files: showTab(.tray)
         case .scratchpad: showTab(.notes)
         case .mirror: showTab(.mirror)
+        case .bluetooth: showTab(.bluetooth)
         case .keepAwake:
             keepAwake.toggle()
             Haptics.perform(enabled: settings.hapticsEnabled)
@@ -496,7 +566,12 @@ public final class IslandModel {
     }
 
     public var layout: IslandLayout {
-        engine.layout(for: presentation, home: homeContent, hovering: isHoveringPill)
+        layout(for: presentation, using: engine, hovering: isHoveringPill)
+    }
+
+    private func layout(for presentation: IslandPresentation, using engine: LayoutEngine, hovering: Bool) -> IslandLayout {
+        let lyricsInside = settings.lyricsPreviewMode == .inside && compactLyrics != nil
+        return engine.layout(for: presentation, home: homeContent, hovering: hovering, lyricsInside: lyricsInside)
     }
 
     // MARK: Pointer
@@ -513,7 +588,7 @@ public final class IslandModel {
             // The usual state: no layout to work out, just the notch's spot.
             inside = point.map(engine.notchHoverRect.contains) ?? false
         } else {
-            let resting = engine.layout(for: current, home: homeContent, hovering: false)
+            let resting = layout(for: current, using: engine, hovering: false)
             inside = point.map { point in
                 engine.interactiveRects(for: current, layout: resting).contains { $0.contains(point) }
             } ?? false
@@ -542,7 +617,7 @@ public final class IslandModel {
                 pointerEnteredExpanded = true
                 collapseTask?.cancel()
                 collapseTask = nil
-            } else if pointerEnteredExpanded, settings.collapseOnPointerExit, expandTarget != nil, expandTarget != .notes {
+            } else if pointerEnteredExpanded, settings.collapseOnPointerExit, expandTarget != nil, expandTarget != .notes, homeDashboardDraft == nil {
                 scheduleCollapse()
             }
         }
@@ -1043,18 +1118,23 @@ public final class IslandModel {
     }
 
     /// Stats reads the system only while it's showing; music, a timer or another open view
-    /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
-    /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
+    /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel, the
+    /// elongated Home's Stats widget or a Stats card on Home is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
-        guard settings.statsEnabled else {
+        let dashboardShowsStats = expandTarget == .home
+            && settings.appearance.nookLayout != .elongated
+            && (homeDashboardDraft != nil || settings.homeDashboard?.widgets.contains(.stats) == true)
+        let detailed = expandTarget == .nook(.stats) || dashboardShowsStats
+            || (settings.statsEnabled && expandTarget == .home && settings.appearance.nookLayout == .elongated)
+        stats.detailed = detailed
+        guard settings.statsEnabled || detailed || dashboardShowsStats else {
             stats.stop()
             return
         }
-        let detailed = expandTarget == .nook(.stats) || (expandTarget == .home && settings.appearance.nookLayout == .elongated)
-        stats.detailed = detailed
         // Behind an open view the readout isn't showing, so there's nothing to update. Home
         // shows it in its live section.
-        if detailed || (activeActivities.contains(.stats) && (expandTarget == nil || expandTarget == .home)) {
+        let automaticShowsStats = expandTarget == .home && (settings.homeDashboard == nil || settings.appearance.nookLayout == .elongated)
+        if detailed || dashboardShowsStats || (activeActivities.contains(.stats) && (expandTarget == nil || automaticShowsStats)) {
             stats.start()
         } else {
             stats.pause()
@@ -1164,7 +1244,6 @@ public final class IslandModel {
                 if case .notes = self.expandTarget, !self.settings.notesEnabled { self.collapse() }
                 if self.settings.remindersEnabled { self.reminders.start() } else { self.reminders.stop() }
                 self.syncStatsSampling()
-                if !self.settings.statsEnabled, case .nook(.stats) = self.expandTarget { self.collapse() }
                 if self.settings.keyboardShortcutsEnabled { self.hotKeys.register() } else { self.hotKeys.unregister() }
                 self.updater.installsAutomatically = self.settings.checksForUpdates && self.settings.installsUpdatesAutomatically
                 if self.settings.checksForUpdates { self.updater.startAutomaticChecks() } else { self.updater.stopAutomaticChecks() }

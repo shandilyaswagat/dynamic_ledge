@@ -34,6 +34,7 @@ The shape is fused to the top edge of the screen and grows out of the notch.
 | Compact | notch + 2 × ear, height = max(thickness, notch height) | shoulders 6, bottom min(0.42 × h, 14) |
 | Ear width | `round(h × 1.15) + (width − 180) / 2`, at least 80 % of that slot | — |
 | Music ear | slimmer, like the Dynamic Island: max(round(h × 1.03), ear − 14), never wider than the ear (33 at the usual settings, so 245 wide on a 179 pt notch) | — |
+| Lyrics preview | centered between the artwork and bars on a virtual notch, or in a separate row below a physical camera. Subtitle mode sits 4 pt below the shape | compact music corners |
 | Alert | notch + 2 × max(ear, 128), compact height + 6 | shoulders 6, bottom min(0.42 × h, 16) |
 | Expanded | width max(clamp(width + 190, 360, 560), compact + 40); height = notch + 2 + content + 14. Open music is 1.79 × its height wide (the Dynamic Island player's 321 × 179) | shoulders 10, continuous bottom 46 (approvals and other open alerts 30) |
 | Minimal bubble | as tall as the compact shape and square, with the shape's own corners: a flat top on the edge and the notch's bottom radius in Notch style, a circle 6 pt right of the pill in Pill style; 4 pt right of the shoulder's tip. It slides out of (and back into) the shape's right side at full height, and its symbol fades in 0.12 s later | — |

@@ -111,12 +111,141 @@ struct LauncherModelTests {
         #expect(model.presentation == .notes)
         model.open(.reminders)
         #expect(model.presentation == .nook(.reminders))
+        #expect(model.launcherItems.contains(.bluetooth))
+        #expect(model.addFeatureShortcut(.bluetooth))
+        #expect(model.featureShortcuts.contains(.bluetooth))
+        model.open(.bluetooth)
+        #expect(model.presentation == .nook(.bluetooth))
         model.open(.stopwatch)
         #expect(model.presentation == .nook(.timers))
         #expect(model.timerPanelMode == .stopwatch)
         model.open(.keepAwake)
         #expect(model.keepAwake.isOn && model.isLive(.keepAwake))
         model.keepAwake.turnOff()
+    }
+
+    @Test func homeDashboardPersistsCardOrderAndSamplesStatsOnlyWhenShown() throws {
+        let defaults = try #require(UserDefaults(suiteName: "NotchTests-\(UUID().uuidString)"))
+        let settings = SettingsStore(defaults: defaults)
+        let model = IslandModel(settings: settings, tray: TrayStore(folder: nil))
+
+        model.showTab(.home)
+        model.editHomeDashboard()
+        let engine = LayoutEngine(screen: .sample, appearance: .standard)
+        let compactHeight = engine.expandedContentHeight(for: .nook(.home), home: model.homeContent)
+        #expect(model.homeContent.dashboardRows == 1)
+        model.setHomeDashboardDragging(true)
+        #expect(model.homeContent.dashboardRows == 2)
+        let dragHeight = try #require(engine.expandedContentHeight(for: .nook(.home), home: model.homeContent))
+        #expect(dragHeight > (compactHeight ?? 0))
+        model.setHomeDashboardDragging(false)
+        #expect(engine.expandedContentHeight(for: .nook(.home), home: model.homeContent) == compactHeight)
+        model.setHomeDashboardEditorMode(.choosing)
+        #expect(model.homeContent.dashboardRows == 2)
+        model.setHomeDashboardDragging(false)
+        #expect(model.homeDashboardEditorMode == .choosing)
+        model.finishEditingHomeDashboard()
+        #expect(model.homeDashboardEditorMode == .arranging)
+        #expect(settings.homeDashboard == nil)
+
+        model.editHomeDashboard()
+        model.updateHomeDashboard {
+            // Six fixed slots, as earlier builds saved them, become cards a third of Home wide.
+            $0 = HomeDashboardLayout(rawValues: ["stats", "bluetooth", "", "", "calendar", ""])
+            #expect($0.rawValues == ["stats:0:0:2:1", "bluetooth:2:0:2:1", "calendar:2:1:2:1"])
+            $0.move(.calendar, toColumn: 9, row: 0)
+            $0.resize(.calendar, width: 2, height: 2)
+            // A card dropped onto another trades places with it.
+            $0.move(.stats, toColumn: 2, row: 0)
+            #expect($0.rawValues == ["stats:2:0:2:1", "bluetooth:0:0:2:1", "calendar:4:0:2:2"])
+            $0.add(.stats)
+            $0.add(.timer)
+            #expect($0.card(for: .timer) == HomeDashboardCard(widget: .timer, column: 0, row: 1, width: 2, height: 1))
+            $0.remove(.timer)
+            // A card grown over others pushes them to the nearest room, smaller if need be.
+            $0.resize(.bluetooth, width: 9, height: 1)
+            // With nowhere for the others to go, nothing moves.
+            let grewWithNoRoom = $0.resize(.bluetooth, width: 6, height: 2)
+            #expect(!grewWithNoRoom)
+        }
+        let arranged = ["stats:2:1:2:1", "bluetooth:0:0:6:1", "calendar:4:1:2:1"]
+        #expect(settings.homeDashboard?.rawValues == arranged)
+        #expect(model.homeContent.isEditingDashboard)
+        model.finishEditingHomeDashboard()
+        #expect(model.stats.isRunning && !settings.statsEnabled)
+        // A Stats card can be made wide enough for disk and network, so those are read too.
+        #expect(model.stats.detailed)
+        #expect(model.homeContent.dashboardRows == 2)
+        #expect(SettingsStore(defaults: defaults).homeDashboard == settings.homeDashboard)
+
+        // Each step of a drag starts from the layout it began with, so a card carried back
+        // to where it started has to count as placed, and put the others back with it.
+        let start = HomeDashboardLayout(rawValues: arranged)
+        var dragged = start
+        #expect(dragged.move(.stats, toColumn: 4, row: 1) && dragged != start)
+        dragged = start
+        #expect(dragged.move(.stats, toColumn: 2, row: 1) && dragged == start)
+
+        // Home closes up empty rows while keeping saved columns.
+        let sparse = HomeDashboardLayout(rawValues: ["music:0:1:2:1", "calendar:4:1:2:1"])
+        let frames = sparse.frames(in: 208, rowHeight: 100, gap: 8, presentation: .home)
+        #expect(frames[.music] == CGRect(x: 0, y: 0, width: 64, height: 100))
+        #expect(frames[.calendar] == CGRect(x: 144, y: 0, width: 64, height: 100))
+
+        model.showTab(.clipboard)
+        #expect(!model.stats.isRunning && !model.stats.detailed)
+        model.showTab(.home)
+        model.editHomeDashboard()
+        model.updateHomeDashboard { $0 = sparse }
+        #expect(model.homeContent.dashboardRows == 2)
+        model.finishEditingHomeDashboard()
+        #expect(model.homeContent.dashboardRows == 1)
+        model.editHomeDashboard()
+        model.updateHomeDashboard { $0 = HomeDashboardLayout() }
+        #expect(SettingsStore(defaults: defaults).homeDashboard?.widgets == [])
+        model.resetHomeDashboard()
+        #expect(SettingsStore(defaults: defaults).homeDashboard == nil)
+        model.setHomeDashboardDragging(true)
+        model.collapse()
+        #expect(model.homeDashboardDraft == nil)
+        #expect(model.homeDashboardEditorMode == .arranging)
+    }
+
+    @Test func homeDashboardKeepsSavedColumnsAroundSpanningCards() {
+        let layout = HomeDashboardLayout(rawValues: ["stats:0:0:6:1", "music:0:1:2:1", "timer:2:1:2:1"])
+        let home = layout.frames(in: 472, rowHeight: 100, gap: 8, presentation: .home)
+        #expect(home[.stats] == CGRect(x: 0, y: 0, width: 472, height: 100))
+        #expect(home[.music] == CGRect(x: 0, y: 108, width: 152, height: 100))
+        #expect(home[.timer] == CGRect(x: 160, y: 108, width: 152, height: 100))
+
+        let spanning = HomeDashboardLayout(rawValues: ["stats:2:0:2:2", "music:0:0:2:1", "timer:4:1:2:1"])
+        let frames = spanning.frames(in: 472, rowHeight: 100, gap: 8, presentation: .home)
+        #expect(frames[.stats] == CGRect(x: 160, y: 0, width: 152, height: 208))
+        #expect(frames[.music]?.maxX == 152)
+        #expect(frames[.timer]?.minX == 320)
+    }
+
+    @Test func homeDashboardEditorKeepsCardWidthAfterResize() {
+        var layout = HomeDashboardLayout(rawValues: ["music:0:0:4:1"])
+        let resized = layout.resize(.music, width: 2, height: 1)
+        #expect(resized)
+        let frames = layout.frames(in: 472, rowHeight: 100, gap: 8, presentation: .editor)
+        #expect(frames[.music] == CGRect(x: 0, y: 0, width: 152, height: 100))
+    }
+
+    @Test func homeDashboardTriesAlternatePlacementsForDisplacedCards() {
+        var layout = HomeDashboardLayout(rawValues: ["music:0:0:2:1", "calendar:2:0:3:2", "stats:0:1:2:1"])
+        let resized = layout.resize(.music, width: 4, height: 2)
+        #expect(resized)
+        #expect(layout.rawValues == ["music:0:0:4:2", "calendar:4:0:2:1", "stats:4:1:2:1"])
+    }
+
+    @Test func homeDashboardSkipsInvalidRecordsAndLoadsLegacySlots() {
+        let layout = HomeDashboardLayout(rawValues: [
+            "music:\(Int.max):0:2:1", "calendar:0:0:\(Int.max):1", "stats:bad",
+            "aiUsage:0::0:2:1", "shortcuts:0:0:2:1:bad", "bluetooth"
+        ])
+        #expect(layout.rawValues == ["bluetooth:4:1:2:1"])
     }
 
     @Test func featureShortcutsPersistAndOpenTheSameFeatures() {

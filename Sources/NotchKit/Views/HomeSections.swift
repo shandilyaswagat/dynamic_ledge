@@ -100,8 +100,7 @@ enum HomeSection: Hashable, Identifiable {
             }
         }
         var seen = Set<HomeDashboardWidget>()
-        return HomeDashboardLayout(slots: widgets.filter { seen.insert($0).inserted }
-            .prefix(HomeDashboardLayout.columns).map(Optional.some))
+        return HomeDashboardLayout(widgets: Array(widgets.filter { seen.insert($0).inserted }.prefix(3)))
     }
 }
 
@@ -111,7 +110,7 @@ struct StandardHomeBody: View {
 
     var body: some View {
         if let draft = model.homeDashboardDraft {
-            HomeDashboardEditor(model: model, layout: draft, preview: dashboardCard)
+            HomeDashboardEditor(model: model, layout: draft) { dashboardCard($0, editing: true) }
         } else if let dashboard = model.settings.homeDashboard {
             customDashboard(dashboard)
         } else {
@@ -148,23 +147,22 @@ struct StandardHomeBody: View {
     }
 
     private func customDashboard(_ layout: HomeDashboardLayout) -> some View {
-        let gap = IslandMetrics.Nook.dashboardGap * s
-        let rows = layout.populatedRows
-        return VStack(spacing: gap) {
-            ForEach(rows.indices, id: \.self) { index in
-                let widgets = rows[index]
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: gap), count: widgets.count), spacing: gap) {
-                    ForEach(widgets) { widget in
+        GeometryReader { geometry in
+            let frames = layout.frames(in: geometry.size.width, rowHeight: IslandMetrics.Nook.body * s,
+                                       gap: IslandMetrics.Nook.dashboardGap * s, presentation: .home)
+            ZStack(alignment: .topLeading) {
+                ForEach(layout.widgets) { widget in
+                    if let frame = frames[widget] {
                         dashboardCard(widget)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: IslandMetrics.Nook.body * s)
+                            .frame(width: frame.width, height: frame.height)
+                            .position(x: frame.midX, y: frame.midY)
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .overlay {
-            if rows.isEmpty {
+            if layout.widgets.isEmpty {
                 Text("Add cards from Edit Home")
                     .font(.system(size: 13 * s, weight: .medium))
                     .foregroundStyle(NotchColor.secondaryText)
@@ -172,31 +170,41 @@ struct StandardHomeBody: View {
         }
     }
 
+    private func dashboardCard(_ widget: HomeDashboardWidget, editing: Bool = false) -> some View {
+        GeometryReader { geometry in
+            dashboardContent(widget, editing: editing, wide: geometry.size.width >= 250 * s,
+                             tall: geometry.size.height >= 225 * s)
+                .sectionFrame()
+        }
+    }
+
     @ViewBuilder
-    private func dashboardCard(_ widget: HomeDashboardWidget) -> some View {
+    private func dashboardContent(_ widget: HomeDashboardWidget, editing: Bool, wide: Bool, tall: Bool) -> some View {
         switch widget {
         case .music where model.calls.session != nil && model.settings.callsEnabled:
-            LiveCard(model: model, item: .call, compact: false)
+            LiveCard(model: model, item: .call, compact: false, showsOpenIndicator: !editing, roomyMedia: tall)
         case .music where model.homeHasMedia:
-            LiveCard(model: model, item: .music, compact: false)
+            LiveCard(model: model, item: .music, compact: false, showsOpenIndicator: !editing, roomyMedia: tall)
         case .music:
             dashboardMessage(widget, "Nothing playing")
         case .calendar where model.showsCalendarRow:
             dashboardSurface {
-                CalendarSection(model: model, calendar: model.calendar)
+                CalendarSection(model: model, calendar: model.calendar, eventColumns: wide ? 2 : 1,
+                                eventRows: tall ? 3 : 1)
             }
         case .timer where model.settings.timerEnabled:
             let active = model.activeActivities
             let clocks: [HomeSection.LiveItem] = [.timer, .stopwatch].filter { active.contains($0.activity) }
             dashboardSurface {
-                view(for: .timer(running: clocks))
+                timerSection(running: clocks, extraPreset: wide || tall, tall: tall, dashboard: true, editing: editing)
             }
         case .shortcuts where !model.favoriteShortcuts.isEmpty:
             dashboardSurface {
-                ShortcutsSection(model: model, compact: false)
+                ShortcutsSection(model: model, compact: false, dashboardColumns: wide ? 2 : 1,
+                                 dashboardRows: tall ? 4 : 2)
             }
         case .stats:
-            LiveCard(model: model, item: .stats, compact: false)
+            LiveCard(model: model, item: .stats, compact: false, detailed: true, showsOpenIndicator: !editing)
         case .bluetooth:
             dashboardSurface {
                 VStack(alignment: .leading, spacing: 4 * s) {
@@ -204,12 +212,13 @@ struct StandardHomeBody: View {
                         SectionHeader(symbol: widget.symbol, tint: NotchColor.blue, title: widget.title, showsChevron: true)
                     }
                     .buttonStyle(PressableButtonStyle())
-                    BluetoothPanelBody(compact: true)
+                    BluetoothPanelBody(compact: !wide)
                 }
             }
         case .aiUsage where model.settings.aiUsageLive:
             dashboardSurface {
-                view(for: .aiUsage)
+                AIUsageHomeWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
+                    .dashboardDetails(columns: wide ? 2 : 1, rows: tall ? 4 : (wide ? 1 : 0))
             }
         case .shortcuts:
             dashboardMessage(widget, "No favourite shortcuts")
@@ -253,18 +262,7 @@ struct StandardHomeBody: View {
             CalendarSection(model: model, calendar: model.calendar)
                 .sectionFrame()
         case .timer(let running):
-            VStack(alignment: .leading, spacing: 8 * s) {
-                ForEach(running, id: \.self) { item in
-                    LiveCard(model: model, item: item, compact: true)
-                        .frame(height: 50 * s)
-                        .transition(.scale(scale: 0.92, anchor: .top).combined(with: .opacity))
-                }
-                if running.count < 2 {
-                    // Under a running clock, its card already says "Timer"; just the presets.
-                    TimerSection(model: model, compact: !running.isEmpty, showsHeader: running.isEmpty)
-                }
-            }
-            .sectionFrame()
+            timerSection(running: running)
         case .shortcuts:
             ShortcutsSection(model: model, compact: false)
                 .sectionFrame()
@@ -278,6 +276,22 @@ struct StandardHomeBody: View {
             AIUsageHomeWidget(aiUsage: model.aiUsage, settings: model.settings, onOpen: { model.showTab(.aiUsage) })
                 .sectionFrame()
         }
+    }
+
+    private func timerSection(running: [HomeSection.LiveItem], extraPreset: Bool = false,
+                              tall: Bool = false, dashboard: Bool = false, editing: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 8 * s) {
+            ForEach(running, id: \.self) { item in
+                LiveCard(model: model, item: item, compact: true, showsOpenIndicator: !editing)
+                    .frame(height: (dashboard ? (tall ? 54 : 42) : 50) * s)
+                    .transition(.scale(scale: 0.92, anchor: .top).combined(with: .opacity))
+            }
+            if running.count < 2 || tall {
+                TimerSection(model: model, compact: !running.isEmpty && !tall, showsHeader: running.isEmpty,
+                             extraPreset: extraPreset)
+            }
+        }
+        .sectionFrame()
     }
 }
 
@@ -322,6 +336,10 @@ private struct LiveCard: View {
     let model: IslandModel
     let item: HomeSection.LiveItem
     let compact: Bool
+    /// A card the user sized themselves: it says more when it has the room.
+    var detailed = false
+    var showsOpenIndicator = true
+    var roomyMedia = false
     @State private var isHovering = false
     @Environment(\.notchScale) private var s
 
@@ -329,11 +347,12 @@ private struct LiveCard: View {
         let shape = RoundedRectangle(cornerRadius: (compact ? 12 : 16) * s, style: .continuous)
         Group {
             switch item {
-            case .call: LiveCall(model: model, compact: compact)
-            case .music: LiveMusic(service: model.nowPlaying, lyrics: model.showsLyrics ? model.lyrics.current : nil, compact: compact)
+            case .call: LiveCall(model: model, compact: compact, roomy: roomyMedia)
+            case .music: LiveMusic(service: model.nowPlaying, lyrics: model.showsLyrics ? model.lyrics.current : nil,
+                                   compact: compact, roomy: roomyMedia)
             case .timer: LiveTimer(model: model)
             case .stopwatch: LiveStopwatch(model: model)
-            case .stats: LiveStats(stats: model.stats, compact: compact)
+            case .stats: LiveStats(stats: model.stats, compact: compact, detailed: detailed)
             case .aiUsage: LiveAIUsage(model: model, compact: compact)
             }
         }
@@ -342,7 +361,7 @@ private struct LiveCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: compact ? .leading : .topLeading)
         .background(shape.fill(Color.white.opacity(isHovering && opensFullView ? 0.11 : 0.07)))
         .overlay(alignment: .topTrailing) {
-            if opensFullView && !compact {
+            if opensFullView && !compact && showsOpenIndicator {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 9 * s, weight: .bold))
                     .foregroundStyle(Color.white.opacity(isHovering ? 0.7 : 0.3))
@@ -367,10 +386,11 @@ private struct LiveCard: View {
     }
 }
 
-/// Memory and CPU, as in the notch. Compact is one row.
+/// Memory and CPU, as in the notch. Dashboard cards also use available space for disk and network.
 private struct LiveStats: View {
     let stats: StatsService
     let compact: Bool
+    var detailed = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -390,10 +410,85 @@ private struct LiveStats: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 LiveCardTitle(symbol: "gauge.with.dots.needle.33percent", tint: NotchColor.green, title: "Stats")
-                Spacer(minLength: 6 * s)
-                values
+                if detailed {
+                    ViewThatFits {
+                        detailRow(readings)
+                        VStack(spacing: 10 * s) {
+                            detailRow(readings.prefix(2))
+                            detailRow(readings.suffix(2))
+                        }
+                        detailRow(readings.prefix(3))
+                        detailRow(readings.prefix(2))
+                        values
+                    }
+                    .padding(.top, 10 * s)
+                    .frame(maxHeight: .infinity, alignment: .center)
+                } else {
+                    Spacer(minLength: 6 * s)
+                    values
+                }
             }
         }
+    }
+
+    private var readings: [LiveDetailedReading] {
+        let snapshot = stats.snapshot
+        let hasMemory = snapshot.memoryTotal > 0, hasDisk = snapshot.diskTotal > 0, ready = stats.hasReading
+        return [
+            LiveDetailedReading(
+                caption: "MEM", value: hasMemory ? StatsMath.percent(snapshot.memory) : "–",
+                tint: hasMemory ? snapshot.memoryPressure.tint : NotchColor.secondaryText,
+                detail: hasMemory ? "\(StatsMath.bytes(Int64(snapshot.memoryUsed))) of \(StatsMath.bytes(Int64(snapshot.memoryTotal)))" : ""),
+            LiveDetailedReading(
+                caption: "CPU", value: ready ? StatsMath.percent(snapshot.cpu) : "–",
+                tint: ready ? StatsMath.level(snapshot.cpu).tint : NotchColor.secondaryText,
+                detail: "\(ProcessInfo.processInfo.activeProcessorCount) cores"),
+            LiveDetailedReading(
+                caption: "DISK", value: hasDisk ? StatsMath.bytes(snapshot.diskFree) : "–",
+                tint: hasDisk ? .white : NotchColor.secondaryText,
+                detail: hasDisk ? "free of \(StatsMath.bytes(snapshot.diskTotal))" : ""),
+            LiveDetailedReading(
+                caption: "NET ↓", value: ready ? StatsMath.rate(snapshot.networkIn) : "–",
+                tint: ready ? .white : NotchColor.secondaryText,
+                detail: ready ? "↑ \(StatsMath.rate(snapshot.networkOut))" : ""),
+        ]
+    }
+
+    private func detailRow(_ readings: some RandomAccessCollection<LiveDetailedReading>) -> some View {
+        HStack(alignment: .top, spacing: 10 * s) {
+            ForEach(Array(readings), id: \.caption) { $0 }
+        }
+    }
+}
+
+/// One reading with a stable ideal width so changing values don't switch the card's layout.
+private struct LiveDetailedReading: View {
+    let caption: String
+    let value: String
+    let tint: Color
+    let detail: String
+    @Environment(\.notchScale) private var s
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(caption)
+                .font(.system(size: 8 * s, weight: .bold))
+                .kerning(0.3)
+                .foregroundStyle(NotchColor.secondaryText)
+            Text(value)
+                .font(.system(size: 22 * s, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+                .minimumScaleFactor(0.6)
+            Text(detail)
+                .font(.system(size: 9.5 * s, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(NotchColor.secondaryText)
+                .minimumScaleFactor(0.7)
+        }
+        .lineLimit(1)
+        .frame(minWidth: 72 * s, idealWidth: 72 * s, maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -488,13 +583,15 @@ private struct LiveReading: View {
 private struct LiveCall: View {
     let model: IslandModel
     let compact: Bool
+    var roomy = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
         if let session = model.calls.session {
             let tint = session.isCall ? NotchColor.green : NotchColor.orange
             let title = HStack(spacing: 8 * s) {
-                AppIconView(icon: model.calls.appIcon, symbol: session.isCall ? "phone.fill" : "mic.fill", tint: tint, size: (compact ? 24 : 30) * s)
+                AppIconView(icon: model.calls.appIcon, symbol: session.isCall ? "phone.fill" : "mic.fill", tint: tint,
+                            size: (roomy ? 44 : (compact ? 24 : 30)) * s)
                 VStack(alignment: .leading, spacing: 1 * s) {
                     Text(session.appName)
                         .font(.system(size: (compact ? 12 : 13) * s, weight: .semibold))
@@ -513,7 +610,7 @@ private struct LiveCall: View {
                         .foregroundStyle(tint)
                     }
                 }
-                .lineLimit(1)
+                .lineLimit(roomy ? 2 : 1)
             }
             if compact {
                 HStack(spacing: 6 * s) {
@@ -534,7 +631,7 @@ private struct LiveCall: View {
                                 .accessibilityLabel(Text("Camera in use"))
                         }
                         Spacer(minLength: 0)
-                        buttons(session, size: 34 * s)
+                        buttons(session, size: (roomy ? 40 : 34) * s)
                     }
                 }
             }
@@ -666,6 +763,7 @@ private struct LiveMusic: View {
     /// Shown as one line under the title when the song has timed lyrics.
     let lyrics: SyncedLyrics?
     let compact: Bool
+    var roomy = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -676,7 +774,8 @@ private struct LiveMusic: View {
         let next = GlyphButton(symbol: "forward.fill", size: 12 * s, label: "Next Track") { service.nextTrack() }
         let title = HStack(spacing: 8 * s) {
             Button { service.openSourceApp() } label: {
-                ArtworkView(artwork: service.artwork, fallbackIcon: service.appIcon, size: (compact ? 26 : 40) * s, cornerRadius: (compact ? 6 : 9) * s)
+                ArtworkView(artwork: service.artwork, fallbackIcon: service.appIcon,
+                            size: (roomy ? 66 : (compact ? 26 : 40)) * s, cornerRadius: (compact ? 6 : 9) * s)
             }
             .buttonStyle(PressableButtonStyle())
             .accessibilityLabel(Text("Open player"))
@@ -688,7 +787,7 @@ private struct LiveMusic: View {
                     .font(.system(size: 10.5 * s))
                     .foregroundStyle(NotchColor.secondaryText)
             }
-            .lineLimit(1)
+            .lineLimit(roomy ? 2 : 1)
         }
         if compact {
             HStack(spacing: 2 * s) {
@@ -709,6 +808,18 @@ private struct LiveMusic: View {
                 Spacer(minLength: 4 * s)
                 MiniProgress(service: service)
                     .frame(height: 3 * s)
+                if roomy, let info, let duration = info.duration {
+                    TimelineView(.animation(minimumInterval: 1, paused: !info.isPlaying)) { context in
+                        HStack {
+                            Text(TimeFormatting.clock(info.elapsed(at: context.date) ?? 0))
+                            Spacer()
+                            Text(TimeFormatting.clock(duration))
+                        }
+                        .font(.system(size: 10 * s, weight: .medium).monospacedDigit())
+                        .foregroundStyle(NotchColor.secondaryText)
+                        .padding(.top, 4 * s)
+                    }
+                }
                 HStack(spacing: 16 * s) {
                     GlyphButton(symbol: "backward.fill", size: 12 * s, label: "Previous Track") { service.previousTrack() }
                     playPause
@@ -727,6 +838,8 @@ private struct LiveMusic: View {
 private struct CalendarSection: View {
     let model: IslandModel
     let calendar: CalendarService
+    var eventColumns = 1
+    var eventRows = 1
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -750,29 +863,42 @@ private struct CalendarSection: View {
             Button { model.showTab(.calendar) } label: {
                 VStack(alignment: .leading, spacing: 6 * s) {
                     SectionHeader(symbol: "calendar", tint: NotchColor.red, title: "Calendar", showsChevron: true)
-                    if let event = calendar.nextEvent {
-                        Text(event.title)
-                            .font(.system(size: 13 * s, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                        TimelineView(.everyMinute) { context in
-                            Text(CalendarRules.relativeLabel(for: event, at: context.date))
-                                .font(.system(size: 11 * s, weight: .medium))
-                                .monospacedDigit()
-                                .foregroundStyle(event.isHappening(at: context.date) ? NotchColor.green : NotchColor.secondaryText)
-                                .lineLimit(1)
-                        }
-                    } else {
-                        message("No more events this week")
+                    TimelineView(.everyMinute) { context in
+                        upcomingEvents(at: context.date)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .contentShape(Rectangle())
             }
             .buttonStyle(PressableButtonStyle())
-            .accessibilityLabel(Text(calendar.nextEvent.map { "Next event, \($0.title)" } ?? "Calendar"))
+        }
+    }
+
+    @ViewBuilder
+    private func upcomingEvents(at date: Date) -> some View {
+        let events = calendar.events.filter { !$0.isAllDay && $0.end > date }.sorted { $0.start < $1.start }
+        if events.isEmpty {
+            message("No more events this week")
+        } else {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading), count: eventColumns),
+                      alignment: .leading, spacing: 8 * s) {
+                ForEach(events.prefix(eventColumns * eventRows)) { event in
+                    VStack(alignment: .leading, spacing: 4 * s) {
+                        Text(event.title)
+                            .font(.system(size: 13 * s, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(eventColumns == 1 ? 2 : 1)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(CalendarRules.relativeLabel(for: event, at: date))
+                            .font(.system(size: 11 * s, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(event.isHappening(at: date) ? NotchColor.green : NotchColor.secondaryText)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
         }
     }
 
@@ -792,6 +918,7 @@ private struct TimerSection: View {
     let model: IslandModel
     let compact: Bool
     var showsHeader = true
+    var extraPreset = false
     @Environment(\.notchScale) private var s
 
     var body: some View {
@@ -808,11 +935,11 @@ private struct TimerSection: View {
                 .help("Any length, Pomodoro or Stopwatch")
                 .accessibilityLabel(Text("Timer"))
             }
-            HStack(spacing: 6 * s) {
-                ForEach(TimerService.presets.prefix(3), id: \.self) { preset in
-                    Button("\(Int(preset / 60))m") { model.startTimer(preset) }
-                        .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s, width: 38 * s))
-                        .accessibilityLabel(Text("Start \(TimeFormatting.spoken(preset)) timer"))
+            ViewThatFits(in: .horizontal) {
+                presetRow(TimerService.presets.prefix(extraPreset ? 4 : 3))
+                VStack(alignment: .leading, spacing: 6 * s) {
+                    presetRow(TimerService.presets.prefix(2))
+                    presetRow(TimerService.presets.prefix(extraPreset ? 4 : 3).dropFirst(2))
                 }
             }
             if !compact {
@@ -828,6 +955,16 @@ private struct TimerSection: View {
             }
         }
     }
+
+    private func presetRow(_ presets: ArraySlice<TimeInterval>) -> some View {
+        HStack(spacing: 6 * s) {
+            ForEach(presets, id: \.self) { preset in
+                Button("\(Int(preset / 60))m") { model.startTimer(preset) }
+                    .buttonStyle(QuickActionStyle(tint: NotchColor.orange, scale: s, width: 38 * s))
+                    .accessibilityLabel(Text("Start \(TimeFormatting.spoken(preset)) timer"))
+            }
+        }
+    }
 }
 
 // MARK: Shortcuts
@@ -836,31 +973,45 @@ private struct TimerSection: View {
 private struct ShortcutsSection: View {
     let model: IslandModel
     let compact: Bool
+    var dashboardColumns: Int?
+    var dashboardRows = 2
     @Environment(\.notchScale) private var s
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6 * s) {
             SectionHeader(symbol: "bolt.fill", tint: NotchColor.blue, title: "Shortcuts")
-            ForEach(model.favoriteShortcuts.prefix(compact ? 1 : 3), id: \.self) { name in
-                let isRunning = model.shortcuts.running.contains(name)
-                Button {
-                    model.shortcuts.run(name)
-                } label: {
-                    HStack(spacing: 5 * s) {
-                        if isRunning {
-                            ProgressView()
-                                .controlSize(.mini)
-                        }
-                        Text(name)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: 112 * s, alignment: .leading)
+            if let dashboardColumns {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: dashboardColumns),
+                          alignment: .leading, spacing: 6 * s) {
+                    ForEach(model.favoriteShortcuts.prefix(dashboardColumns * dashboardRows), id: \.self) { name in
+                        shortcut(name, labelWidth: 88 * s)
                     }
                 }
-                .buttonStyle(QuickActionStyle(tint: NotchColor.blue, scale: s))
-                .disabled(isRunning)
-                .help(name)
-                .accessibilityLabel(Text("Run shortcut \(name)"))
+            } else {
+                ForEach(model.favoriteShortcuts.prefix(compact ? 1 : 3), id: \.self) { name in
+                    shortcut(name, labelWidth: 112 * s)
+                }
             }
         }
+    }
+
+    private func shortcut(_ name: String, labelWidth: CGFloat) -> some View {
+        let isRunning = model.shortcuts.running.contains(name)
+        return Button {
+            model.shortcuts.run(name)
+        } label: {
+            HStack(spacing: 5 * s) {
+                if isRunning {
+                    ProgressView().controlSize(.mini)
+                }
+                Text(name)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: labelWidth, alignment: .leading)
+            }
+        }
+        .buttonStyle(QuickActionStyle(tint: NotchColor.blue, scale: s))
+        .disabled(isRunning)
+        .help(name)
+        .accessibilityLabel(Text("Run shortcut \(name)"))
     }
 }

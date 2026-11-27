@@ -397,9 +397,9 @@ public final class IslandModel {
 
     var homeDashboardRows: Int {
         guard let draft = homeDashboardDraft else {
-            return max(1, settings.homeDashboard?.populatedRows.count ?? 0)
+            return max(1, settings.homeDashboard?.occupiedRows ?? 0)
         }
-        return homeDashboardEditorMode == .arranging ? draft.visibleRows : HomeDashboardLayout.rows
+        return homeDashboardEditorMode == .arranging ? max(1, draft.extentRows) : HomeDashboardLayout.rows
     }
 
     public var homeContent: HomeContent {
@@ -1118,13 +1118,13 @@ public final class IslandModel {
     }
 
     /// Stats reads the system only while it's showing; music, a timer or another open view
-    /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel (or the
-    /// elongated Home's Stats widget) is open, since the notch shows just memory and CPU.
+    /// pushes it aside, and then there's nothing to update. Disk and network are read only while the panel, the
+    /// elongated Home's Stats widget or a Stats card on Home is open, since the notch shows just memory and CPU.
     private func syncStatsSampling() {
         let dashboardShowsStats = expandTarget == .home
             && settings.appearance.nookLayout != .elongated
             && (homeDashboardDraft != nil || settings.homeDashboard?.widgets.contains(.stats) == true)
-        let detailed = expandTarget == .nook(.stats)
+        let detailed = expandTarget == .nook(.stats) || dashboardShowsStats
             || (settings.statsEnabled && expandTarget == .home && settings.appearance.nookLayout == .elongated)
         stats.detailed = detailed
         guard settings.statsEnabled || detailed || dashboardShowsStats else {

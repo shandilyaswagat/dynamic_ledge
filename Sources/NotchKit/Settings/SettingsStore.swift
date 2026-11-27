@@ -177,7 +177,7 @@ public final class SettingsStore {
     public var shortcutsEnabled: Bool { didSet { defaults.set(shortcutsEnabled, forKey: Key.shortcuts) } }
     /// Shortcut names pinned to the Home tab, in order.
     public var favoriteShortcuts: [String] { didSet { defaults.set(favoriteShortcuts, forKey: Key.favoriteShortcuts) } }
-    /// Nil uses the automatic Home layout. A layout can intentionally have empty slots.
+    /// Nil uses the automatic Home layout. A layout can intentionally hold no cards.
     var homeDashboard: HomeDashboardLayout? {
         didSet {
             if let homeDashboard {
